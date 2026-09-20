@@ -27,6 +27,18 @@ job-search process.
 
 ## Technologies (Programming languages used and ect...)
 
+## Workflow
+
+## Git Workflow (Branches)
+
+- `main` — stable/production-ready code
+- `dev` — integration branch for completed features
+- Each team member works on their own personal/feature branch.
+- Changes are committed and pushed to the personal/feature branch.
+- A Pull Request (PR) is created from the personal/feature branch into `dev`.
+- Team members review and test the PR before merging.
+- `dev` is eventually merged into `main` when the release is ready.
+
 ## Setup instructions
 
 ## Proposed features ([More info here](https://github.com/Ionnerss/CareerConnect/wiki))
