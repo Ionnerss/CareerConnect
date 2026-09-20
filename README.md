@@ -27,8 +27,6 @@ job-search process.
 
 ## Technologies (Programming languages used and ect...)
 
-## Workflow
-
 ## Git Workflow (Branches)
 
 - `main` — stable/production-ready code
