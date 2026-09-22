@@ -36,7 +36,7 @@ job-search process.
 - A Pull Request (PR) is created from the personal/feature branch into `dev`.
 - Team members review and test the PR before merging.
 - `dev` is eventually merged into `main` when the release is ready.
-
+---
 - For each User-story, there will be a description and checkbox tasks associated with it.
 - Each member will be assigned to tasks based on respective roles.
 - When each task is done, the issue must be closed and the respective task must be checked in the user story.
