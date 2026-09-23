@@ -25,7 +25,25 @@ job-search process.
 * Ray
 * Yousef
 
-## Technologies (Programming languages used and ect...)
+## Technologies
+
+CareerConnect will use **Next.js**, **TypeScript**, and **PostgreSQL through Supabase**. This stack supports frontend and backend development within one application, with a relational database for users, job postings, and applications.
+
+| Category | Technology | Purpose |
+| --- | --- | --- |
+| Frontend and backend | Next.js / React | Build the user interface, API endpoints, and server-side application logic. |
+| Programming language | TypeScript | Improve reliability and maintainability through type checking. |
+| Database | PostgreSQL through Supabase | Store profiles, job postings, applications, and related data. |
+| Authentication | Supabase Auth | Handle registration, login, and user sessions. |
+| File storage | Supabase Storage | Store uploaded resumes with access controls. |
+| Styling and components | Tailwind CSS / shadcn/ui | Build a consistent, responsive interface. |
+| Input validation | Zod | Validate user input and server requests. |
+| Testing | Vitest / Playwright | Test application logic and complete user workflows. |
+| Version control and collaboration | Git / GitHub | Manage code, issues, branches, and pull requests. |
+| Continuous integration | GitHub Actions | Automate builds, tests, and code checks. |
+| Package management | npm | Manage dependencies and run project scripts. |
+
+**AI integration:** An external AI API will support the required generative AI functionality. The provider and model are still to be selected.
 
 ## Git Workflow (Branches, User-Stories and Tasks)
 
