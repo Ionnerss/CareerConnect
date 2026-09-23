@@ -11,7 +11,7 @@ their job-search process.
 Job seekers often have difficulty keeping track of multiple job applications,
 deadlines, interviews, and application statuses across different platforms.
 
-## proposed solution
+## Proposed solution
 
 CareerConnect provides a centralized platform where users can search for jobs,
 save job postings, track applications, and monitor their progress throughout the
