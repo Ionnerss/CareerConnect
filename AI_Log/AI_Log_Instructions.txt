@@ -1,0 +1,67 @@
+CAREERCONNECT - AI USAGE LOG INSTRUCTIONS
+
+PURPOSE
+This folder records how each team member uses AI during the CareerConnect
+project. Logs must show what AI contributed, how its output was checked,
+and what was ultimately used, changed, or rejected.
+
+1. FOLDER AND REPORT SETUP
+- Create a subfolder inside AI_Log using your own name.
+- Upload one PDF report per sprint to your personal subfolder.
+- Suggested path: AI_Log/FirstName_LastName/Sprint1_AI_Log.pdf
+- Include your full name and sprint number at the start of each report.
+- You may keep an editable draft, but it does not replace the required PDF.
+
+2. WHAT TO RECORD
+Record every use of AI related to the project, including brainstorming,
+research, requirements, planning, design, coding, code review, debugging,
+testing, and documentation. Record interactions even when you reject the
+suggestions. If AI influenced a decision or deliverable, log it.
+
+3. HOW TO MAINTAIN YOUR LOG
+- Add an entry for each AI-assisted activity. Recommended: write it promptly
+  and keep entries in chronological order.
+- Identify the AI tool used. Include its model if known.
+- Provide a conversation link, or include the complete prompt and relevant
+  AI response in an appendix. A summary alone is not sufficient evidence.
+- Review and validate AI-generated content before using it. Describe the
+  checks actually performed and their results; do not claim unperformed checks.
+- Explain your final decision and any changes made to the AI output.
+- Be prepared to explain your AI usage and validation during lab reviews.
+
+4. ENTRY TEMPLATE
+Copy the following template for each activity. Date and tool/model fields
+are included for consistency alongside the assignment's required fields.
+
+Entry number: [Number]
+Date: [YYYY-MM-DD]
+AI tool/model: [Tool name; model if known]
+Task ID/Title: [Related task or issue ID, if available, and short title]
+Purpose of AI Use: [Why you used AI]
+Chat Link or Prompt/Response: [Conversation URL or appendix reference]
+AI-Suggested Content: [Summary of what AI proposed or generated]
+Validation: [How you checked the output and what you found]
+Decision: [Accepted / Modified before use / Rejected; explain changes or rejection]
+Reflection: [What you learned and whether AI was useful]
+Responsible Person: [Your full name]
+
+Appendix entry, if no conversation link is provided:
+Activity reference: [Entry number]
+Full prompt(s): [Paste the complete prompt(s)]
+Relevant AI response(s): [Paste the relevant response(s)]
+
+5. SPRINT 1 USER STORIES REQUIREMENT
+Include an AI log entry for the required activity of asking AI to generate
+10 user stories for CareerConnect. Preserve the full prompt or chat link
+and the user stories returned by AI.
+
+After reviewing those stories, the team must brainstorm additional original
+stories and features. Document these separately under the exact heading
+"Team-Generated User Stories and Features". Do not label AI-generated ideas
+as team-generated or mix the two sources. Be ready to explain and justify
+the team's original additions during the lab.
+
+6. BEFORE UPLOADING YOUR SPRINT REPORT
+Check that every AI activity is recorded, each entry includes evidence and
+all required fields, and the PDF is in your personal subfolder. Ensure links
+work and appendix references point to the correct prompts and responses.
