@@ -4,3 +4,6 @@ git branch -> shows all branches and branch currently on (the one currently on i
 git switch branch_name -> switches to selected branch
 git switch -c newBranchName sourceBranchName -> creates new branch from source branch and switches to it
 git branch newBranchName sourceBranchName -> creates new branch from source but stays in current branch
+
+if too hard,
+Create new branch by going in initial page of GitHub repo and go to branches and view all branches. top left should be button to create new branch. Choose which branch as source and create.
