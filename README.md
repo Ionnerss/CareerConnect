@@ -61,5 +61,39 @@ CareerConnect will use **Next.js**, **TypeScript**, and **PostgreSQL through Sup
 
 ## Setup instructions
 
+1. Clone the repository and switch to the development branch:
+
+   ```bash
+   git clone https://github.com/Ionnerss/CareerConnect.git
+   cd CareerConnect
+   git switch dev
+   ```
+
+2. Enter the application directory and install dependencies:
+
+   ```bash
+   cd web
+   npm ci
+   ```
+
+3. In the `web` folder, copy `.env.example` and name the copy `.env.local`.
+
+4. Open `.env.local` and replace the placeholders with the team's Supabase project URL and publishable key:
+
+   ```dotenv
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+   ```
+
+   Ask a team member for the project connection details. Do not commit `.env.local` to Git.
+
+5. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
 ## Proposed features ([More info here](https://github.com/Ionnerss/CareerConnect/wiki))
 * Skill gap map
