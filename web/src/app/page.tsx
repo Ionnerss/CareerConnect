@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 
 export default function Home() {
   return (
@@ -12,12 +12,15 @@ export default function Home() {
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button asChild size="lg">
-            <Link href="/auth/login">Log in</Link>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <Link href="/auth/signup">Sign up</Link>
-          </Button>
+          <Link href="/auth/login" className={buttonVariants({ size: "lg" })}>
+            Log in
+          </Link>
+          <Link
+            href="/auth/signup"
+            className={buttonVariants({ size: "lg", variant: "outline" })}
+          >
+            Sign up
+          </Link>
         </div>
       </div>
     </div>
