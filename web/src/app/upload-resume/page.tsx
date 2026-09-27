@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-export default function uploadResumePage() {
+export default function UploadResumePage() {
     const [selectResumeFile, setSelectResumeFile] = useState<File | null>(null);
     const [fileStatusMessage, setFileStatusMessage] = useState<string | null>("No file currently selected");
     const resumeFileInputRef = useRef<HTMLInputElement>(null);

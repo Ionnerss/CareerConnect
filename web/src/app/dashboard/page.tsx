@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { buttonVariants } from "@/components/ui/button";
+import LogoutButton from "@/components/auth/logout-button";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
           <Link href="/upload-resume" className={buttonVariants({ size: "lg" })}>
             Upload resume
           </Link>
+          <LogoutButton />
         </div>
       </div>
     </main>
