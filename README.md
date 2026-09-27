@@ -2,20 +2,15 @@
 
 ## Project description
 
-CareerConnect is a job search and application tracking platform designed to help 
-users organize their job applications, track application progress, and improve
-their job-search process.
+CareerConnect is the newest and most trending web application that exists today for job seekers. Recruiters use this website daily to hire new candidates and network amongst important people.
 
 ## Identified problem
 
-Job seekers often have difficulty keeping track of multiple job applications,
-deadlines, interviews, and application statuses across different platforms.
+Job seekers usually tend to have a hard time managing job postings and lack the simplicity of getting job recommendations based on their skills and years of job experience.
 
 ## Proposed solution
 
-CareerConnect provides a centralized platform where users can search for jobs,
-save job postings, track applications, and monitor their progress throughout the
-job-search process.
+Hence, CareerConnect provides a platform for all job seekers to get the most efficient and reliable job search on the market. The platform will offer an AI based agent to guide the user for creating a cover letter based on user input, job application and their resume. The web app will offer the user some job recommendations purely based on skills that they own and the possible inadequate years of work experience that they may have.
 
 ## Team members
 
