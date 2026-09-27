@@ -90,6 +90,5 @@ CareerConnect will use **Next.js**, **TypeScript**, and **PostgreSQL through Sup
 
 6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-
 ## Proposed features ([More info here](https://github.com/Ionnerss/CareerConnect/wiki))
 * Skill gap map
