@@ -63,5 +63,5 @@ Absent:
 | Catalin | Configure the initial database and authentication system | 2026-09-27 | In Progress |  
 | Yousef | Develop the dashboard and session management| 2026-09-27 | In Progress |  
 | Daksikan| Develop user sign up functionality | 2026-09-27 | In Progress |  
-|Rey|Develop user login functionality|2026-09-27|In Progress|  
+| Ray | Develop user login functionality | 2026-09-27 | In Progress |  
 
