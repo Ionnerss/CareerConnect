@@ -56,12 +56,12 @@ Absent:
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
 *Action Items*
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------
-|Matthew| Set up the GitHub project management workflow|2026-09-27|In Progress|  
-|Matthew|Organize Sprint 1 tasks and documentation|2026-09-27|In Progress |  
-|Matthew|Develop the resume upload frontend|2026-09-27|In Progress|  
-|Yousef|Set up Supabase|2026-09-27|In Progress|  
-|Catalin|Configure the initial database and authentication system|2026-09-27|In Progress|  
-|Yousef |Develop the dashboard and session management|2026-09-27|In Progress|  
-|Daksikan| Develop user sign up functionality|2026-09-27|In Progress|  
+| Matthew | Set up the GitHub project management workflow |2026-09-27 | In Progress |  
+| Matthew | Organize Sprint 1 tasks and documentation | 2026-09-27 | In Progress |  
+| Matthew | Develop the resume upload frontend | 2026-09-27 | In Progress |  
+| Yousef | Set up Supabase| 2026-09-27 | In Progress |  
+| Catalin | Configure the initial database and authentication system | 2026-09-27 | In Progress |  
+| Yousef | Develop the dashboard and session management| 2026-09-27 | In Progress |  
+| Daksikan| Develop user sign up functionality | 2026-09-27 | In Progress |  
 |Rey|Develop user login functionality|2026-09-27|In Progress|  
 
