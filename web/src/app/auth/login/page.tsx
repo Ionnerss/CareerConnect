@@ -24,7 +24,6 @@ export default function LoginPage() {
     setFormError(null);
 
     const result = loginSchema.safeParse({ email, password });
-
     if (!result.success) {
       const fieldErrors: FieldErrors = {};
       for (const issue of result.error.issues) {
@@ -37,21 +36,26 @@ export default function LoginPage() {
 
     setErrors({});
     setIsSubmitting(true);
+    
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email: result.data.email,
+        password: result.data.password,
+      });
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email: result.data.email,
-      password: result.data.password,
-    });
+      if (error) {
+        setFormError(error.message);
+        return;
+      }
 
-    setIsSubmitting(false);
-
-    if (error) {
-      setFormError(error.message);
-      return;
+      router.push("/dashboard");
+    } catch {
+      setFormError("An unexpected error has occurred. Please try again.");
     }
-
-    router.push("/dashboard");
+    finally { 
+      setIsSubmitting(false); 
+    }
   }
 
   return (
