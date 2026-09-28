@@ -2,20 +2,15 @@
 
 ## Project description
 
-CareerConnect is a job search and application tracking platform designed to help 
-users organize their job applications, track application progress, and improve
-their job-search process.
+CareerConnect is the newest and most trending web application that exists today for job seekers. Recruiters use this website daily to hire new candidates and network amongst important people.
 
 ## Identified problem
 
-Job seekers often have difficulty keeping track of multiple job applications,
-deadlines, interviews, and application statuses across different platforms.
+Job seekers usually tend to have a hard time managing job postings and lack the simplicity of getting job recommendations based on their skills and years of job experience.
 
 ## Proposed solution
 
-CareerConnect provides a centralized platform where users can search for jobs,
-save job postings, track applications, and monitor their progress throughout the
-job-search process.
+Hence, CareerConnect provides a platform for all job seekers to get the most efficient and reliable job search on the market. The platform will offer an AI based agent to guide the user for creating a cover letter based on user input, job application and their resume. The web app will offer the user some job recommendations purely based on skills that they own and the possible inadequate years of work experience that they may have.
 
 ## Team members
 
@@ -60,6 +55,40 @@ CareerConnect will use **Next.js**, **TypeScript**, and **PostgreSQL through Sup
 - When each task is done, the issue must be closed and the respective task must be checked in the user story.
 
 ## Setup instructions
+
+1. Clone the repository and switch to the development branch:
+
+   ```bash
+   git clone https://github.com/Ionnerss/CareerConnect.git
+   cd CareerConnect
+   git switch dev
+   ```
+
+2. Enter the application directory and install dependencies:
+
+   ```bash
+   cd web
+   npm ci
+   ```
+
+3. In the `web` folder, copy `.env.example` and name the copy `.env.local`.
+
+4. Open `.env.local` and replace the placeholders with the team's Supabase project URL and publishable key:
+
+   ```dotenv
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+   ```
+
+   Ask a team member for the project connection details. Do not commit `.env.local` to Git.
+
+5. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Proposed features ([More info here](https://github.com/Ionnerss/CareerConnect/wiki))
 * Skill gap map
