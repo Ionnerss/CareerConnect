@@ -56,12 +56,12 @@ CareerConnect will use **Next.js**, **TypeScript**, and **PostgreSQL through Sup
 
 ## Setup instructions
 
-1. Clone the repository and switch to the development branch:
+1. Clone the repository and switch to the production-ready branch:
 
    ```bash
    git clone https://github.com/Ionnerss/CareerConnect.git
    cd CareerConnect
-   git switch dev
+   git switch main
    ```
 
 2. Enter the application directory and install dependencies:
