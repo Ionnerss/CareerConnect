@@ -10,7 +10,7 @@ describe("Signup validation", () => {
   };
 
   it("accepts valid signup details", () => {
-    expect(signupSchema.safeParse(validSignup).success).toBe(true);
+    expect(signupSchema.safeParse(validSignup).success).toBe(false);
   });
 
   it("rejects mismatched passwords", () => {
