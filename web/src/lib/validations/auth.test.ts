@@ -10,7 +10,7 @@ describe("Signup validation", () => {
   };
 
   it("accepts valid signup details", () => {
-    expect(signupSchema.safeParse(validSignup).success).toBe(false);
+    expect(signupSchema.safeParse(validSignup).success).toBe(true);
   });
 
   it("rejects mismatched passwords", () => {
@@ -19,7 +19,7 @@ describe("Signup validation", () => {
       confirmPassword: "Different123",
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
 
     if (!result.success) {
       expect(
