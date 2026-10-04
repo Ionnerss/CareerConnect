@@ -9,3 +9,7 @@ git branch -D branchname -> Force deletes branch locally if it has unmerged comm
 
 if too hard,
 Create new branch by going in initial page of GitHub repo and go to branches and view all branches. top left should be button to create new branch. Choose which branch as source and create.
+
+FOR CI PIPELINE:
+- you may need to run "npm ci" to install dependencies.
+- After, only do "npm run ci"
