@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { recoverResumeSaveOutcome } from "@/lib/resumes/recover-upload";
 
 export default function UploadResumePage() {
     const [selectResumeFile, setSelectResumeFile] = useState<File | null>(null);
@@ -86,8 +87,6 @@ export default function UploadResumePage() {
         setIsUploading(true);
         setFileStatusMessage("Uploading resume...");
 
-        let uploadedFilePath: string | null = null;
-
         try {
             const supabase = createClient();
 
@@ -104,7 +103,6 @@ export default function UploadResumePage() {
             }
 
             const filePath = `${user.id}/${crypto.randomUUID()}.pdf`;
-            uploadedFilePath = filePath;
 
             const { error: uploadError } = await supabase.storage
                 .from("resumes")
@@ -129,21 +127,31 @@ export default function UploadResumePage() {
                 });
 
             if (insertError) {
-                const { error: removeError } = await supabase.storage
-                    .from("resumes")
-                    .remove([filePath]);
+                const recovery = await recoverResumeSaveOutcome(async () => {
+                    const {
+                        data: savedResume,
+                        error: verificationError,
+                    } = await supabase
+                        .from("resumes")
+                        .select("id")
+                        .eq("user_id", user.id)
+                        .eq("file_path", filePath)
+                        .maybeSingle();
 
-                if (removeError) {
-                    console.error(
-                        "The uploaded file could not be cleaned up:",
-                        removeError
+                    return {
+                        data: savedResume,
+                        error: verificationError,
+                    };
+                });
+
+                if (recovery.status === "uncertain") {
+                    setFileStatusMessage(
+                        "We couldn't confirm whether your resume was saved. Retrying may create a duplicate."
                     );
+                    return;
                 }
 
-                setFileStatusMessage(
-                    "The resume could not be saved. Please try again."
-                );
-                return;
+                // The row exists, so continue to the success handling below.
             }
 
             setFileStatusMessage("Resume uploaded successfully.");
@@ -154,17 +162,8 @@ export default function UploadResumePage() {
             }
         } catch (error) {
             console.error("Unexpected resume upload error:", error);
-
-            if (uploadedFilePath) {
-                const supabase = createClient();
-
-                await supabase.storage
-                    .from("resumes")
-                    .remove([uploadedFilePath]);
-            }
-
             setFileStatusMessage(
-                "An unexpected error occurred. Please try again."
+                "We couldn't confirm whether your resume was saved. Retrying may create a duplicate."
             );
         } finally {
             setIsUploading(false);
