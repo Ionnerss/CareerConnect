@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { recoverResumeSaveOutcome } from "@/lib/resumes/recover-upload";
 
 export default function UploadResumePage() {
     const [selectResumeFile, setSelectResumeFile] = useState<File | null>(null);
@@ -126,26 +127,31 @@ export default function UploadResumePage() {
                 });
 
             if (insertError) {
-                console.error("Resume metadata insert returned an error:", insertError);
+                const recovery = await recoverResumeSaveOutcome(async () => {
+                    const {
+                        data: savedResume,
+                        error: verificationError,
+                    } = await supabase
+                        .from("resumes")
+                        .select("id")
+                        .eq("user_id", user.id)
+                        .eq("file_path", filePath)
+                        .maybeSingle();
 
-                const {
-                    data: savedResume,
-                    error: verificationError,
-                } = await supabase
-                    .from("resumes")
-                    .select("id")
-                    .eq("user_id", user.id)
-                    .eq("file_path", filePath)
-                    .maybeSingle();
+                    return {
+                        data: savedResume,
+                        error: verificationError,
+                    };
+                });
 
-                if (verificationError || !savedResume) {
+                if (recovery.status === "uncertain") {
                     setFileStatusMessage(
                         "We couldn't confirm whether your resume was saved. Retrying may create a duplicate."
                     );
                     return;
                 }
 
-                // The matching row exists: continue to the success handling below.
+                // The row exists, so continue to the success handling below.
             }
 
             setFileStatusMessage("Resume uploaded successfully.");
@@ -156,7 +162,6 @@ export default function UploadResumePage() {
             }
         } catch (error) {
             console.error("Unexpected resume upload error:", error);
-
             setFileStatusMessage(
                 "We couldn't confirm whether your resume was saved. Retrying may create a duplicate."
             );
