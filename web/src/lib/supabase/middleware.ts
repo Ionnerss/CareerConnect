@@ -34,14 +34,29 @@ export async function updateSession(request: NextRequest) {
   // issues with users being randomly logged out.
 
 
-  //We’ll add protected-route redirects when the login URL and auth/login is done.
-  // Authentication checks and database policies will still be required for protected operations.
-  //--------
-  // IMPORTANT: If you remove getClaims() and you use server-side rendering
-  // with the Supabase client, your users may be randomly logged out.
-  //const { data } = await supabase.auth.getClaims()
-  await supabase.auth.getClaims()
-  //const user = data?.claims
+  const { data, error } = await supabase.auth.getClaims();
+
+  const pathname = request.nextUrl.pathname;
+  const protectedRoutes = ["/dashboard", "/upload-resume"];
+
+  const isProtectedRoute = protectedRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+
+  if (isProtectedRoute && (error || !data?.claims?.sub)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/login";
+    url.search = "";
+
+    const redirectResponse = NextResponse.redirect(url);
+
+    // Preserve any session cookies updated during the authentication check.
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+
+    return redirectResponse;
+  }
 
   // if (
   //   !user &&

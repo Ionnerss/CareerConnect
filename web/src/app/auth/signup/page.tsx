@@ -23,6 +23,8 @@ export default function SignupPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (isSubmitting) return;
+
     setFormError(null);
 
     const result = signupSchema.safeParse({ name, email, password, confirmPassword });
@@ -40,23 +42,30 @@ export default function SignupPage() {
     setErrors({});
     setIsSubmitting(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email: result.data.email,
-      password: result.data.password,
-      options: {
-        data: { full_name: result.data.name },
-      },
-    });
+    try {
+      const supabase = createClient();
 
-    setIsSubmitting(false);
+      const { error } = await supabase.auth.signUp({
+        email: result.data.email,
+        password: result.data.password,
+        options: {
+          data: { full_name: result.data.name },
+        },
+      });
 
-    if (error) {
-      setFormError(error.message);
-      return;
+      if (error) {
+        setFormError(error.message);
+        return;
+      }
+
+      router.push("/auth/login");
+    } catch {
+      setFormError(
+        "An unexpected error occurred. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-
-    router.push("/auth/login");
   }
 
   return (
