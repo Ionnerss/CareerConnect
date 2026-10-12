@@ -51,7 +51,7 @@ Make database changes directly in the Supabase dashboard.
 From the CareerConnect root folder, run:
 
 ```bash
-npx supabase db pull
+npx supabase db pull THE_NAME_YOU_WANT_FOR_MIGRATION_FILE
 ```
 
 Review the generated SQL file inside `supabase/migrations/`. It contains the schema differences detected by Supabase and may include multiple changes in one file.
