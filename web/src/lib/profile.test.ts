@@ -299,6 +299,8 @@ describe("Mock Supabase Client", () => {
     it("Update returns a profile", async () => {
         const updateProfile = {
             id: "test-user-id",
+            avatar_path: "test-user-id/avatar/test.jpg",
+            background_path: "test-user-id/background/test.jpg",
             ...validProfile
         }
 

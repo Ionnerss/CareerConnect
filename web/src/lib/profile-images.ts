@@ -1,17 +1,46 @@
 import { createClient } from "@/lib/supabase/server";
 import { profileImageSchema } from "./validations/profile-image";
 
-export async function uploadProfileImage(input: unknown) {
+export type ProfileImageErrorCode =
+    | "INVALID_INPUT"
+    | "UNAUTHENTICATED"
+    | "PROFILE_NOT_FOUND"
+    | "PROFILE_CONFLICT"
+    | "BACKEND_ERROR"
+    | "OUTCOME_UNCERTAIN";
+
+type ImageProfile = {
+    id: string;
+    avatar_path: string | null;
+    background_path: string | null;
+};
+
+export type ProfileImageResult =
+    | {
+          success: true;
+          profile: ImageProfile;
+      }
+    | {
+          success: false;
+          code: ProfileImageErrorCode;
+          error: string;
+      };
+
+export async function uploadProfileImage(
+    input: unknown,
+): Promise<ProfileImageResult> {
     const parsed = profileImageSchema.safeParse(input);
 
     if (!parsed.success) {
         return {
             success: false,
+            code: "INVALID_INPUT",
             error: "Please choose a nonempty JPEG, PNG, or WebP image of 5 MiB or smaller.",
         };
     }
 
     const supabase = await createClient();
+
     const {
         data: { user },
         error,
@@ -20,6 +49,7 @@ export async function uploadProfileImage(input: unknown) {
     if (error || !user) {
         return {
             success: false,
+            code: "UNAUTHENTICATED",
             error: "Unable to authenticate. Please sign in again.",
         };
     }
@@ -33,6 +63,7 @@ export async function uploadProfileImage(input: unknown) {
     } catch {
         return {
             success: false,
+            code: "INVALID_INPUT",
             error: "Unable to read your image. Please try a different image.",
         };
     }
@@ -40,6 +71,7 @@ export async function uploadProfileImage(input: unknown) {
     if (!valid) {
         return {
             success: false,
+            code: "INVALID_INPUT",
             error: "Invalid image. Please try a different image.",
         };
     }
@@ -55,6 +87,7 @@ export async function uploadProfileImage(input: unknown) {
     } else {
         return {
             success: false,
+            code: "INVALID_INPUT",
             error: "Please choose a JPEG, PNG, or WebP image.",
         };
     }
@@ -72,6 +105,7 @@ export async function uploadProfileImage(input: unknown) {
     if (existingProfileError) {
         return {
             success: false,
+            code: "BACKEND_ERROR",
             error: "Could not load your profile. Please try again.",
         };
     }
@@ -79,13 +113,13 @@ export async function uploadProfileImage(input: unknown) {
     if (!existingProfile) {
         return {
             success: false,
+            code: "PROFILE_NOT_FOUND",
             error: "Profile not found.",
         };
     }
 
     const oldPath = existingProfile[column];
-    const uniqueFilename = `${crypto.randomUUID()}.${extension}`;
-    const path = `${user.id}/${kind}/${uniqueFilename}`;
+    const path = `${user.id}/${kind}/${crypto.randomUUID()}.${extension}`;
 
     const { error: uploadError } = await supabase.storage
         .from("profile-images")
@@ -97,6 +131,7 @@ export async function uploadProfileImage(input: unknown) {
     if (uploadError) {
         return {
             success: false,
+            code: "BACKEND_ERROR",
             error: "Unable to upload your image. Please try again.",
         };
     }
@@ -106,6 +141,7 @@ export async function uploadProfileImage(input: unknown) {
         .update({ [column]: path })
         .eq("id", user.id);
 
+    // Update only if this image has not changed since the initial read.
     if (oldPath === null) {
         updateQuery = updateQuery.is(column, null);
     } else {
@@ -116,9 +152,11 @@ export async function uploadProfileImage(input: unknown) {
         .select("id, avatar_path, background_path")
         .maybeSingle();
 
-    let savedProfile = profile;
+    let savedProfile: ImageProfile;
 
-    if (profileError || !profile) {
+    if (!profileError && profile) {
+        savedProfile = profile;
+    } else {
         const { data: currentProfile, error: checkError } = await supabase
             .from("profiles")
             .select("id, avatar_path, background_path")
@@ -126,8 +164,10 @@ export async function uploadProfileImage(input: unknown) {
             .maybeSingle();
 
         if (checkError) {
+            // The update may have succeeded. Keep the uploaded file.
             return {
                 success: false,
+                code: "OUTCOME_UNCERTAIN",
                 error: "Could not confirm whether your image was saved. Please refresh your profile.",
             };
         }
@@ -135,6 +175,7 @@ export async function uploadProfileImage(input: unknown) {
         if (currentProfile && currentProfile[column] === path) {
             savedProfile = currentProfile;
         } else {
+            // The new file is not the profile's current image.
             const { error: removeError } = await supabase.storage
                 .from("profile-images")
                 .remove([path]);
@@ -144,16 +185,39 @@ export async function uploadProfileImage(input: unknown) {
                     "Failed to remove unused profile image:",
                     removeError,
                 );
+
+                return {
+                    success: false,
+                    code: "BACKEND_ERROR",
+                    error: "Your image could not be saved or cleaned up. Please try again later.",
+                };
+            }
+
+            if (!currentProfile) {
+                return {
+                    success: false,
+                    code: "PROFILE_NOT_FOUND",
+                    error: "Profile not found.",
+                };
+            }
+
+            if (currentProfile[column] !== oldPath) {
+                return {
+                    success: false,
+                    code: "PROFILE_CONFLICT",
+                    error: "Your profile image changed during this upload. Please refresh your profile before trying again.",
+                };
             }
 
             return {
                 success: false,
+                code: "BACKEND_ERROR",
                 error: "Your image could not be saved. Please refresh your profile before trying again.",
             };
         }
     }
 
-    // Only clean up an old image from this user's matching image folder.
+    // Only remove an old image from this user's matching image folder.
     if (
         typeof oldPath === "string" &&
         oldPath !== path &&
@@ -180,26 +244,36 @@ export async function uploadProfileImage(input: unknown) {
 async function validateImage(file: File): Promise<boolean> {
     const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
 
-    if (file.type === 'image/jpeg') {
-        if (bytes.length < 3) return false;
-        return (bytes.at(0) === 0xFF && bytes.at(1) === 0xD8 && bytes.at(2) === 0xFF);
-    }
-    else if (file.type === 'image/png') {
-        if (bytes.length < 8) return false;
-
-        const expectedBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
-        return expectedBytes.every((expected, index) => expected === bytes[index]);
-    }
-    else if (file.type === 'image/webp') {
-        if (bytes.length < 12) return false;
-
-        const RIFF = [82, 73, 70, 70];
-        const WEBP = [87, 69, 66, 80];
-
+    if (file.type === "image/jpeg") {
         return (
-            RIFF.every((expected, index) => expected === bytes[index])
-            && WEBP.every((expected, index) => expected === bytes[index + 8])
+            bytes.length >= 3 &&
+            bytes[0] === 0xff &&
+            bytes[1] === 0xd8 &&
+            bytes[2] === 0xff
         );
     }
-    else return false;
+
+    if (file.type === "image/png") {
+        const expected = [
+            0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+        ];
+
+        return (
+            bytes.length >= expected.length &&
+            expected.every((value, index) => value === bytes[index])
+        );
+    }
+
+    if (file.type === "image/webp") {
+        const riff = [82, 73, 70, 70];
+        const webp = [87, 69, 66, 80];
+
+        return (
+            bytes.length >= 12 &&
+            riff.every((value, index) => value === bytes[index]) &&
+            webp.every((value, index) => value === bytes[index + 8])
+        );
+    }
+
+    return false;
 }
