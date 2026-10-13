@@ -41,6 +41,7 @@ describe("protected routes", () => {
     "/dashboard/settings",
     "/upload-resume",
     "/upload-resume/history",
+    "/jobs",
   ])("redirects logged-out visitors from %s", async (path) => {
     const response = await updateSession(requestFor(path));
 
