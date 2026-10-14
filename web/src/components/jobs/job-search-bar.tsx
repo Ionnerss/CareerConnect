@@ -1,3 +1,7 @@
+
+"use client";
+
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,15 +12,47 @@ type JobSearchBarProps = {
 };
 
 /**
- * Search bar used on the dashboard and the jobs page.
- * It submits to /jobs?q=..., so searches can be bookmarked and shared.
+ * Search bar used on the dashboard and jobs page.
+ * Preserves existing filters when submitting a new keyword.
  */
-export default function JobSearchBar({ defaultQuery = "" }: JobSearchBarProps) {
+export default function JobSearchBar({
+  defaultQuery = "",
+}: JobSearchBarProps) {
+  const searchParams = useSearchParams();
+
+  const filterKeys = [
+    "location",
+    "minSalary",
+    "maxSalary",
+    "experienceLevel",
+    "jobType",
+  ] as const;
+
+  const activeFilters = filterKeys
+    .map((key) => ({
+      key,
+      value: searchParams.get(key) ?? "",
+    }))
+    .filter(({ value }) => value !== "");
+
+  const clearParams = new URLSearchParams(searchParams.toString());
+  clearParams.delete("q");
+
+  const clearUrl = clearParams.toString()
+    ? `/jobs?${clearParams.toString()}`
+    : "/jobs";
+
   return (
-    <form action="/jobs" method="get" role="search" className="flex w-full gap-2">
+    <form
+      action="/jobs"
+      method="get"
+      role="search"
+      className="flex w-full gap-2"
+    >
       <label htmlFor="job-search" className="sr-only">
         Search jobs
       </label>
+
       <Input
         id="job-search"
         name="q"
@@ -26,11 +62,29 @@ export default function JobSearchBar({ defaultQuery = "" }: JobSearchBarProps) {
         placeholder="Job title, company, or keyword"
         className="h-9"
       />
+
+      {/* Preserve selected filters when submitting a keyword search */}
+      {activeFilters.map(({ key, value }) => (
+        <input
+          key={key}
+          type="hidden"
+          name={key}
+          value={value}
+        />
+      ))}
+
       <Button type="submit" size="lg">
         Search
       </Button>
+
       {defaultQuery !== "" && (
-        <Link href="/jobs" className={buttonVariants({ variant: "outline", size: "lg" })}>
+        <Link
+          href={clearUrl}
+          className={buttonVariants({
+            variant: "outline",
+            size: "lg",
+          })}
+        >
           Clear
         </Link>
       )}
