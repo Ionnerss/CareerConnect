@@ -42,6 +42,7 @@ describe("protected routes", () => {
     "/upload-resume",
     "/upload-resume/history",
     "/jobs",
+    "/profile",
   ])("redirects logged-out visitors from %s", async (path) => {
     const response = await updateSession(requestFor(path));
 
@@ -58,6 +59,7 @@ describe("protected routes", () => {
     "/auth/signup",
     "/dashboard-public",
     "/upload-resume-info",
+    "/profiles-public",
   ])("does not redirect public or unrelated paths: %s", async (path) => {
     const response = await updateSession(requestFor(path));
 

@@ -37,7 +37,7 @@ export async function updateSession(request: NextRequest) {
   const { data, error } = await supabase.auth.getClaims();
 
   const pathname = request.nextUrl.pathname;
-  const protectedRoutes = ["/dashboard", "/upload-resume", "/jobs"];
+  const protectedRoutes = ["/dashboard", "/upload-resume", "/jobs", "/profile"];
 
   const isProtectedRoute = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
