@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { profileImageSchema } from "./validations/profile-image";
+import { profileImageSchema, removeProfileImageSchema } from "./validations/profile-image";
 
 export type ProfileImageErrorCode =
     | "INVALID_INPUT"
@@ -235,6 +235,159 @@ export async function uploadProfileImage(
         }
     }
 
+    return {
+        success: true,
+        profile: savedProfile,
+    };
+}
+
+export async function removeProfileImage(
+    input: unknown,
+): Promise<ProfileImageResult> {
+    const parsed = removeProfileImageSchema.safeParse(input);
+
+    if (!parsed.success) {
+        return {
+            success: false,
+            code: "INVALID_INPUT",
+            error: "Please choose avatar or background.",
+        };
+    }
+
+    const supabase = await createClient();
+
+    const {
+        data: { user },
+        error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+        return {
+            success: false,
+            code: "UNAUTHENTICATED",
+            error: "Unable to authenticate. Please sign in again.",
+        };
+    }
+
+    const { kind } = parsed.data;
+    const column =
+        kind === "avatar" ? "avatar_path" : "background_path";
+
+    const { data: existingProfile, error: readError } = await supabase
+        .from("profiles")
+        .select("id, avatar_path, background_path")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    if (readError) {
+        return {
+            success: false,
+            code: "BACKEND_ERROR",
+            error: "Could not load your profile. Please try again.",
+        };
+    }
+
+    if (!existingProfile) {
+        return {
+            success: false,
+            code: "PROFILE_NOT_FOUND",
+            error: "Profile not found.",
+        };
+    }
+
+    const oldPath = existingProfile[column];
+
+    // Removing an already-empty image is successful.
+    if (oldPath === null) {
+        return {
+            success: true,
+            profile: existingProfile,
+        };
+    }
+
+    // Clear only the image we read. Do not clear a newer upload.
+    const { data: profile, error: updateError } = await supabase
+        .from("profiles")
+        .update({ [column]: null })
+        .eq("id", user.id)
+        .eq(column, oldPath)
+        .select("id, avatar_path, background_path")
+        .maybeSingle();
+
+    let savedProfile: ImageProfile;
+
+    if (!updateError && profile && profile[column] === null) {
+        savedProfile = profile;
+    } else {
+        // The update may have succeeded even if its response failed.
+        const { data: currentProfile, error: checkError } = await supabase
+            .from("profiles")
+            .select("id, avatar_path, background_path")
+            .eq("id", user.id)
+            .maybeSingle();
+
+        if (checkError) {
+            // Keep the file because the profile may still reference it.
+            return {
+                success: false,
+                code: "OUTCOME_UNCERTAIN",
+                error: "Could not confirm whether your image was removed. Please refresh your profile.",
+            };
+        }
+
+        if (!currentProfile) {
+            return {
+                success: false,
+                code: "PROFILE_NOT_FOUND",
+                error: "Profile not found.",
+            };
+        }
+
+        if (currentProfile[column] === null) {
+            savedProfile = currentProfile;
+        } else if (currentProfile[column] !== oldPath) {
+            // Another operation changed the image. Leave its files alone.
+            return {
+                success: false,
+                code: "PROFILE_CONFLICT",
+                error: "Your profile image changed during removal. Please refresh your profile before trying again.",
+            };
+        } else {
+            // The profile still references the old file. Do not delete it.
+            return {
+                success: false,
+                code: "BACKEND_ERROR",
+                error: "Unable to remove your profile image. Please try again.",
+            };
+        }
+    }
+
+    // The database reference is confirmed cleared.
+    // Only clean up a file in this user's matching image folder.
+    if (
+        typeof oldPath === "string" &&
+        oldPath.startsWith(`${user.id}/${kind}/`)
+    ) {
+        try {
+            const { error: cleanupError } = await supabase.storage
+                .from("profile-images")
+                .remove([oldPath]);
+
+            if (cleanupError) {
+                console.error(
+                    "Profile image cleared, but file cleanup failed:",
+                    cleanupError,
+                );
+            }
+        } catch (cleanupError) {
+            console.error(
+                "Profile image cleared, but file cleanup threw:",
+                cleanupError,
+            );
+        }
+    }
+
+    // Cleanup failure does not undo the confirmed profile change.
     return {
         success: true,
         profile: savedProfile,

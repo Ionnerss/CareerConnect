@@ -606,4 +606,188 @@ describe("uploadProfileImage", () => {
         expect(result.success).toBe(true);
         expect(mocks.remove).not.toHaveBeenCalled();
     });
+
+    it.each([
+        {
+            label: "PNG",
+            mime: "image/png",
+            extension: "png",
+            bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+        },
+        {
+            label: "WebP",
+            mime: "image/webp",
+            extension: "webp",
+            bytes: [
+                82, 73, 70, 70, // RIFF
+                4, 0, 0, 0,    // Size field
+                87, 69, 66, 80, // WEBP
+            ],
+        },
+    ])(
+        "accepts a matching $label signature",
+        async ({ mime, extension, bytes }) => {
+            queueExistingProfile();
+            queueSavedProfile();
+
+            const file = new File(
+                [new Uint8Array(bytes)],
+                `test.${extension}`,
+                { type: mime },
+            );
+
+            const result = await uploadProfileImage({
+                kind: "avatar",
+                file,
+            });
+
+            const path = uploadedPath();
+
+            expect(result.success).toBe(true);
+            expect(path.startsWith(`${userId}/avatar/`)).toBe(true);
+            expect(path.endsWith(`.${extension}`)).toBe(true);
+
+            expect(mocks.upload).toHaveBeenCalledExactlyOnceWith(
+                path,
+                file,
+                {
+                    contentType: mime,
+                    upsert: false,
+                },
+            );
+
+            expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
+                avatar_path: path,
+            });
+        },
+    );
+
+    it.each([
+        {
+            label: "truncated PNG",
+            mime: "image/png",
+            bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a],
+        },
+        {
+            label: "PNG with incorrect final signature byte",
+            mime: "image/png",
+            bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x00],
+        },
+        {
+            label: "truncated WebP",
+            mime: "image/webp",
+            bytes: [82, 73, 70, 70, 4, 0, 0, 0, 87, 69, 66],
+        },
+        {
+            label: "WebP with incorrect RIFF marker",
+            mime: "image/webp",
+            bytes: [0, 73, 70, 70, 4, 0, 0, 0, 87, 69, 66, 80],
+        },
+        {
+            label: "WebP with incorrect WEBP marker",
+            mime: "image/webp",
+            bytes: [82, 73, 70, 70, 4, 0, 0, 0, 87, 69, 66, 0],
+        },
+        {
+            label: "PNG bytes declared as WebP",
+            mime: "image/webp",
+            bytes: [
+                0x89, 0x50, 0x4e, 0x47,
+                0x0d, 0x0a, 0x1a, 0x0a,
+                0, 0, 0, 0,
+            ],
+        },
+        {
+            label: "WebP bytes declared as PNG",
+            mime: "image/png",
+            bytes: [82, 73, 70, 70, 4, 0, 0, 0, 87, 69, 66, 80],
+        },
+    ])("rejects $label before database or Storage access", async ({
+        mime,
+        bytes,
+    }) => {
+        const file = new File(
+            [new Uint8Array(bytes)],
+            "invalid-image",
+            { type: mime },
+        );
+
+        const result = await uploadProfileImage({
+            kind: "avatar",
+            file,
+        });
+
+        expect(result).toEqual({
+            success: false,
+            code: "INVALID_INPUT",
+            error: "Invalid image. Please try a different image.",
+        });
+
+        expect(mocks.getUser).toHaveBeenCalledTimes(1);
+        expectNoDatabaseOrStorage();
+    });
+
+    it.each(["avatar", "background"] as const)(
+        "replaces %s without changing or deleting the other image",
+        async (kind) => {
+            const paths: ImagePaths = {
+                avatar_path: `${userId}/avatar/existing.jpg`,
+                background_path: `${userId}/background/existing.jpg`,
+            };
+
+            const column =
+                kind === "avatar" ? "avatar_path" : "background_path";
+
+            const otherColumn =
+                kind === "avatar" ? "background_path" : "avatar_path";
+
+            const oldPath = paths[column];
+
+            queueExistingProfile(paths);
+            queueSavedProfile(kind, paths);
+
+            const result = await uploadProfileImage({
+                kind,
+                file: jpegFile(),
+            });
+
+            const newPath = uploadedPath();
+
+            expect(newPath).not.toBe(oldPath);
+            expect(newPath.startsWith(`${userId}/${kind}/`)).toBe(true);
+
+            // The update must contain only the selected image column.
+            expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
+                [column]: newPath,
+            });
+
+            expect(mocks.eq).toHaveBeenCalledWith("id", userId);
+            expect(mocks.eq).toHaveBeenCalledWith(column, oldPath);
+            expect(mocks.is).not.toHaveBeenCalled();
+
+            // Delete only the replaced image.
+            expect(mocks.remove).toHaveBeenCalledExactlyOnceWith([
+                oldPath,
+            ]);
+
+            expect(mocks.remove).not.toHaveBeenCalledWith([
+                paths[otherColumn],
+            ]);
+
+            expect(
+                mocks.remove.mock.invocationCallOrder[0],
+            ).toBeGreaterThan(
+                mocks.maybeSingle.mock.invocationCallOrder[1],
+            );
+
+            expect(result).toEqual({
+                success: true,
+                profile: {
+                    id: userId,
+                    ...paths,
+                    [column]: newPath,
+                },
+            });
+        },
+    );
 });

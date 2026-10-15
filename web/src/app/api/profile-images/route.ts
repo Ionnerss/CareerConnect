@@ -1,4 +1,4 @@
-import { uploadProfileImage, type ProfileImageErrorCode } from "@/lib/profile-images";
+import { uploadProfileImage, removeProfileImage, type ProfileImageErrorCode } from "@/lib/profile-images";
 
 const errorStatuses: Record<ProfileImageErrorCode, number> = {
     INVALID_INPUT: 400,
@@ -36,5 +36,28 @@ export async function POST(request: Request) {
 
     return Response.json(result, {
         status: errorStatuses[result.code],
+    });
+}
+
+export async function DELETE(request: Request) {
+    let input: unknown;
+
+    try {
+        input = await request.json();
+    } catch {
+        return Response.json(
+            {
+                success: false,
+                code: "INVALID_INPUT",
+                error: "Please send a valid JSON body containing kind.",
+            },
+            { status: 400 },
+        );
+    }
+
+    const result = await removeProfileImage(input);
+
+    return Response.json(result, {
+        status: result.success ? 200 : errorStatuses[result.code],
     });
 }
