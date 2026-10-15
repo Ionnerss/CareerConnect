@@ -54,6 +54,7 @@ export default function JobSearchBar({
       </label>
 
       <Input
+        key={defaultQuery}
         id="job-search"
         name="q"
         type="search"
