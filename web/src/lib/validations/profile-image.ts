@@ -28,3 +28,7 @@ export const profileImageSchema = z.object({
             { message: "Invalid file type. Only JPEG, PNG, and WEBP are allowed." }
         )
 });
+
+export const removeProfileImageSchema = profileImageSchema.pick({
+    kind: true,
+});
