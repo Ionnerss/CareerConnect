@@ -31,6 +31,9 @@ export default async function DashboardPage() {
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <Link href="/profile" className={buttonVariants({ size: "lg" })}>
+            My profile
+          </Link>
           <Link href="/upload-resume" className={buttonVariants({ size: "lg" })}>
             Upload resume
           </Link>
