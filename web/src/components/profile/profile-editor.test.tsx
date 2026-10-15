@@ -62,6 +62,26 @@ describe("ProfileEditor", () => {
     expect(screen.getByText("RN")).toBeDefined();
   });
 
+  it("links to the resumes and cover letters page", () => {
+    render(<ProfileEditor initialProfile={fullProfile} />);
+
+    const link = screen.getByRole<HTMLAnchorElement>("link", {
+      name: "Resumes & cover letters",
+    });
+    expect(link.getAttribute("href")).toBe("/upload-resume");
+  });
+
+  it("hides the resumes link while editing", async () => {
+    const user = userEvent.setup();
+    render(<ProfileEditor initialProfile={fullProfile} />);
+
+    await user.click(screen.getByRole("button", { name: "Edit profile" }));
+
+    expect(
+      screen.queryByRole("link", { name: "Resumes & cover letters" }),
+    ).toBeNull();
+  });
+
   it("shows placeholders when optional details are empty", () => {
     render(<ProfileEditor initialProfile={emptyProfile} />);
 
