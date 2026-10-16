@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
+import Link from "next/link";
 import { saveProfile } from "@/app/profile/actions";
 import { profileSchema } from "@/lib/validations/profile";
 import { getInitials, getProfileImageUrl } from "@/lib/profile-image-url";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -27,6 +28,9 @@ type FormValues = {
 type FieldName = keyof FormValues;
 type FieldErrors = Partial<Record<FieldName, string>>;
 type ImageKind = "avatar" | "background";
+
+// Page where the user manages their resumes and cover letters.
+export const RESUMES_PAGE_PATH = "/upload-resume";
 
 const FIELD_MESSAGES: Record<FieldName, string> = {
   full_name: "Full name is required (max 100 characters).",
@@ -194,9 +198,17 @@ export function ProfileEditor({ initialProfile }: { initialProfile: ProfileData 
           </div>
 
           {!isEditing && (
-            <Button type="button" variant="outline" onClick={startEditing}>
-              Edit profile
-            </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Link
+                href={RESUMES_PAGE_PATH}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Resumes &amp; cover letters
+              </Link>
+              <Button type="button" variant="outline" onClick={startEditing}>
+                Edit profile
+              </Button>
+            </div>
           )}
         </div>
 
