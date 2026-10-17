@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { profileImageSchema, removeProfileImageSchema } from "./validations/profile-image";
+import { profileImageSchema, removeProfileImageSchema } from "../validations/profile-image";
 
 export type ProfileImageErrorCode =
     | "INVALID_INPUT"

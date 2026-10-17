@@ -1,4 +1,4 @@
-import { uploadProfileImage, removeProfileImage, type ProfileImageErrorCode } from "@/lib/profile-images";
+import { uploadProfileImage, removeProfileImage, type ProfileImageErrorCode } from "@/lib/profiles/profile-images";
 
 const errorStatuses: Record<ProfileImageErrorCode, number> = {
     INVALID_INPUT: 400,

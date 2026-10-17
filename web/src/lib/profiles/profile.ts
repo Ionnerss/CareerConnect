@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { profileSchema } from "./validations/profile";
+import { profileSchema } from "../validations/profile";
 
 export async function getCurrentProfile() {
     const supabase = await createClient();
