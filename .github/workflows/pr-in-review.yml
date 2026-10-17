@@ -6,7 +6,6 @@ on:
 
 jobs:
   set-pr-status:
-    # Draft PRs enter In Review when marked ready for review.
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
 
@@ -14,12 +13,61 @@ jobs:
       - name: Add PR and set project status
         env:
           GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
+          PROJECT_ID: PVT_kwHODd7zAM4BkmiO
+          PR_ID: ${{ github.event.pull_request.node_id }}
         run: |
-            gh api graphql -f query='
-                query {
-                viewer { login }
-                user(login: "Ionnerss") {
-                    projectV2(number: 5) { id }
+          set -euo pipefail
+
+          field_data="$(gh api graphql -f query='
+            query($project: ID!) {
+              node(id: $project) {
+                ... on ProjectV2 {
+                  fields(first: 100) {
+                    nodes {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options { id name }
+                      }
+                    }
+                  }
                 }
-                }'
+              }
+            }' -f project="$PROJECT_ID" \
+            --jq '.data.node.fields.nodes[] | select(.name == "Status")')"
+
+          field_id="$(jq -r '.id' <<< "$field_data")"
+          option_id="$(jq -r '.options[] | select(.name == "In Review") | .id' <<< "$field_data")"
+
+          if [[ -z "$field_id" || -z "$option_id" ]]; then
+            echo "Status field or In Review option was not found."
+            exit 1
+          fi
+
+          item_id="$(gh api graphql -f query='
+            mutation($project: ID!, $pr: ID!) {
+              addProjectV2ItemById(
+                input: {projectId: $project, contentId: $pr}
+              ) {
+                item { id }
+              }
+            }' -f project="$PROJECT_ID" -f pr="$PR_ID" \
+            --jq '.data.addProjectV2ItemById.item.id')"
+
+          gh api graphql -f query='
+            mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+              updateProjectV2ItemFieldValue(
+                input: {
+                  projectId: $project
+                  itemId: $item
+                  fieldId: $field
+                  value: {singleSelectOptionId: $option}
+                }
+              ) {
+                projectV2Item { id }
+              }
+            }' \
+            -f project="$PROJECT_ID" \
+            -f item="$item_id" \
+            -f field="$field_id" \
+            -f option="$option_id"
