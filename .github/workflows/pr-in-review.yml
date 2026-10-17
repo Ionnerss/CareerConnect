@@ -2,7 +2,7 @@ name: Set PR status to In Review
 
 on:
   pull_request:
-    types: [opened, ready_for_review, synchronize]
+    types: [opened, ready_for_review]
 
 jobs:
   set-pr-status:
