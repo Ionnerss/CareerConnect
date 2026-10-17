@@ -2,7 +2,7 @@ name: Set PR status to In Review
 
 on:
   pull_request:
-    types: [opened, ready_for_review]
+    types: [opened, ready_for_review, synchronize]
 
 jobs:
   set-pr-status:
@@ -16,12 +16,10 @@ jobs:
           GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          gh project item-add 5 \
-            --owner Ionnerss \
-            --url "$PR_URL"
-
-          gh project item-edit 5 \
-            --owner Ionnerss \
-            --url "$PR_URL" \
-            --field "Status" \
-            --value "In Review"
+            gh api graphql -f query='
+                query {
+                viewer { login }
+                user(login: "Ionnerss") {
+                    projectV2(number: 5) { id }
+                }
+                }'
