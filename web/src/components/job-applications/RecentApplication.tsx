@@ -40,7 +40,7 @@ export default function RecentApplications({
                     </div>
                 ) : (
                     <p className="text-center text-sm text-gray-500">
-                        You haven't applied to any jobs yet.
+                        You haven&apos;t applied to any jobs yet.
                     </p>
                 )}
             </div>

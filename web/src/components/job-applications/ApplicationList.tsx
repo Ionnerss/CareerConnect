@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ApplicationCard } from "@/components/job-applications/ApplicationCard";
 import type { ApplicationCardData } from "@/lib/application_status/application_status_logic";
 
@@ -19,11 +18,13 @@ export default function ApplicationList({
         applications.length / applicationsPerPage
     );
 
-    useEffect(() => {
-        setSelectedPageNum(1);
-    }, [applications]);
+    const currentPage = Math.min(
+        selectedPageNum,
+        Math.max(1, totalPages)
+    );
 
-    const startIndex = (selectedPageNum - 1) * applicationsPerPage;
+    const startIndex = (currentPage - 1) * applicationsPerPage;
+
     const currentApplications = applications.slice(
         startIndex,
         startIndex + applicationsPerPage
@@ -38,21 +39,21 @@ export default function ApplicationList({
 
         pages.push(1);
 
-        if (selectedPageNum > 3) {
+        if (currentPage > 3) {
             pages.push("...");
         }
 
-        const startPage = Math.max(2, selectedPageNum - 1);
+        const startPage = Math.max(2, currentPage - 1);
         const endPage = Math.min(
             totalPages - 1,
-            selectedPageNum + 1
+            currentPage + 1
         );
 
         for (let page = startPage; page <= endPage; page++) {
             pages.push(page);
         }
 
-        if (selectedPageNum < totalPages - 2) {
+        if (currentPage < totalPages - 2) {
             pages.push("...");
         }
 
@@ -84,9 +85,9 @@ export default function ApplicationList({
                         <div className="mt-4 flex items-center justify-center gap-2">
                             <button
                                 onClick={() =>
-                                    setSelectedPageNum((page) => page - 1)
+                                    setSelectedPageNum(currentPage - 1)
                                 }
-                                disabled={selectedPageNum === 1}
+                                disabled={currentPage === 1}
                                 className="rounded-md border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40"
                             >
                                 &lt;
@@ -98,11 +99,11 @@ export default function ApplicationList({
                                         key={page}
                                         onClick={() => setSelectedPageNum(page)}
                                         aria-current={
-                                            selectedPageNum === page
+                                            currentPage === page
                                                 ? "page"
                                                 : undefined
                                         }
-                                        className={`rounded-md border px-3 py-2 ${selectedPageNum === page
+                                        className={`rounded-md border px-3 py-2 ${currentPage === page
                                                 ? "border-blue-600 bg-blue-600 text-white"
                                                 : "border-gray-300 hover:bg-gray-100"
                                             }`}
@@ -121,9 +122,9 @@ export default function ApplicationList({
 
                             <button
                                 onClick={() =>
-                                    setSelectedPageNum((page) => page + 1)
+                                    setSelectedPageNum(currentPage + 1)
                                 }
-                                disabled={selectedPageNum === totalPages}
+                                disabled={currentPage === totalPages}
                                 className="rounded-md border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40"
                             >
                                 &gt;
