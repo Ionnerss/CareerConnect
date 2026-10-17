@@ -1,10 +1,10 @@
 // @vitest-environment node
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { uploadProfileImage, type ProfileImageErrorCode, type ProfileImageResult } from "@/lib/profile-images";
+import { uploadProfileImage, type ProfileImageErrorCode, type ProfileImageResult } from "@/lib/profiles/profile-images";
 import { POST } from "./route";
 
-vi.mock("@/lib/profile-images", () => ({
+vi.mock("@/lib/profiles/profile-images", () => ({
     uploadProfileImage: vi.fn(),
 }));
 

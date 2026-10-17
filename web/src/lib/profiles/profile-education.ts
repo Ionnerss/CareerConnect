@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { profileEducationSchema } from "./validations/profile-education";
+import { profileEducationSchema } from "../validations/profile-education";
 
 export async function getCurrentEducation() {
     const supabase = await createClient();

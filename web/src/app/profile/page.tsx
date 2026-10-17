@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentProfile } from "@/lib/profile";
+import { getCurrentProfile } from "@/lib/profiles/profile";
 import { ProfileEditor, type ProfileData } from "@/components/profile/profile-editor";
 
 export default async function ProfilePage() {
