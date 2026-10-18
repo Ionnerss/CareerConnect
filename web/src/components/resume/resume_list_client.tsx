@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ResumeCard } from "@/components/resume/resume_card";
 import Pagination from "@/components/pagination/pagination";
 import type { ResumeCardData } from "@/lib/resumes/resume_logic";
@@ -31,33 +31,34 @@ export default function ResumeListClient({ resumes }: ResumeListClientProps) {
         startIndex + resumesPerPage
     );
 
-    useEffect(() => {
-        setSelectedPageNum(1);
-    }, [selectedTab]);
 
     return (
         <div className="flex w-full flex-col items-center gap-4">
             <div className="flex gap-2 self-start">
                 <button
                     type="button"
-                    onClick={() => setSelectedTab("active")}
-                    className={`rounded-full border px-4 py-1.5 text-sm font-medium ${
-                        selectedTab === "active"
-                            ? "border-blue-600 bg-blue-600 text-white"
-                            : "border-gray-300 text-gray-600 hover:bg-gray-100"
-                    }`}
+                    onClick={() => {
+                        setSelectedTab("active");
+                        setSelectedPageNum(1);
+                    }}
+                    className={`rounded-full border px-4 py-1.5 text-sm font-medium ${selectedTab === "active"
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-gray-300 text-gray-600 hover:bg-gray-100"
+                        }`}
                 >
                     Active
                 </button>
 
                 <button
                     type="button"
-                    onClick={() => setSelectedTab("archived")}
-                    className={`rounded-full border px-4 py-1.5 text-sm font-medium ${
-                        selectedTab === "archived"
-                            ? "border-blue-600 bg-blue-600 text-white"
-                            : "border-gray-300 text-gray-600 hover:bg-gray-100"
-                    }`}
+                    onClick={() => {
+                        setSelectedTab("archived");
+                        setSelectedPageNum(1);
+                    }}
+                    className={`rounded-full border px-4 py-1.5 text-sm font-medium ${selectedTab === "archived"
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-gray-300 text-gray-600 hover:bg-gray-100"
+                        }`}
                 >
                     Archived
                 </button>
