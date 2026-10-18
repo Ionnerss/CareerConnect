@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { computeSkillMatch, parseRequiredSkills, type SkillMatch } from "./skill-match";
 
 export type RecruiterJob = {
   id: string;
@@ -16,6 +17,8 @@ export type JobApplicant = {
   full_name: string | null;
   status: string;
   applied_at: string;
+  /** How well the applicant's skills cover the posting's required skills; null if none are required. */
+  skill_match: SkillMatch | null;
 };
 
 type Failure = { success: false; error: string };
@@ -26,6 +29,7 @@ export type JobApplicantsResponse =
   | {
       success: true;
       job: { id: string; title: string; location: string; status: string };
+      required_skills: string[];
       applicants: JobApplicant[];
     }
   | Failure;
@@ -100,7 +104,8 @@ export async function getRecruiterJobs(): Promise<RecruiterJobsResponse> {
 }
 
 /**
- * Lists everyone who applied to one of the recruiter's postings, oldest application first.
+ * Lists everyone who applied to one of the recruiter's postings, best skill match first
+ * (ties and postings without required skills stay oldest application first).
  * A recruiter can only see applicants for postings they created.
  */
 export async function getJobApplicants(jobId: unknown): Promise<JobApplicantsResponse> {
@@ -119,7 +124,7 @@ export async function getJobApplicants(jobId: unknown): Promise<JobApplicantsRes
 
   const { data: job, error: jobError } = await supabase
     .from("job")
-    .select("id, title, location, status")
+    .select("id, title, location, status, required_skills")
     .eq("id", parsedJobId.data)
     .eq("recruiter_id", recruiter.userId)
     .maybeSingle();
@@ -142,6 +147,30 @@ export async function getJobApplicants(jobId: unknown): Promise<JobApplicantsRes
     return { success: false, error: "Unable to load applicants. Please try again." };
   }
 
+  const requiredSkills = parseRequiredSkills(job.required_skills);
+  const skillsByApplicant = new Map<string, string[]>();
+
+  // Skills only matter when the posting lists some; the database lets a recruiter
+  // read skills of their own applicants only.
+  if (requiredSkills.length > 0 && (applications ?? []).length > 0) {
+    const applicantIds = [...new Set((applications ?? []).map((a) => a.applicant_id as string))];
+
+    const { data: skillRows, error: skillsError } = await supabase
+      .from("profile_skills")
+      .select("profile_id, name")
+      .in("profile_id", applicantIds);
+
+    if (skillsError) {
+      return { success: false, error: "Unable to load applicant skills. Please try again." };
+    }
+
+    for (const row of skillRows ?? []) {
+      const names = skillsByApplicant.get(row.profile_id) ?? [];
+      names.push(row.name);
+      skillsByApplicant.set(row.profile_id, names);
+    }
+  }
+
   const applicants: JobApplicant[] = (applications ?? []).map((application) => {
     const profile = Array.isArray(application.profiles)
       ? application.profiles[0]
@@ -153,10 +182,22 @@ export async function getJobApplicants(jobId: unknown): Promise<JobApplicantsRes
       full_name: profile?.full_name ?? null,
       status: application.status,
       applied_at: application.created_at,
+      skill_match: computeSkillMatch(
+        requiredSkills,
+        skillsByApplicant.get(application.applicant_id) ?? []
+      ),
     };
   });
 
-  return { success: true, job, applicants };
+  // Best match first. Array.sort is stable, so equal scores keep their oldest-first order.
+  applicants.sort((a, b) => (b.skill_match?.percent ?? -1) - (a.skill_match?.percent ?? -1));
+
+  return {
+    success: true,
+    job: { id: job.id, title: job.title, location: job.location, status: job.status },
+    required_skills: requiredSkills,
+    applicants,
+  };
 }
 
 const STATUS_LABELS: Record<string, string> = {

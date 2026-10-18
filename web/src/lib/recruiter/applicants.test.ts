@@ -24,7 +24,7 @@ function fakeQuery(table: string) {
     then: (resolve: (r: Result) => unknown, reject: (e: unknown) => unknown) =>
       next().then(resolve, reject),
   };
-  for (const method of ["select", "eq", "order"]) {
+  for (const method of ["select", "eq", "order", "in"]) {
     builder[method] = (...args: unknown[]) => {
       calls.push({ table, method, args });
       return builder;
@@ -149,9 +149,85 @@ describe("getJobApplicants", () => {
       success: true,
       job,
       applicants: [
-        { application_id: "app-1", applicant_id: "user-1", full_name: "Sam Lee", status: "applied", applied_at: "2026-10-10T12:00:00Z" },
-        { application_id: "app-2", applicant_id: "user-2", full_name: null, status: "interview", applied_at: "2026-10-11T12:00:00Z" },
+        { application_id: "app-1", applicant_id: "user-1", full_name: "Sam Lee", status: "applied", applied_at: "2026-10-10T12:00:00Z", skill_match: null },
+        { application_id: "app-2", applicant_id: "user-2", full_name: null, status: "interview", applied_at: "2026-10-11T12:00:00Z", skill_match: null },
       ],
+      required_skills: [],
+    });
+    expect(mockFrom).not.toHaveBeenCalledWith("profile_skills");
+  });
+
+  describe("skill match", () => {
+    const job = { id: JOB_ID, title: "Developer", location: "Montreal", status: "open" };
+
+    function twoApplicants() {
+      return [
+        { id: "app-1", applicant_id: "user-1", status: "applied", created_at: "2026-10-10T12:00:00Z", profiles: { full_name: "Sam Lee" } },
+        { id: "app-2", applicant_id: "user-2", status: "applied", created_at: "2026-10-11T12:00:00Z", profiles: { full_name: "Alex Kim" } },
+      ];
+    }
+
+    it("scores each applicant against the required skills and lists the best match first", async () => {
+      signedInAs("recruiter");
+      results.job = [{ data: { ...job, required_skills: "TypeScript, React, SQL, Git" }, error: null }];
+      results.applications = [{ data: twoApplicants(), error: null }];
+      results.profile_skills = [
+        {
+          data: [
+            { profile_id: "user-1", name: "react" },
+            { profile_id: "user-2", name: "TypeScript" },
+            { profile_id: "user-2", name: "React" },
+            { profile_id: "user-2", name: "SQL" },
+          ],
+          error: null,
+        },
+      ];
+
+      const result = await getJobApplicants(JOB_ID);
+
+      expect(calls).toContainEqual({ table: "profile_skills", method: "in", args: ["profile_id", ["user-1", "user-2"]] });
+      expect(result.success && result.required_skills).toEqual(["TypeScript", "React", "SQL", "Git"]);
+      expect(result.success && result.applicants.map((a) => [a.full_name, a.skill_match?.percent])).toEqual([
+        ["Alex Kim", 75],
+        ["Sam Lee", 25],
+      ]);
+      expect(result.success && result.applicants[0].skill_match?.missing).toEqual(["Git"]);
+    });
+
+    it("keeps oldest-first order for equal scores and scores 0 for applicants with no skills", async () => {
+      signedInAs("recruiter");
+      results.job = [{ data: { ...job, required_skills: "React" }, error: null }];
+      results.applications = [{ data: twoApplicants(), error: null }];
+      results.profile_skills = [{ data: [], error: null }];
+
+      const result = await getJobApplicants(JOB_ID);
+
+      expect(result.success && result.applicants.map((a) => [a.full_name, a.skill_match?.percent])).toEqual([
+        ["Sam Lee", 0],
+        ["Alex Kim", 0],
+      ]);
+    });
+
+    it("returns a friendly error when skills cannot be loaded", async () => {
+      signedInAs("recruiter");
+      results.job = [{ data: { ...job, required_skills: "React" }, error: null }];
+      results.applications = [{ data: twoApplicants(), error: null }];
+      results.profile_skills = [{ data: null, error: { message: "boom" } }];
+
+      expect(await getJobApplicants(JOB_ID)).toEqual({
+        success: false,
+        error: "Unable to load applicant skills. Please try again.",
+      });
+    });
+
+    it("does not look up skills when nobody has applied", async () => {
+      signedInAs("recruiter");
+      results.job = [{ data: { ...job, required_skills: "React" }, error: null }];
+      results.applications = [{ data: [], error: null }];
+
+      await getJobApplicants(JOB_ID);
+
+      expect(mockFrom).not.toHaveBeenCalledWith("profile_skills");
     });
   });
 
