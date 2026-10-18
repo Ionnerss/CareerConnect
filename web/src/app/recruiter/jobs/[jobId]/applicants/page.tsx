@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import CandidateComparison from "@/components/recruiter/candidate-comparison";
 import {
   AUTH_ERROR,
   formatApplicationStatus,
   getJobApplicants,
 } from "@/lib/recruiter/applicants";
+import { getJobRequirements } from "@/lib/recruiter/candidate-comparison-service";
 
 type ApplicantsPageProps = {
   params: Promise<{ jobId: string }>;
@@ -23,6 +25,9 @@ export default async function JobApplicantsPage({ params }: ApplicantsPageProps)
   if (!result.success && result.error === AUTH_ERROR) {
     redirect("/auth/login");
   }
+
+  // Only a recruiter who owns the posting gets this far, so the requirements can be loaded.
+  const requirements = result.success ? await getJobRequirements(jobId) : null;
 
   return (
     <main className="min-h-screen bg-background px-4 py-10">
@@ -107,6 +112,18 @@ export default async function JobApplicantsPage({ params }: ApplicantsPageProps)
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {requirements?.success ? (
+              <CandidateComparison
+                jobId={result.job.id}
+                initialRequirements={requirements.requirements}
+                applicantCount={result.applicants.length}
+              />
+            ) : (
+              <p role="alert" className="mt-10 text-sm text-destructive">
+                {requirements?.error ?? "Unable to load the requirements. Please try again."}
+              </p>
             )}
           </>
         )}
