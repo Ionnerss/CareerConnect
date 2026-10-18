@@ -9,6 +9,8 @@ type CardDataProps = {
 
 export function ApplicationCard({ application }: CardDataProps) {
 
+    const created_at = application.created_at ? new Date(application.created_at).toLocaleDateString(): "Date unknown";
+
 
     return (
         <div className="w-full max-w-6xl rounded-lg border p-4">
@@ -32,7 +34,7 @@ export function ApplicationCard({ application }: CardDataProps) {
                 </p>
 
                 <p className="text-sm text-gray-500">
-                    Applied {application.created_at ?? "at time not specified"}
+                    Applied: {created_at ?? "at time not specified"}
                 </p>
 
                 <p className="font-medium">
