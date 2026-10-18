@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/profiles/profile";
 import { getCurrentEducation } from "@/lib/profiles/profile-education";
+import { getCurrentExperience } from "@/lib/profiles/profile-experience";
 import { ProfileEditor, type ProfileData } from "@/components/profile/profile-editor";
 import { EducationSection, type EducationEntry } from "@/components/profile/education-section";
+import { ExperienceSection, type ExperienceEntry } from "@/components/profile/experience-section";
 
 export default async function ProfilePage() {
   const result = await getCurrentProfile();
@@ -45,6 +47,21 @@ export default async function ProfilePage() {
   const educationError =
     "error" in educationResult && educationResult.error ? educationResult.error : null;
 
+  const experienceResult = await getCurrentExperience();
+  const experience: ExperienceEntry[] =
+    "profileExperience" in experienceResult && experienceResult.profileExperience
+      ? experienceResult.profileExperience.map((entry) => ({
+          id: entry.id,
+          company_name: entry.company_name,
+          job_role: entry.job_role,
+          start_date: entry.start_date,
+          end_date: entry.end_date ?? null,
+          description: entry.description ?? null,
+        }))
+      : [];
+  const experienceError =
+    "error" in experienceResult && experienceResult.error ? experienceResult.error : null;
+
   const profile: ProfileData = {
     full_name: result.profile.full_name ?? null,
     bio: result.profile.bio ?? null,
@@ -69,6 +86,7 @@ export default async function ProfilePage() {
 
         <div className="space-y-6">
           <ProfileEditor initialProfile={profile} />
+          <ExperienceSection initialExperience={experience} loadError={experienceError} />
           <EducationSection initialEducation={education} loadError={educationError} />
         </div>
       </div>
