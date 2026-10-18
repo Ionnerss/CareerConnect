@@ -1,4 +1,5 @@
 // This is the file to handle logic for managing all resumes
+"use server";
 import { createClient } from "@/lib/supabase/server";
 
 export type ResumeCardData = {
@@ -23,7 +24,6 @@ export async function getUserResumes(): Promise<ResumeCardData[]> {
     const { data, error } = await supabase
         .from("resumes")
         .select("id, uploaded_at, file_path, file_name, archived_at")
-        .is("archived_at", null)
         .order("uploaded_at", { ascending: false });
 
     if (error) {
@@ -32,3 +32,4 @@ export async function getUserResumes(): Promise<ResumeCardData[]> {
 
     return data ?? [];
 }
+
