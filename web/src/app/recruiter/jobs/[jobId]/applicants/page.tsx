@@ -43,6 +43,11 @@ export default async function JobApplicantsPage({ params }: ApplicantsPageProps)
                 {result.job.location} · {result.applicants.length} applicant
                 {result.applicants.length === 1 ? "" : "s"}
               </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {result.required_skills.length > 0
+                  ? `Required skills: ${result.required_skills.join(", ")}. Applicants are listed best match first.`
+                  : "This posting lists no required skills, so skill match can't be calculated."}
+              </p>
             </div>
 
             {result.applicants.length === 0 ? (
@@ -76,8 +81,27 @@ export default async function JobApplicantsPage({ params }: ApplicantsPageProps)
                             {formatApplicationStatus(applicant.status)}
                           </span>
                         </td>
-                        {/* Ranking is calculated in Task #13.4 (#129); this column is UI only for now. */}
-                        <td className="px-4 py-3 text-muted-foreground">—</td>
+                        <td className="px-4 py-3">
+                          {applicant.skill_match ? (
+                            <>
+                              <span className="font-medium">{applicant.skill_match.percent}%</span>
+                              <span className="text-muted-foreground">
+                                {" "}
+                                ({applicant.skill_match.matched.length} of{" "}
+                                {applicant.skill_match.matched.length +
+                                  applicant.skill_match.missing.length}{" "}
+                                skills)
+                              </span>
+                              {applicant.skill_match.missing.length > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  Missing: {applicant.skill_match.missing.join(", ")}
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
