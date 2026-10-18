@@ -28,8 +28,8 @@ export default async function JobsPage({
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10">
-      <div className="mx-auto w-full max-w-3xl">
+    <main className="min-h-screen bg-background px-4 py-10 font-[Arial,Helvetica,sans-serif]">
+      <div className="mx-auto w-full max-w-7xl">
         <div className="mb-6 flex items-center justify-between gap-4">
           <h1 className="text-2xl font-semibold">
             Find jobs

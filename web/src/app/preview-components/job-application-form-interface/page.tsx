@@ -1,3 +1,4 @@
+"use client";
 
 import { JobDetails } from "@/components/job-applications/JobDetails";
 import type { JobSearchResult } from "@/lib/jobs/search";
