@@ -53,16 +53,21 @@ export async function getUserApplications(): Promise<ApplicationCardData[]> {
 
     const recruiterIds = [...new Set((jobs ?? []).map((job) => job.recruiter_id))];
 
-    const { data: profiles, error: profilesError } = recruiterIds.length
-        ? await supabase
-              .from("profiles")
-              .select("id, full_name")
-              .in("id", recruiterIds)
-        : { data: [], error: null };
+    const { data: profilesPublic, error: profilesPublicError } =
+        recruiterIds.length
+            ? await supabase
+                .from("profiles_public")
+                .select("id, full_name")
+                .in("id", recruiterIds)
+            : { data: [], error: null };
 
-    if (profilesError) throw profilesError;
+    if (profilesPublicError) throw profilesPublicError;
+
     const jobsById = new Map((jobs ?? []).map((job) => [job.id, job]));
-    const profilesById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+
+    const profilesPublicById = new Map(
+        (profilesPublic ?? []).map((profile) => [profile.id, profile]),
+    );
 
     return applications.map((application) => {
         const job = jobsById.get(application.job_id);
@@ -73,12 +78,12 @@ export async function getUserApplications(): Promise<ApplicationCardData[]> {
             created_at: application.created_at,
             job: job
                 ? {
-                      title: job.title,
-                      firm_name: job.firm_name,
-                      location: job.location,
-                      recruiter_name:
-                          profilesById.get(job.recruiter_id)?.full_name ?? "",
-                  }
+                    title: job.title,
+                    firm_name: job.firm_name,
+                    location: job.location,
+                    recruiter_name:
+                        profilesPublicById.get(job.recruiter_id)?.full_name ?? "",
+                }
                 : null,
         };
     });
