@@ -13,9 +13,8 @@ import {
   profileProjectLinkSchema,
   profileProjectSchema,
 } from "@/lib/validations/profile-projects";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ExternalLink, FolderKanban, ImagePlus, Link2, Plus, X } from "lucide-react";
+import { EntryActions, SectionHeader, ui } from "@/components/profile/profile-ui";
 
 export type ProjectLink = {
   id: string;
@@ -389,177 +388,155 @@ export function ProjectsSection({
   const isEditing = editor.mode !== "closed";
 
   return (
-    <section aria-labelledby="projects-heading" className="rounded-lg border p-6 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <h2 id="projects-heading" className="text-lg font-semibold">
-          Projects
-        </h2>
-        {!isEditing && (
-          <Button type="button" variant="outline" onClick={openAdd}>
-            Add project
-          </Button>
-        )}
-      </div>
+    <section aria-labelledby="projects-heading" className={ui.card}>
+      <SectionHeader
+        id="projects-heading"
+        icon={FolderKanban}
+        title="Projects"
+        action={
+          !isEditing && (
+            <button type="button" className={ui.addButton} onClick={openAdd}>
+              <Plus aria-hidden="true" className="size-4" />
+              Add project
+            </button>
+          )
+        }
+      />
 
       {loadError && (
-        <p role="alert" className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className={ui.error}>
           {loadError}
         </p>
       )}
 
       {message && (
-        <p role="status" className="mt-4 rounded-md bg-muted px-3 py-2 text-sm">
+        <p role="status" className={ui.success}>
           {message}
         </p>
       )}
 
       {formError && (
-        <p role="alert" className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className={ui.error}>
           {formError}
         </p>
       )}
 
       {isEditing && (
         <form
-          className="mt-4 space-y-4 rounded-md border p-4"
+          className={ui.form}
           onSubmit={handleProjectSubmit}
           noValidate
           aria-label={editor.mode === "edit" ? "Edit project" : "Add project"}
         >
           <div className="space-y-1.5">
-            <Label htmlFor="project-name">Project name</Label>
-            <Input
+            <label htmlFor="project-name" className={ui.label}>
+              Project name
+            </label>
+            <input
               id="project-name"
+              className={ui.input}
+              placeholder="e.g. CareerConnect"
               value={values.name}
               onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
               aria-invalid={Boolean(errors.name)}
             />
-            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+            {errors.name && <p className={ui.fieldError}>{errors.name}</p>}
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="project-description">Short description</Label>
+            <label htmlFor="project-description" className={ui.label}>
+              Short description
+            </label>
             <textarea
               id="project-description"
               rows={3}
+              className={ui.textarea}
+              placeholder="What it does, what you built, the tech you used..."
               value={values.short_description}
               onChange={(e) => setValues((v) => ({ ...v, short_description: e.target.value }))}
               aria-invalid={Boolean(errors.short_description)}
-              className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
             {errors.short_description && (
-              <p className="text-sm text-destructive">{errors.short_description}</p>
+              <p className={ui.fieldError}>{errors.short_description}</p>
             )}
           </div>
 
           <div className="flex gap-3">
-            <Button type="submit" disabled={isSaving}>
+            <button type="submit" className={ui.primaryButton} disabled={isSaving}>
               {isSaving ? "Saving..." : editor.mode === "edit" ? "Save changes" : "Add"}
-            </Button>
-            <Button type="button" variant="outline" onClick={closeEditor} disabled={isSaving}>
+            </button>
+            <button
+              type="button"
+              className={ui.secondaryButton}
+              onClick={closeEditor}
+              disabled={isSaving}
+            >
               Cancel
-            </Button>
+            </button>
           </div>
         </form>
       )}
 
       {projects.length === 0 && !isEditing && !loadError ? (
-        <p className="mt-4 text-sm text-muted-foreground">No projects added yet.</p>
+        <p className={ui.empty}>No projects added yet.</p>
       ) : (
-        <ul className="mt-4 space-y-4">
+        <ul className="mt-5 grid gap-4">
           {projects.map((project) => (
             <li
               key={project.id}
               aria-label={project.name}
-              className="border-t pt-4 first:border-t-0 first:pt-0"
+              className="rounded-xl border border-[#EEF0F3] bg-[#F9FAFB] p-4"
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="font-medium">{project.name}</h3>
-                  <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+                  <h3 className={ui.entryTitle}>{project.name}</h3>
+                  <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-[#4B5563]">
                     {project.short_description}
                   </p>
                 </div>
 
                 {!isEditing && (
-                  <div className="flex shrink-0 gap-2">
-                    {confirmDeleteId === project.id ? (
-                      <>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          disabled={busyId === project.id}
-                          onClick={() => handleDeleteProject(project.id)}
-                          aria-label={`Confirm delete ${project.name}`}
-                        >
-                          {busyId === project.id ? "Deleting..." : "Confirm"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={busyId === project.id}
-                          onClick={() => setConfirmDeleteId(null)}
-                        >
-                          Keep
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEdit(project)}
-                          aria-label={`Edit ${project.name}`}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setMessage(null);
-                            setLinkProjectId(null);
-                            setConfirmDeleteId(project.id);
-                          }}
-                          aria-label={`Delete ${project.name}`}
-                        >
-                          Delete
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                  <EntryActions
+                    label={project.name}
+                    confirming={confirmDeleteId === project.id}
+                    busy={busyId === project.id}
+                    onEdit={() => openEdit(project)}
+                    onDelete={() => {
+                      setMessage(null);
+                      setLinkProjectId(null);
+                      setConfirmDeleteId(project.id);
+                    }}
+                    onConfirm={() => handleDeleteProject(project.id)}
+                    onCancel={() => setConfirmDeleteId(null)}
+                  />
                 )}
               </div>
 
               {project.images.length > 0 && (
                 <ul className="mt-3 flex flex-wrap gap-3" aria-label={`${project.name} images`}>
                   {project.images.map((image, index) => (
-                    <li key={image.id} className="relative">
+                    <li key={image.id} className="group relative">
                       {image.url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={image.url}
                           alt={image.alt_text || `${project.name} screenshot ${index + 1}`}
-                          className="h-24 w-36 rounded-md border object-cover"
+                          className="h-28 w-44 rounded-lg border border-[#E3E6EB] bg-white object-cover"
                         />
                       ) : (
-                        <div className="flex h-24 w-36 items-center justify-center rounded-md border bg-muted text-xs text-muted-foreground">
+                        <div className="flex h-28 w-44 items-center justify-center rounded-lg border border-[#E3E6EB] bg-white text-xs text-[#6B7280]">
                           Image unavailable
                         </div>
                       )}
                       {!isEditing && (
                         <button
                           type="button"
-                          className="mt-1 block text-xs text-muted-foreground hover:text-destructive"
+                          className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-[#0E1726]/80 text-white transition-colors hover:bg-[#DC2626] disabled:opacity-60"
                           disabled={busyId === image.id}
                           onClick={() => handleDeleteImage(project.id, image.id)}
                           aria-label={`Remove image ${index + 1} from ${project.name}`}
                         >
-                          Remove
+                          <X aria-hidden="true" className="size-4" />
                         </button>
                       )}
                     </li>
@@ -568,26 +545,30 @@ export function ProjectsSection({
               )}
 
               {project.links.length > 0 && (
-                <ul className="mt-2 space-y-1" aria-label={`${project.name} links`}>
+                <ul className="mt-3 flex flex-wrap gap-2" aria-label={`${project.name} links`}>
                   {project.links.map((link) => (
-                    <li key={link.id} className="flex items-center gap-2 text-sm">
+                    <li
+                      key={link.id}
+                      className="flex items-center gap-1 rounded-full border border-[#C7D5FA] bg-white py-1 pl-3 pr-1 text-sm"
+                    >
                       <a
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-primary underline-offset-4 hover:underline"
+                        className="inline-flex items-center gap-1.5 font-semibold text-[#1D4ED8] hover:text-[#1E40AF]"
                       >
+                        <ExternalLink aria-hidden="true" className="size-3.5" />
                         {link.label}
                       </a>
                       {!isEditing && (
                         <button
                           type="button"
-                          className="text-xs text-muted-foreground hover:text-destructive"
+                          className="flex size-6 items-center justify-center rounded-full text-[#6B7280] hover:bg-[#FEF2F2] hover:text-[#DC2626] disabled:opacity-60"
                           disabled={busyId === link.id}
                           onClick={() => handleDeleteLink(project.id, link.id)}
                           aria-label={`Remove link ${link.label}`}
                         >
-                          Remove
+                          <X aria-hidden="true" className="size-3.5" />
                         </button>
                       )}
                     </li>
@@ -596,17 +577,21 @@ export function ProjectsSection({
               )}
 
               {!isEditing && linkProjectId !== project.id && (
-                <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+                <div className="mt-4 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    className="text-primary underline-offset-4 hover:underline"
+                    className={ui.secondaryButton.replace("h-10", "h-9")}
                     onClick={() => openLinkForm(project.id)}
                     aria-label={`Add link to ${project.name}`}
                   >
-                    + Add link
+                    <Link2 aria-hidden="true" className="size-4" />
+                    Add link
                   </button>
-                  <label className="cursor-pointer text-primary underline-offset-4 hover:underline">
-                    {busyId === project.id ? "Uploading..." : "+ Add image"}
+                  <label
+                    className={`${ui.secondaryButton.replace("h-10", "h-9")} cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[#1D4ED8]`}
+                  >
+                    <ImagePlus aria-hidden="true" className="size-4" />
+                    {busyId === project.id ? "Uploading..." : "Add image"}
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
@@ -621,55 +606,56 @@ export function ProjectsSection({
 
               {!isEditing && linkProjectId === project.id && (
                 <form
-                  className="mt-3 space-y-3 rounded-md border p-3"
+                  className="mt-4 space-y-3 rounded-xl border border-[#E3E6EB] bg-white p-4"
                   onSubmit={(e) => handleLinkSubmit(e, project.id)}
                   noValidate
                   aria-label={`Add link to ${project.name}`}
                 >
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1.5">
-                      <Label htmlFor={`link-label-${project.id}`}>Link label</Label>
-                      <Input
+                      <label htmlFor={`link-label-${project.id}`} className={ui.label}>
+                        Link label
+                      </label>
+                      <input
                         id={`link-label-${project.id}`}
+                        className={ui.input}
                         placeholder="e.g. GitHub"
                         value={linkValues.label}
                         onChange={(e) => setLinkValues((v) => ({ ...v, label: e.target.value }))}
                         aria-invalid={Boolean(linkErrors.label)}
                       />
-                      {linkErrors.label && (
-                        <p className="text-sm text-destructive">{linkErrors.label}</p>
-                      )}
+                      {linkErrors.label && <p className={ui.fieldError}>{linkErrors.label}</p>}
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor={`link-url-${project.id}`}>URL</Label>
-                      <Input
+                      <label htmlFor={`link-url-${project.id}`} className={ui.label}>
+                        URL
+                      </label>
+                      <input
                         id={`link-url-${project.id}`}
                         type="url"
+                        className={ui.input}
                         placeholder="https://"
                         value={linkValues.url}
                         onChange={(e) => setLinkValues((v) => ({ ...v, url: e.target.value }))}
                         aria-invalid={Boolean(linkErrors.url)}
                       />
-                      {linkErrors.url && (
-                        <p className="text-sm text-destructive">{linkErrors.url}</p>
-                      )}
+                      {linkErrors.url && <p className={ui.fieldError}>{linkErrors.url}</p>}
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button type="submit" size="sm" disabled={busyId === project.id}>
+                    <button type="submit" className={ui.primaryButton} disabled={busyId === project.id}>
                       {busyId === project.id ? "Saving..." : "Save link"}
-                    </Button>
-                    <Button
+                    </button>
+                    <button
                       type="button"
-                      variant="outline"
-                      size="sm"
+                      className={ui.secondaryButton}
                       onClick={() => {
                         setLinkErrors({});
                         setLinkProjectId(null);
                       }}
                     >
                       Cancel
-                    </Button>
+                    </button>
                   </div>
                 </form>
               )}

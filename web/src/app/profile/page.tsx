@@ -1,5 +1,9 @@
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Plus_Jakarta_Sans } from "next/font/google";
+import { ArrowLeft } from "lucide-react";
 import { getCurrentProfile } from "@/lib/profiles/profile";
 import { getCurrentEducation } from "@/lib/profiles/profile-education";
 import { getCurrentExperience } from "@/lib/profiles/profile-experience";
@@ -15,6 +19,62 @@ import { EducationSection, type EducationEntry } from "@/components/profile/educ
 import { ExperienceSection, type ExperienceEntry } from "@/components/profile/experience-section";
 import { SkillsSection, type SkillEntry } from "@/components/profile/skills-section";
 import { ProjectsSection, type ProjectEntry } from "@/components/profile/projects-section";
+import DashboardHeader from "@/components/dashboard/dashboard-header";
+import { DashboardShortcuts } from "@/components/dashboard/dashboard-sidebar";
+import { getInitials } from "@/lib/profiles/profile-image-url";
+
+// Same font and colours as the dashboard so the two pages feel like one app.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  fallback: ["system-ui", "Segoe UI", "Arial", "sans-serif"],
+});
+
+export const metadata: Metadata = {
+  title: "My profile · CareerConnect",
+  description: "Manage your profile, experience, education, skills and projects.",
+};
+
+function ProfileShell({ initials, children }: { initials: string; children: ReactNode }) {
+  return (
+    <div className={`${jakarta.className} min-h-screen bg-[#F5F6F8] text-[#1F2937]`}>
+      <DashboardHeader initials={initials} activeHref={null} />
+
+      <main>
+        <section className="relative overflow-hidden bg-[#0E1726] text-white">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(#ffffff_1px,transparent_1px)] [background-size:22px_22px]"
+          />
+          <div className="relative mx-auto flex max-w-[1200px] flex-wrap items-end justify-between gap-4 px-4 pb-20 pt-10 sm:px-6">
+            <div className="flex flex-col gap-2">
+              <p className="font-mono text-xs uppercase tracking-[0.14em] text-[#A9C1FF]">
+                Profile
+              </p>
+              <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+                My profile
+              </h1>
+              <p className="text-base text-[#C7D0DD]">
+                Keep it up to date so recruiters see your best side.
+              </p>
+            </div>
+            <Link
+              href="/dashboard"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-semibold text-[#A9C1FF] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6B93FF]"
+            >
+              <ArrowLeft aria-hidden="true" className="size-4" />
+              Back to dashboard
+            </Link>
+          </div>
+        </section>
+
+        <div className="relative z-10 mx-auto -mt-12 max-w-[1200px] px-4 pb-16 sm:px-6">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
 
 export default async function ProfilePage() {
   const result = await getCurrentProfile();
@@ -27,16 +87,14 @@ export default async function ProfilePage() {
     }
 
     return (
-      <main className="min-h-screen bg-background px-4 py-10">
-        <div className="mx-auto w-full max-w-2xl">
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-          <Link href="/dashboard" className="mt-4 inline-block text-sm hover:underline">
-            Back to dashboard
-          </Link>
-        </div>
-      </main>
+      <ProfileShell initials="?">
+        <p
+          role="alert"
+          className="rounded-2xl border border-[#FECACA] bg-[#FEF2F2] px-5 py-4 text-sm font-medium text-[#B91C1C]"
+        >
+          {error}
+        </p>
+      </ProfileShell>
     );
   }
 
@@ -134,26 +192,21 @@ export default async function ProfilePage() {
   };
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10">
-      <div className="mx-auto w-full max-w-2xl">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold">My profile</h1>
-          <Link
-            href="/dashboard"
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            Back to dashboard
-          </Link>
-        </div>
+    <ProfileShell initials={getInitials(profile.full_name)}>
+      <ProfileEditor initialProfile={profile} />
 
-        <div className="space-y-6">
-          <ProfileEditor initialProfile={profile} />
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex min-w-0 flex-col gap-6">
           <ExperienceSection initialExperience={experience} loadError={experienceError} />
           <EducationSection initialEducation={education} loadError={educationError} />
-          <SkillsSection initialSkills={skills} loadError={skillsError} />
           <ProjectsSection initialProjects={projects} loadError={projectsError} />
         </div>
+
+        <aside className="flex flex-col gap-6 lg:sticky lg:top-24">
+          <SkillsSection initialSkills={skills} loadError={skillsError} />
+          <DashboardShortcuts />
+        </aside>
       </div>
-    </main>
+    </ProfileShell>
   );
 }

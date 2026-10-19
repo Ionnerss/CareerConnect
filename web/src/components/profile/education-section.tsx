@@ -8,9 +8,8 @@ import {
 } from "@/app/profile/education-actions";
 import { profileEducationSchema } from "@/lib/validations/profile-education";
 import { formatDateRange } from "@/lib/profiles/format-date";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { GraduationCap, Plus } from "lucide-react";
+import { EntryActions, EntryBadge, SectionHeader, ui } from "@/components/profile/profile-ui";
 
 export type EducationEntry = {
   id: string;
@@ -250,226 +249,211 @@ export function EducationSection({
   const isEditing = editor.mode !== "closed";
 
   return (
-    <section aria-labelledby="education-heading" className="rounded-lg border p-6 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <h2 id="education-heading" className="text-lg font-semibold">
-          Education
-        </h2>
-        {!isEditing && (
-          <Button type="button" variant="outline" onClick={openAdd}>
-            Add education
-          </Button>
-        )}
-      </div>
+    <section aria-labelledby="education-heading" className={ui.card}>
+      <SectionHeader
+        id="education-heading"
+        icon={GraduationCap}
+        title="Education"
+        action={
+          !isEditing && (
+            <button type="button" className={ui.addButton} onClick={openAdd}>
+              <Plus aria-hidden="true" className="size-4" />
+              Add education
+            </button>
+          )
+        }
+      />
 
       {loadError && (
-        <p role="alert" className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className={ui.error}>
           {loadError}
         </p>
       )}
 
       {message && (
-        <p role="status" className="mt-4 rounded-md bg-muted px-3 py-2 text-sm">
+        <p role="status" className={ui.success}>
           {message}
         </p>
       )}
 
       {formError && (
-        <p role="alert" className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className={ui.error}>
           {formError}
         </p>
       )}
 
       {isEditing && (
         <form
-          className="mt-4 space-y-4 rounded-md border p-4"
+          className={ui.form}
           onSubmit={handleSubmit}
           noValidate
           aria-label={editor.mode === "edit" ? "Edit education" : "Add education"}
         >
           <div className="space-y-1.5">
-            <Label htmlFor="education-school">School</Label>
-            <Input
+            <label htmlFor="education-school" className={ui.label}>
+              School
+            </label>
+            <input
               id="education-school"
+              className={ui.input}
+              placeholder="e.g. Concordia University"
               value={values.school}
               onChange={(e) => updateField("school", e.target.value)}
               aria-invalid={Boolean(errors.school)}
             />
-            {errors.school && <p className="text-sm text-destructive">{errors.school}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="education-degree">Degree</Label>
-            <select
-              id="education-degree"
-              value={values.degree_choice}
-              onChange={(e) => updateField("degree_choice", e.target.value)}
-              aria-invalid={Boolean(errors.degree)}
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              <option value="">Select a degree</option>
-              {DEGREE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-              <option value={OTHER_DEGREE}>Other</option>
-            </select>
-            {values.degree_choice === OTHER_DEGREE && (
-              <Input
-                id="education-degree-other"
-                aria-label="Other degree"
-                placeholder="e.g. Undergraduate certificate"
-                value={values.degree_other}
-                onChange={(e) => updateField("degree_other", e.target.value)}
-                aria-invalid={Boolean(errors.degree)}
-              />
-            )}
-            {errors.degree && <p className="text-sm text-destructive">{errors.degree}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="education-field">Field of study</Label>
-            <Input
-              id="education-field"
-              value={values.field_of_study}
-              onChange={(e) => updateField("field_of_study", e.target.value)}
-              aria-invalid={Boolean(errors.field_of_study)}
-            />
-            {errors.field_of_study && (
-              <p className="text-sm text-destructive">{errors.field_of_study}</p>
-            )}
+            {errors.school && <p className={ui.fieldError}>{errors.school}</p>}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="education-start">Start date</Label>
-              <Input
+              <label htmlFor="education-degree" className={ui.label}>
+                Degree
+              </label>
+              <select
+                id="education-degree"
+                value={values.degree_choice}
+                onChange={(e) => updateField("degree_choice", e.target.value)}
+                aria-invalid={Boolean(errors.degree)}
+                className={ui.input}
+              >
+                <option value="">Select a degree</option>
+                {DEGREE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+                <option value={OTHER_DEGREE}>Other</option>
+              </select>
+              {values.degree_choice === OTHER_DEGREE && (
+                <input
+                  id="education-degree-other"
+                  aria-label="Other degree"
+                  placeholder="e.g. Undergraduate certificate"
+                  className={`${ui.input} mt-2`}
+                  value={values.degree_other}
+                  onChange={(e) => updateField("degree_other", e.target.value)}
+                  aria-invalid={Boolean(errors.degree)}
+                />
+              )}
+              {errors.degree && <p className={ui.fieldError}>{errors.degree}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="education-field" className={ui.label}>
+                Field of study
+              </label>
+              <input
+                id="education-field"
+                className={ui.input}
+                placeholder="e.g. Software Engineering"
+                value={values.field_of_study}
+                onChange={(e) => updateField("field_of_study", e.target.value)}
+                aria-invalid={Boolean(errors.field_of_study)}
+              />
+              {errors.field_of_study && <p className={ui.fieldError}>{errors.field_of_study}</p>}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="education-start" className={ui.label}>
+                Start date
+              </label>
+              <input
                 id="education-start"
                 type="date"
+                className={ui.input}
                 value={values.start_date}
                 onChange={(e) => updateField("start_date", e.target.value)}
                 aria-invalid={Boolean(errors.start_date)}
               />
-              {errors.start_date && (
-                <p className="text-sm text-destructive">{errors.start_date}</p>
-              )}
+              {errors.start_date && <p className={ui.fieldError}>{errors.start_date}</p>}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="education-end">End date (leave empty if ongoing)</Label>
-              <Input
+              <label htmlFor="education-end" className={ui.label}>
+                End date (leave empty if ongoing)
+              </label>
+              <input
                 id="education-end"
                 type="date"
+                className={ui.input}
                 value={values.end_date}
                 onChange={(e) => updateField("end_date", e.target.value)}
                 aria-invalid={Boolean(errors.end_date)}
               />
-              {errors.end_date && <p className="text-sm text-destructive">{errors.end_date}</p>}
+              {errors.end_date && <p className={ui.fieldError}>{errors.end_date}</p>}
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="education-description">Description</Label>
+            <label htmlFor="education-description" className={ui.label}>
+              Description
+            </label>
             <textarea
               id="education-description"
               rows={3}
+              className={ui.textarea}
+              placeholder="Clubs, awards, relevant courses..."
               value={values.description}
               onChange={(e) => updateField("description", e.target.value)}
               aria-invalid={Boolean(errors.description)}
-              className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
-            {errors.description && (
-              <p className="text-sm text-destructive">{errors.description}</p>
-            )}
+            {errors.description && <p className={ui.fieldError}>{errors.description}</p>}
           </div>
 
           <div className="flex gap-3">
-            <Button type="submit" disabled={isSaving}>
+            <button type="submit" className={ui.primaryButton} disabled={isSaving}>
               {isSaving ? "Saving..." : editor.mode === "edit" ? "Save changes" : "Add"}
-            </Button>
-            <Button type="button" variant="outline" onClick={closeEditor} disabled={isSaving}>
+            </button>
+            <button
+              type="button"
+              className={ui.secondaryButton}
+              onClick={closeEditor}
+              disabled={isSaving}
+            >
               Cancel
-            </Button>
+            </button>
           </div>
         </form>
       )}
 
       {entries.length === 0 && !isEditing && !loadError ? (
-        <p className="mt-4 text-sm text-muted-foreground">No education added yet.</p>
+        <p className={ui.empty}>No education added yet.</p>
       ) : (
-        <ul className="mt-4 space-y-4">
+        <ul className="mt-5 divide-y divide-[#EEF0F3]">
           {entries.map((entry) => (
-            <li key={entry.id} className="border-t pt-4 first:border-t-0 first:pt-0">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="font-medium">{entry.school}</h3>
-                  <p className="text-sm">
-                    {entry.field_of_study
-                      ? `${entry.degree}, ${entry.field_of_study}`
-                      : entry.degree}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDateRange(entry.start_date, entry.end_date)}
-                  </p>
-                  {entry.description && (
-                    <p className="mt-2 whitespace-pre-line text-sm text-muted-foreground">
-                      {entry.description}
+            <li key={entry.id} className="flex gap-4 py-4 first:pt-0 last:pb-0">
+              <EntryBadge text={entry.school} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className={ui.entryTitle}>{entry.school}</h3>
+                    <p className={ui.entrySubtitle}>
+                      {entry.field_of_study
+                        ? `${entry.degree}, ${entry.field_of_study}`
+                        : entry.degree}
                     </p>
+                    <p className={`${ui.entryMeta} mt-1`}>
+                      {formatDateRange(entry.start_date, entry.end_date)}
+                    </p>
+                  </div>
+                  {!isEditing && (
+                    <EntryActions
+                      label={entry.school}
+                      confirming={confirmDeleteId === entry.id}
+                      busy={deletingId === entry.id}
+                      onEdit={() => openEdit(entry)}
+                      onDelete={() => {
+                        setMessage(null);
+                        setConfirmDeleteId(entry.id);
+                      }}
+                      onConfirm={() => handleDelete(entry.id)}
+                      onCancel={() => setConfirmDeleteId(null)}
+                    />
                   )}
                 </div>
-
-                {!isEditing && (
-                  <div className="flex shrink-0 gap-2">
-                    {confirmDeleteId === entry.id ? (
-                      <>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          disabled={deletingId === entry.id}
-                          onClick={() => handleDelete(entry.id)}
-                          aria-label={`Confirm delete ${entry.school}`}
-                        >
-                          {deletingId === entry.id ? "Deleting..." : "Confirm"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={deletingId === entry.id}
-                          onClick={() => setConfirmDeleteId(null)}
-                        >
-                          Keep
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEdit(entry)}
-                          aria-label={`Edit ${entry.school}`}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setMessage(null);
-                            setConfirmDeleteId(entry.id);
-                          }}
-                          aria-label={`Delete ${entry.school}`}
-                        >
-                          Delete
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                )}
+                {entry.description && <p className={ui.entryBody}>{entry.description}</p>}
               </div>
             </li>
           ))}

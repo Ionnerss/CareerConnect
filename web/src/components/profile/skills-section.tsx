@@ -3,11 +3,17 @@
 import { useState, type FormEvent } from "react";
 import { addSkill, deleteSkill, updateSkill } from "@/app/profile/skills-actions";
 import { profileSkillSchema } from "@/lib/validations/profile-skills";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Plus, Sparkles } from "lucide-react";
+import { EntryActions, SectionHeader, ui } from "@/components/profile/profile-ui";
 
 export const PROFICIENCY_LEVELS = ["Beginner", "Intermediate", "Advanced", "Expert"] as const;
+
+const LEVEL_STYLES: Record<string, string> = {
+  Beginner: "bg-[#F3F4F6] text-[#4B5563]",
+  Intermediate: "bg-[#E8EEFD] text-[#1D4ED8]",
+  Advanced: "bg-[#1D4ED8] text-white",
+  Expert: "bg-[#0E1726] text-white",
+};
 
 export type SkillEntry = {
   id: string;
@@ -177,152 +183,131 @@ export function SkillsSection({
   const isEditing = editor.mode !== "closed";
 
   return (
-    <section aria-labelledby="skills-heading" className="rounded-lg border p-6 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <h2 id="skills-heading" className="text-lg font-semibold">
-          Skills
-        </h2>
-        {!isEditing && (
-          <Button type="button" variant="outline" onClick={openAdd}>
-            Add skill
-          </Button>
-        )}
-      </div>
+    <section aria-labelledby="skills-heading" className={ui.card}>
+      <SectionHeader
+        id="skills-heading"
+        icon={Sparkles}
+        title="Skills"
+        action={
+          !isEditing && (
+            <button type="button" className={ui.addButton} onClick={openAdd}>
+              <Plus aria-hidden="true" className="size-4" />
+              Add skill
+            </button>
+          )
+        }
+      />
 
       {loadError && (
-        <p role="alert" className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className={ui.error}>
           {loadError}
         </p>
       )}
 
       {message && (
-        <p role="status" className="mt-4 rounded-md bg-muted px-3 py-2 text-sm">
+        <p role="status" className={ui.success}>
           {message}
         </p>
       )}
 
       {formError && (
-        <p role="alert" className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className={ui.error}>
           {formError}
         </p>
       )}
 
       {isEditing && (
         <form
-          className="mt-4 space-y-4 rounded-md border p-4"
+          className={ui.form}
           onSubmit={handleSubmit}
           noValidate
           aria-label={editor.mode === "edit" ? "Edit skill" : "Add skill"}
         >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="skill-name">Skill</Label>
-              <Input
-                id="skill-name"
-                placeholder="e.g. React"
-                value={values.name}
-                onChange={(e) => updateField("name", e.target.value)}
-                aria-invalid={Boolean(errors.name)}
-              />
-              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-            </div>
+          <div className="space-y-1.5">
+            <label htmlFor="skill-name" className={ui.label}>
+              Skill
+            </label>
+            <input
+              id="skill-name"
+              className={ui.input}
+              placeholder="e.g. React"
+              value={values.name}
+              onChange={(e) => updateField("name", e.target.value)}
+              aria-invalid={Boolean(errors.name)}
+            />
+            {errors.name && <p className={ui.fieldError}>{errors.name}</p>}
+          </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="skill-proficiency">Proficiency</Label>
-              <select
-                id="skill-proficiency"
-                value={values.proficiency}
-                onChange={(e) => updateField("proficiency", e.target.value)}
-                aria-invalid={Boolean(errors.proficiency)}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="">Select a level</option>
-                {PROFICIENCY_LEVELS.map((level) => (
-                  <option key={level} value={level}>
-                    {level}
-                  </option>
-                ))}
-              </select>
-              {errors.proficiency && (
-                <p className="text-sm text-destructive">{errors.proficiency}</p>
-              )}
-            </div>
+          <div className="space-y-1.5">
+            <label htmlFor="skill-proficiency" className={ui.label}>
+              Proficiency
+            </label>
+            <select
+              id="skill-proficiency"
+              className={ui.input}
+              value={values.proficiency}
+              onChange={(e) => updateField("proficiency", e.target.value)}
+              aria-invalid={Boolean(errors.proficiency)}
+            >
+              <option value="">Select a level</option>
+              {PROFICIENCY_LEVELS.map((level) => (
+                <option key={level} value={level}>
+                  {level}
+                </option>
+              ))}
+            </select>
+            {errors.proficiency && <p className={ui.fieldError}>{errors.proficiency}</p>}
           </div>
 
           <div className="flex gap-3">
-            <Button type="submit" disabled={isSaving}>
+            <button type="submit" className={ui.primaryButton} disabled={isSaving}>
               {isSaving ? "Saving..." : editor.mode === "edit" ? "Save changes" : "Add"}
-            </Button>
-            <Button type="button" variant="outline" onClick={closeEditor} disabled={isSaving}>
+            </button>
+            <button
+              type="button"
+              className={ui.secondaryButton}
+              onClick={closeEditor}
+              disabled={isSaving}
+            >
               Cancel
-            </Button>
+            </button>
           </div>
         </form>
       )}
 
       {entries.length === 0 && !isEditing && !loadError ? (
-        <p className="mt-4 text-sm text-muted-foreground">No skills added yet.</p>
+        <p className={ui.empty}>No skills added yet.</p>
       ) : (
-        <ul className="mt-4 divide-y">
+        <ul className="mt-5 flex flex-col gap-2">
           {entries.map((entry) => (
-            <li key={entry.id} className="flex items-center justify-between gap-4 py-2">
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{entry.name}</span>
-                <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">
+            <li
+              key={entry.id}
+              className="flex items-center justify-between gap-2 rounded-xl border border-[#EEF0F3] bg-[#F9FAFB] py-1 pl-3 pr-1"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-sm font-semibold text-[#0E1726]">{entry.name}</span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                    LEVEL_STYLES[entry.proficiency] ?? LEVEL_STYLES.Beginner
+                  }`}
+                >
                   {entry.proficiency}
                 </span>
               </div>
 
               {!isEditing && (
-                <div className="flex shrink-0 gap-2">
-                  {confirmDeleteId === entry.id ? (
-                    <>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        disabled={deletingId === entry.id}
-                        onClick={() => handleDelete(entry.id)}
-                        aria-label={`Confirm delete ${entry.name}`}
-                      >
-                        {deletingId === entry.id ? "Deleting..." : "Confirm"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={deletingId === entry.id}
-                        onClick={() => setConfirmDeleteId(null)}
-                      >
-                        Keep
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEdit(entry)}
-                        aria-label={`Edit ${entry.name}`}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setMessage(null);
-                          setConfirmDeleteId(entry.id);
-                        }}
-                        aria-label={`Delete ${entry.name}`}
-                      >
-                        Delete
-                      </Button>
-                    </>
-                  )}
-                </div>
+                <EntryActions
+                  label={entry.name}
+                  confirming={confirmDeleteId === entry.id}
+                  busy={deletingId === entry.id}
+                  onEdit={() => openEdit(entry)}
+                  onDelete={() => {
+                    setMessage(null);
+                    setConfirmDeleteId(entry.id);
+                  }}
+                  onConfirm={() => handleDelete(entry.id)}
+                  onCancel={() => setConfirmDeleteId(null)}
+                />
               )}
             </li>
           ))}
