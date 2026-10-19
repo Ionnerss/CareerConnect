@@ -1,0 +1,96 @@
+@keyframes heroEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(var(--hero-distance, 16px));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero [data-hero-motion="title"] {
+  --hero-delay: 0ms;
+  --hero-distance: 16px;
+}
+
+.hero [data-hero-motion="description"] {
+  --hero-delay: 100ms;
+  --hero-distance: 12px;
+}
+
+.hero [data-hero-motion="actions"] {
+  --hero-delay: 180ms;
+  --hero-distance: 10px;
+}
+
+.hero [data-hero-motion="hint"] {
+  --hero-delay: 220ms;
+  --hero-distance: 8px;
+}
+
+.hero [data-hero-motion="profile"] {
+  --hero-delay: 260ms;
+  --hero-distance: 20px;
+}
+
+.hero [data-hero-motion="connector"] {
+  --hero-delay: 320ms;
+  --hero-distance: 0px;
+}
+
+.hero [data-hero-motion="job-first"] {
+  --hero-delay: 360ms;
+  --hero-distance: 16px;
+}
+
+.hero [data-hero-motion="job-second"] {
+  --hero-delay: 440ms;
+  --hero-distance: 16px;
+}
+
+.hero [data-hero-motion="caption"] {
+  --hero-delay: 440ms;
+  --hero-distance: 0px;
+}
+
+/* Keep everything visible by default, including with reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero [data-hero-motion] {
+    animation-name: heroEntrance;
+    animation-duration: 1060ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    animation-delay: var(--hero-delay, 0ms);
+    animation-fill-mode: backwards;
+  }
+
+  .hero [data-hero-button] {
+    transition: background-color 180ms ease;
+  }
+
+  .hero [data-hero-button] svg {
+    transition: transform 180ms ease;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hero [data-hero-button="primary"]:hover {
+    background-color: #1d48c4;
+  }
+
+  .hero [data-hero-button="secondary"]:hover {
+    background-color: #ebe8e1;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .hero [data-hero-button]:hover svg {
+    transform: translateY(3px);
+  }
+}
+
+/* Immediately reveal a group if someone tabs into it during the entrance. */
+.hero [data-hero-motion]:focus-within {
+  animation: none;
+}
