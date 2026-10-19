@@ -4,10 +4,17 @@ import { getCurrentProfile } from "@/lib/profiles/profile";
 import { getCurrentEducation } from "@/lib/profiles/profile-education";
 import { getCurrentExperience } from "@/lib/profiles/profile-experience";
 import { getCurrentSkills } from "@/lib/profiles/profile-skills";
+import { getCurrentProjects } from "@/lib/profiles/profile-projects";
+import { getCurrentProjectLinks } from "@/lib/profiles/profile-project-links";
+import {
+  getCurrentProjectImages,
+  getProjectImageUrl,
+} from "@/lib/profiles/profile-project-images";
 import { ProfileEditor, type ProfileData } from "@/components/profile/profile-editor";
 import { EducationSection, type EducationEntry } from "@/components/profile/education-section";
 import { ExperienceSection, type ExperienceEntry } from "@/components/profile/experience-section";
 import { SkillsSection, type SkillEntry } from "@/components/profile/skills-section";
+import { ProjectsSection, type ProjectEntry } from "@/components/profile/projects-section";
 
 export default async function ProfilePage() {
   const result = await getCurrentProfile();
@@ -76,6 +83,47 @@ export default async function ProfilePage() {
   const skillsError =
     "error" in skillsResult && skillsResult.error ? skillsResult.error : null;
 
+  const projectsResult = await getCurrentProjects();
+  const projectRows =
+    "projects" in projectsResult && projectsResult.projects ? projectsResult.projects : [];
+  const projects: ProjectEntry[] = await Promise.all(
+    projectRows.map(async (project) => {
+      const linksResult = await getCurrentProjectLinks(project.id);
+      const links =
+        "links" in linksResult && linksResult.links
+          ? linksResult.links.map((link) => ({
+              id: link.id,
+              label: link.label,
+              url: link.url,
+            }))
+          : [];
+
+      const imagesResult = await getCurrentProjectImages(project.id);
+      const imageRows =
+        "images" in imagesResult && imagesResult.images ? imagesResult.images : [];
+      const images = await Promise.all(
+        imageRows.map(async (image) => {
+          const signed = await getProjectImageUrl(image.id);
+          return {
+            id: image.id,
+            url: signed.success && "url" in signed ? String(signed.url) : null,
+            alt_text: image.alt_text ?? null,
+          };
+        }),
+      );
+
+      return {
+        id: project.id,
+        name: project.name,
+        short_description: project.short_description,
+        links,
+        images,
+      };
+    }),
+  );
+  const projectsError =
+    "error" in projectsResult && projectsResult.error ? projectsResult.error : null;
+
   const profile: ProfileData = {
     full_name: result.profile.full_name ?? null,
     bio: result.profile.bio ?? null,
@@ -103,6 +151,7 @@ export default async function ProfilePage() {
           <ExperienceSection initialExperience={experience} loadError={experienceError} />
           <EducationSection initialEducation={education} loadError={educationError} />
           <SkillsSection initialSkills={skills} loadError={skillsError} />
+          <ProjectsSection initialProjects={projects} loadError={projectsError} />
         </div>
       </div>
     </main>
