@@ -11,6 +11,10 @@ import { getCurrentSkills } from "@/lib/profiles/profile-skills";
 import { getCurrentProjects } from "@/lib/profiles/profile-projects";
 import { getCurrentProjectLinks } from "@/lib/profiles/profile-project-links";
 import {
+  getCurrentPreferenceLanguages,
+  getCurrentPreferences,
+} from "@/lib/profiles/profile-preferences";
+import {
   getCurrentProjectImages,
   getProjectImageUrl,
 } from "@/lib/profiles/profile-project-images";
@@ -19,6 +23,11 @@ import { EducationSection, type EducationEntry } from "@/components/profile/educ
 import { ExperienceSection, type ExperienceEntry } from "@/components/profile/experience-section";
 import { SkillsSection, type SkillEntry } from "@/components/profile/skills-section";
 import { ProjectsSection, type ProjectEntry } from "@/components/profile/projects-section";
+import {
+  PreferencesSection,
+  type PreferenceLanguage,
+  type Preferences,
+} from "@/components/profile/preferences-section";
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import { DashboardShortcuts } from "@/components/dashboard/dashboard-sidebar";
 import { getInitials } from "@/lib/profiles/profile-image-url";
@@ -182,6 +191,32 @@ export default async function ProfilePage() {
   const projectsError =
     "error" in projectsResult && projectsResult.error ? projectsResult.error : null;
 
+  const [preferencesResult, languagesResult] = await Promise.all([
+    getCurrentPreferences(),
+    getCurrentPreferenceLanguages(),
+  ]);
+  const savedPreferences =
+    "preferences" in preferencesResult ? preferencesResult.preferences : null;
+  const preferences: Preferences | null = savedPreferences
+    ? {
+        desired_role: savedPreferences.desired_role ?? null,
+        desired_position: savedPreferences.desired_position ?? null,
+        desired_salary:
+          savedPreferences.desired_salary === null || savedPreferences.desired_salary === undefined
+            ? null
+            : Number(savedPreferences.desired_salary),
+        work_mode: savedPreferences.work_mode ?? null,
+      }
+    : null;
+  const languages: PreferenceLanguage[] =
+    "languages" in languagesResult && languagesResult.languages
+      ? languagesResult.languages.map((language) => ({ id: language.id, name: language.name }))
+      : [];
+  const preferencesError =
+    ("error" in preferencesResult && preferencesResult.error) ||
+    ("error" in languagesResult && languagesResult.error) ||
+    null;
+
   const profile: ProfileData = {
     full_name: result.profile.full_name ?? null,
     bio: result.profile.bio ?? null,
@@ -204,6 +239,11 @@ export default async function ProfilePage() {
 
         <aside className="flex flex-col gap-6 lg:sticky lg:top-24">
           <SkillsSection initialSkills={skills} loadError={skillsError} />
+          <PreferencesSection
+            initialPreferences={preferences}
+            initialLanguages={languages}
+            loadError={preferencesError}
+          />
           <DashboardShortcuts />
         </aside>
       </div>
