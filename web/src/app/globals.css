@@ -7,7 +7,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-jakarta), system-ui, "Segoe UI", Arial, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -49,38 +49,39 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* CareerConnect palette: navy ink, blue action, soft grey page. */
+  --background: #f5f6f8;
+  --foreground: #0e1726;
+  --card: #ffffff;
+  --card-foreground: #0e1726;
+  --popover: #ffffff;
+  --popover-foreground: #0e1726;
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --secondary: #eaeef7;
+  --secondary-foreground: #0e1726;
+  --muted: #eef0f4;
+  --muted-foreground: #5b6577;
+  --accent: #e8eefc;
+  --accent-foreground: #1e40af;
+  --destructive: #b42318;
+  --border: #d9dde5;
+  --input: #d9dde5;
+  --ring: #1d4ed8;
+  --chart-1: #93b0f5;
+  --chart-2: #5b86ee;
+  --chart-3: #1d4ed8;
+  --chart-4: #1e3a8a;
+  --chart-5: #0e1726;
+  --radius: 0.75rem;
+  --sidebar: #0e1726;
+  --sidebar-foreground: #e6ebf5;
+  --sidebar-primary: #1d4ed8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1b2740;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #24324d;
+  --sidebar-ring: #6f95ff;
 }
 
 .dark {

@@ -147,8 +147,8 @@ export default function CandidateComparison({ jobId, initialRequirements, applic
   const reusedCount = result ? result.ranked.filter((candidate) => candidate.cached).length : 0;
 
   return (
-    <section aria-labelledby="compare-heading" className="mt-10 border-t border-border pt-8">
-      <h2 id="compare-heading" className="text-xl font-semibold">
+    <section aria-labelledby="compare-heading" className="mt-8 rounded-2xl border border-[#E3E6EB] bg-white p-5 sm:p-6">
+      <h2 id="compare-heading" className="text-xl font-extrabold tracking-tight text-[#0E1726]">
         Compare top candidates
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
@@ -309,7 +309,7 @@ export default function CandidateComparison({ jobId, initialRequirements, applic
                       <tr key={row.requirement.id} className="border-t border-border">
                         <th
                           scope="row"
-                          className="sticky left-0 bg-background px-4 py-3 text-left font-normal"
+                          className="sticky left-0 bg-white px-4 py-3 text-left font-normal"
                         >
                           <div>{row.requirement.text}</div>
                           <div className="text-xs text-muted-foreground">

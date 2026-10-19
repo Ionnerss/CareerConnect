@@ -8,44 +8,31 @@ type StatusProps = {
 }
 
 export function ApplicationStatusCountUI({ status_count }: StatusProps) {
+    const cells = [
+        { label: "Total Applications", value: status_count.total, note: "Applications submitted", dot: "bg-[#0E1726]" },
+        { label: "In Progress", value: status_count.inProgress, note: "Awaiting a decision", dot: "bg-[#1D4ED8]" },
+        { label: "Interviews", value: status_count.interview, note: "Interview Stage", dot: "bg-[#B45309]" },
+        { label: "Offers", value: status_count.offer, note: "Offers Received", dot: "bg-[#047857]" },
+        { label: "Rejected", value: status_count.rejected, note: "Applications declined", dot: "bg-[#6B7280]" },
+    ];
 
     return (
-        <div className="flex items-center justify-center">
-            <div className="flex flex-row gap-4">
-
-                <div className="flex w-52 flex-col gap-4 rounded-lg border p-6">
-                    <p>Total Applications</p>
-                    <p>{status_count.total}</p>
-                    <p>Applications submitted</p>
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {cells.map((cell) => (
+                <div
+                    key={cell.label}
+                    className="flex flex-col gap-1 rounded-2xl border border-[#E3E6EB] bg-white p-4 shadow-[0_10px_30px_-18px_rgba(14,23,38,0.35)]"
+                >
+                    <dt className="flex items-center gap-1.5 text-xs font-semibold text-[#4B5563]">
+                        <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${cell.dot}`} />
+                        {cell.label}
+                    </dt>
+                    <dd className="text-3xl font-extrabold tracking-tight text-[#0E1726] tabular-nums">
+                        {cell.value}
+                    </dd>
+                    <p className="text-xs text-[#4B5563]">{cell.note}</p>
                 </div>
-
-                <div className="flex w-52 flex-col gap-4 rounded-lg border p-6">
-                    <p>In Progress</p>
-                    <p>{status_count.inProgress}</p>
-                    <p>Awaiting a decision</p>
-                </div>
-
-                <div className="flex w-52 flex-col gap-4 rounded-lg border p-6">
-                    <p>Interviews</p>
-                    <p>{status_count.interview}</p>
-                    <p>Interview Stage</p>
-                </div>
-
-                <div className="flex w-52 flex-col gap-4 rounded-lg border p-6">
-                    <p>Offers</p>
-                    <p>{status_count.offer}</p>
-                    <p>Offers Received</p>
-                </div>
-
-                <div className="flex w-52 flex-col gap-4 rounded-lg border p-6">
-                    <p>Rejected</p>
-                    <p>{status_count.rejected}</p>
-                    <p>Applications declined</p>
-                </div>
-
-            </div>
-
-        </div>
+            ))}
+        </dl>
     );
-
 }

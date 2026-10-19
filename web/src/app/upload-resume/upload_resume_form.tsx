@@ -174,14 +174,14 @@ export default function UploadResumePage() {
     }
 
     return (
-        <div className="flex w-full justify-center px-4">
-            <section className="w-full max-w-lg rounded-lg border p-8">
+        <div className="flex w-full justify-center">
+            <section className="w-full rounded-2xl border border-[#E3E6EB] bg-white p-6 sm:p-8">
 
-                <h1 className="text-2xl font-semibold">
+                <h2 className="text-xl font-extrabold tracking-tight text-[#0E1726]">
                     Upload Resume
-                </h1>
+                </h2>
 
-                <p className="mt-2 text-sm text-muted-foreground">
+                <p className="mt-2 text-sm text-[#4B5563]">
                     Upload your resume in PDF format. Please ensure the file size does not exceed 5 MB.
                 </p>
 
@@ -194,7 +194,7 @@ export default function UploadResumePage() {
                     <div>
                         <label
                             htmlFor="resume"
-                            className="inline-block cursor-pointer rounded-md bg-primary px-4 py-2 text-primary-foreground"
+                            className="inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-[#E8EEFD] px-5 text-sm font-bold text-[#1E40AF] transition-colors hover:bg-[#D6E1FB] focus-within:outline-2 has-[:focus-visible]:outline-[#1D4ED8]"
                         >
                             Select File
                         </label>
@@ -213,7 +213,7 @@ export default function UploadResumePage() {
                     {/* Shows the selected file name and X button to remove it */}
                     {/* Shows the selected file name and allows the user to remove it */}
                     {selectResumeFile && (
-                        <div className="flex items-center justify-between rounded-md border p-3">
+                        <div className="flex items-center justify-between rounded-xl border border-[#E3E6EB] bg-[#F5F6F8] p-3">
 
                             {/* Shows the selected file */}
                             <div>
@@ -231,7 +231,7 @@ export default function UploadResumePage() {
                                 type="button"
                                 onClick={removeSelectedResumeFile}
                                 disabled={isUploading}
-                                className="ml-4 rounded-md border border-red-600 bg-red-500 px-3 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="ml-4 min-h-10 rounded-xl bg-[#FDE8E8] px-3 text-sm font-bold text-[#9B1C1C] transition-colors hover:bg-[#FAD1D1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 X
                             </button>
@@ -243,7 +243,7 @@ export default function UploadResumePage() {
                     <button
                         type="submit"
                         disabled={isUploading}
-                        className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">
+                        className="min-h-12 w-full rounded-xl bg-[#1D4ED8] px-4 text-base font-bold text-white transition-colors hover:bg-[#1E40AF] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50">
                         {isUploading ? "Uploading..." : "Upload Resume"}
                     </button>
 

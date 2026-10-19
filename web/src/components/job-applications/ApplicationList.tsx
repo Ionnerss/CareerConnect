@@ -34,7 +34,7 @@ export default function ApplicationList({
 
     if (applications.length === 0) {
         return (
-            <p className="py-12 text-center text-gray-500">
+            <p className="rounded-2xl border border-[#E3E6EB] bg-white py-12 text-center text-[#4B5563]">
                 No applications match your filters.
             </p>
         );
