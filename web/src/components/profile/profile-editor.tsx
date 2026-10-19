@@ -5,9 +5,8 @@ import Link from "next/link";
 import { saveProfile } from "@/app/profile/actions";
 import { profileSchema } from "@/lib/validations/profile";
 import { getInitials, getProfileImageUrl } from "@/lib/profiles/profile-image-url";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FileText, Mail, MapPin, Pencil } from "lucide-react";
+import { ui } from "@/components/profile/profile-ui";
 
 export type ProfileData = {
   full_name: string | null;
@@ -176,19 +175,21 @@ export function ProfileEditor({ initialProfile }: { initialProfile: ProfileData 
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border shadow-sm">
-      {/* Banner */}
-      <div className="relative h-36 bg-muted">
+    <section
+      aria-label="Profile overview"
+      className="overflow-hidden rounded-2xl border border-[#E3E6EB] bg-white shadow-[0_10px_30px_-18px_rgba(14,23,38,0.35)]"
+    >
+      {/* Banner: the user's image, or the dashboard gradient */}
+      <div className="relative h-40 bg-[#1D4ED8] [background-image:linear-gradient(135deg,#1D4ED8,#0E1726)] sm:h-48">
         {bannerUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={bannerUrl} alt="Profile banner" className="h-full w-full object-cover" />
         )}
       </div>
 
-      <div className="px-6 pb-6">
-        {/* Avatar */}
-        <div className="-mt-12 flex items-end justify-between gap-4">
-          <div className="relative z-10 flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-background bg-secondary text-2xl font-semibold">
+      <div className="px-5 pb-6 sm:px-8">
+        <div className="-mt-14 flex flex-wrap items-end justify-between gap-4">
+          <div className="relative z-10 flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#0E1726] text-3xl font-extrabold text-white shadow-md">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarUrl} alt="Profile photo" className="h-full w-full object-cover" />
@@ -198,143 +199,167 @@ export function ProfileEditor({ initialProfile }: { initialProfile: ProfileData 
           </div>
 
           {!isEditing && (
-            <div className="flex flex-wrap justify-end gap-2">
-              <Link
-                href={RESUMES_PAGE_PATH}
-                className={buttonVariants({ variant: "outline" })}
-              >
+            <div className="flex flex-wrap gap-2">
+              <Link href={RESUMES_PAGE_PATH} className={ui.secondaryButton}>
+                <FileText aria-hidden="true" className="size-4" />
                 Resumes &amp; cover letters
               </Link>
-              <Button type="button" variant="outline" onClick={startEditing}>
+              <button type="button" className={ui.primaryButton} onClick={startEditing}>
+                <Pencil aria-hidden="true" className="size-4" />
                 Edit profile
-              </Button>
+              </button>
             </div>
           )}
         </div>
 
         {message && (
-          <p role="status" className="mt-4 rounded-md bg-muted px-3 py-2 text-sm">
+          <p role="status" className={ui.success}>
             {message}
           </p>
         )}
 
         {formError && (
-          <p role="alert" className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p role="alert" className={ui.error}>
             {formError}
           </p>
         )}
 
         {!isEditing ? (
-          <div className="mt-4 space-y-4">
+          <div className="mt-5 space-y-5">
             <div>
-              <h2 className="text-2xl font-semibold">
+              <h2 className="text-2xl font-extrabold tracking-tight text-[#0E1726] sm:text-3xl">
                 {profile.full_name || "Unnamed user"}
               </h2>
-              <p className="text-sm text-muted-foreground">
-                {profile.location || "No location added"}
-              </p>
+              <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-[#4B5563]">
+                <p className="flex items-center gap-1.5">
+                  <MapPin aria-hidden="true" className="size-4 text-[#6B7280]" />
+                  <span>{profile.location || "No location added"}</span>
+                </p>
+                <p className="flex items-center gap-1.5">
+                  <Mail aria-hidden="true" className="size-4 text-[#6B7280]" />
+                  <span className="sr-only">Contact email: </span>
+                  <span>{profile.contact_email || "No contact email added"}</span>
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h3 className="text-sm font-medium">About</h3>
-              <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+            <div className="border-t border-[#EEF0F3] pt-5">
+              <h3 className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#4B5563]">
+                About
+              </h3>
+              <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-[#1F2937]">
                 {profile.bio || "No bio yet."}
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-sm font-medium">Contact email</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {profile.contact_email || "No contact email added"}
               </p>
             </div>
           </div>
         ) : (
-          <form className="mt-4 space-y-4" onSubmit={handleSubmit} noValidate>
-            <div className="space-y-1.5">
-              <Label htmlFor="full_name">Full name</Label>
-              <Input
-                id="full_name"
-                value={values.full_name}
-                onChange={(e) => updateField("full_name", e.target.value)}
-                aria-invalid={Boolean(errors.full_name)}
-              />
-              {errors.full_name && <p className="text-sm text-destructive">{errors.full_name}</p>}
+          <form className={ui.form} onSubmit={handleSubmit} noValidate aria-label="Edit profile">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="full_name" className={ui.label}>
+                  Full name
+                </label>
+                <input
+                  id="full_name"
+                  className={ui.input}
+                  value={values.full_name}
+                  onChange={(e) => updateField("full_name", e.target.value)}
+                  aria-invalid={Boolean(errors.full_name)}
+                />
+                {errors.full_name && <p className={ui.fieldError}>{errors.full_name}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="location" className={ui.label}>
+                  Location
+                </label>
+                <input
+                  id="location"
+                  className={ui.input}
+                  placeholder="e.g. Montreal, QC"
+                  value={values.location}
+                  onChange={(e) => updateField("location", e.target.value)}
+                  aria-invalid={Boolean(errors.location)}
+                />
+                {errors.location && <p className={ui.fieldError}>{errors.location}</p>}
+              </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                value={values.location}
-                onChange={(e) => updateField("location", e.target.value)}
-                aria-invalid={Boolean(errors.location)}
-              />
-              {errors.location && <p className="text-sm text-destructive">{errors.location}</p>}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="contact_email">Contact email</Label>
-              <Input
+              <label htmlFor="contact_email" className={ui.label}>
+                Contact email
+              </label>
+              <input
                 id="contact_email"
                 type="email"
+                className={ui.input}
                 value={values.contact_email}
                 onChange={(e) => updateField("contact_email", e.target.value)}
                 aria-invalid={Boolean(errors.contact_email)}
               />
-              {errors.contact_email && (
-                <p className="text-sm text-destructive">{errors.contact_email}</p>
-              )}
+              {errors.contact_email && <p className={ui.fieldError}>{errors.contact_email}</p>}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="bio">Bio</Label>
+              <label htmlFor="bio" className={ui.label}>
+                Bio
+              </label>
               <textarea
                 id="bio"
                 rows={4}
+                className={ui.textarea}
+                placeholder="A few sentences about you, your goals and what you're looking for."
                 value={values.bio}
                 onChange={(e) => updateField("bio", e.target.value)}
                 aria-invalid={Boolean(errors.bio)}
-                className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               />
-              {errors.bio && <p className="text-sm text-destructive">{errors.bio}</p>}
+              {errors.bio && <p className={ui.fieldError}>{errors.bio}</p>}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="avatar">Profile photo</Label>
-              <input
-                id="avatar"
-                type="file"
-                className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-input file:bg-transparent file:px-2.5 file:py-1 file:text-sm file:font-medium"
-                accept="image/jpeg,image/png,image/webp"
-                disabled={uploading !== null}
-                onChange={(e) => handleImageChange("avatar", e)}
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="avatar" className={ui.label}>
+                  Profile photo
+                </label>
+                <input
+                  id="avatar"
+                  type="file"
+                  className={ui.fileInput}
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={uploading !== null}
+                  onChange={(e) => handleImageChange("avatar", e)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="background" className={ui.label}>
+                  Banner image
+                </label>
+                <input
+                  id="background"
+                  type="file"
+                  className={ui.fileInput}
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={uploading !== null}
+                  onChange={(e) => handleImageChange("background", e)}
+                />
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="background">Banner image</Label>
-              <input
-                id="background"
-                type="file"
-                className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-input file:bg-transparent file:px-2.5 file:py-1 file:text-sm file:font-medium"
-                accept="image/jpeg,image/png,image/webp"
-                disabled={uploading !== null}
-                onChange={(e) => handleImageChange("background", e)}
-              />
-            </div>
-
-            {uploading && (
-              <p className="text-sm text-muted-foreground">Uploading image...</p>
-            )}
+            {uploading && <p className="text-sm text-[#4B5563]">Uploading image...</p>}
 
             <div className="flex gap-3">
-              <Button type="submit" disabled={isSaving || uploading !== null}>
+              <button type="submit" className={ui.primaryButton} disabled={isSaving || uploading !== null}>
                 {isSaving ? "Saving..." : "Save changes"}
-              </Button>
-              <Button type="button" variant="outline" onClick={cancelEditing} disabled={isSaving}>
+              </button>
+              <button
+                type="button"
+                className={ui.secondaryButton}
+                onClick={cancelEditing}
+                disabled={isSaving}
+              >
                 Cancel
-              </Button>
+              </button>
             </div>
           </form>
         )}

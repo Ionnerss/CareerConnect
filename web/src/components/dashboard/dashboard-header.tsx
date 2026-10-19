@@ -4,17 +4,22 @@ import DashboardLogoutButton from "@/components/dashboard/dashboard-logout-butto
 
 type DashboardHeaderProps = {
   initials: string;
+  /** Which nav link to highlight. Defaults to the dashboard; pass null for pages not in the nav. */
+  activeHref?: string | null;
 };
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Home", icon: Home, current: true },
-  { href: "/jobs", label: "Jobs", icon: Briefcase, current: false },
-  { href: "/application-status", label: "Applications", icon: ListChecks, current: false },
-  { href: "/upload-resume", label: "Resume", icon: FileText, current: false },
+  { href: "/dashboard", label: "Home", icon: Home },
+  { href: "/jobs", label: "Jobs", icon: Briefcase },
+  { href: "/application-status", label: "Applications", icon: ListChecks },
+  { href: "/upload-resume", label: "Resume", icon: FileText },
 ] as const;
 
 /** Top bar: logo left, main links in the middle, your avatar and log out on the right. */
-export default function DashboardHeader({ initials }: DashboardHeaderProps) {
+export default function DashboardHeader({
+  initials,
+  activeHref = "/dashboard",
+}: DashboardHeaderProps) {
   return (
     <header className="sticky top-0 z-20 border-b border-[#E3E6EB] bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 sm:px-6">
@@ -33,7 +38,10 @@ export default function DashboardHeader({ initials }: DashboardHeaderProps) {
 
         <nav aria-label="Main" className="order-3 w-full sm:order-none sm:w-auto sm:flex-1">
           <ul className="flex items-center justify-between gap-1 sm:justify-center">
-            {NAV_ITEMS.map(({ href, label, icon: Icon, current }) => (
+            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+              const current = href === activeHref;
+
+              return (
               <li key={href}>
                 <Link
                   href={href}
@@ -48,7 +56,8 @@ export default function DashboardHeader({ initials }: DashboardHeaderProps) {
                   <span>{label}</span>
                 </Link>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </nav>
 
