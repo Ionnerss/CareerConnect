@@ -50,7 +50,7 @@ export default function Pagination({
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
                 aria-label="Previous page"
-                className="rounded-md border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+                className="min-h-10 min-w-10 rounded-xl border border-[#E3E6EB] bg-white px-3 text-sm font-semibold text-[#374151] transition-colors hover:bg-[#F1F2F4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-40"
             >
                 &lt;
             </button>
@@ -63,10 +63,10 @@ export default function Pagination({
                         aria-current={
                             currentPage === page ? "page" : undefined
                         }
-                        className={`rounded-md border px-3 py-2 ${
+                        className={`min-h-10 min-w-10 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] ${
                             currentPage === page
-                                ? "border-blue-600 bg-blue-600 text-white"
-                                : "border-gray-300 hover:bg-gray-100"
+                                ? "border-[#0E1726] bg-[#0E1726] text-white"
+                                : "border-[#E3E6EB] bg-white text-[#374151] hover:bg-[#F1F2F4]"
                         }`}
                     >
                         {page}
@@ -86,7 +86,7 @@ export default function Pagination({
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
                 aria-label="Next page"
-                className="rounded-md border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+                className="min-h-10 min-w-10 rounded-xl border border-[#E3E6EB] bg-white px-3 text-sm font-semibold text-[#374151] transition-colors hover:bg-[#F1F2F4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-40"
             >
                 &gt;
             </button>

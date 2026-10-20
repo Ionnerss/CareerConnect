@@ -26,14 +26,21 @@ export default function HomeNavigation() {
     >
       <div className={styles.navigation}>
         <Link href="/" className={styles.brand} aria-label="CareerConnect home">
-          CareerConnect<span aria-hidden="true">.</span>
+          <span className={styles.brandMark} aria-hidden="true">
+            C
+          </span>
+          CareerConnect
         </Link>
 
         <nav className={styles.desktopLinks} aria-label="Main navigation">
           <a href="#job-seekers">For job seekers</a>
           <a href="#recruiters">For recruiters</a>
+          <a href="#how-it-works">How it works</a>
           <Link href="/auth/login" className={styles.login}>
             Log in
+          </Link>
+          <Link href="/auth/signup" className={styles.signup}>
+            Sign up
           </Link>
         </nav>
 
@@ -65,8 +72,14 @@ export default function HomeNavigation() {
           <a href="#recruiters" onClick={closeMenu}>
             For recruiters
           </a>
+          <a href="#how-it-works" onClick={closeMenu}>
+            How it works
+          </a>
           <Link href="/auth/login" onClick={closeMenu}>
             Log in
+          </Link>
+          <Link href="/auth/signup" className={styles.signup} onClick={closeMenu}>
+            Sign up
           </Link>
         </nav>
       </div>

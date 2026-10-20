@@ -1,9 +1,25 @@
+/* Closing call to action and footer. Scoped to the homepage. */
+
+.closing,
+.footer {
+  --end-navy: #0e1726;
+  --end-blue: #1d4ed8;
+  --end-sky: #a9c1ff;
+
+  background: var(--end-navy);
+  color: white;
+}
+
 .closing {
-  padding: 76px 0 68px;
-  border-top: 1px solid #dedbd4;
-  background: #f7f5f0;
-  color: #242424;
-  font-family: Arial, Helvetica, sans-serif;
+  position: relative;
+  z-index: 1;
+  margin-top: -36px;
+  padding: 104px 0 96px;
+  border-radius: 36px 36px 0 0;
+  background:
+    radial-gradient(60% 90% at 50% 0%, rgb(29 78 216 / 30%), transparent 70%),
+    radial-gradient(rgb(169 193 255 / 14%) 1px, transparent 1.3px) 0 0 / 24px 24px,
+    var(--end-navy);
   text-align: center;
 }
 
@@ -14,17 +30,21 @@
 
 .heading {
   margin: 0 0 22px;
-  font-size: clamp(34px, 5vw, 54px);
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -2px;
+  font-size: clamp(38px, 5.6vw, 68px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.heading span {
+  color: var(--end-sky);
 }
 
 .description {
   max-width: 560px;
   margin: 0 auto;
-  color: #64615b;
-  font-size: 16px;
+  color: #b8c4d9;
+  font-size: 17px;
   line-height: 1.75;
 }
 
@@ -33,31 +53,27 @@
   align-items: center;
   justify-content: center;
   gap: 18px;
-  box-sizing: border-box;
-  min-height: 54px;
-  margin-top: 27px;
-  padding: 16px 24px;
-  border-radius: 10px;
-  background: #2457e6;
+  min-height: 56px;
+  margin-top: 30px;
+  padding: 16px 28px;
+  border-radius: 12px;
+  background: var(--end-blue);
   color: #fff;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.35;
   text-decoration: none;
 }
 
 .note {
-  margin: 12px 0 0;
-  color: #64615b;
+  margin: 14px 0 0;
+  color: #8fa0bc;
   font-size: 13px;
   line-height: 1.75;
 }
 
 .footer {
-  border-top: 1px solid #dedbd4;
-  background: #f7f5f0;
-  color: #242424;
-  font-family: Arial, Helvetica, sans-serif;
+  border-top: 1px solid rgb(255 255 255 / 10%);
 }
 
 .footerInner {
@@ -72,15 +88,25 @@
 }
 
 .brand {
-  color: #242424;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   text-decoration: none;
 }
 
-.brand span {
-  color: #2457e6;
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--end-blue);
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .links {
@@ -94,12 +120,13 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  color: #55534f;
+  color: #b8c4d9;
   font-size: 13px;
   text-decoration: none;
 }
 
 .links a:hover {
+  color: #fff;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -107,13 +134,25 @@
 .cta:focus-visible,
 .brand:focus-visible,
 .links a:focus-visible {
-  outline: 3px solid #242424;
+  outline: 3px solid var(--end-sky);
   outline-offset: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cta {
+    transition: background-color 180ms ease;
+  }
+
+  .cta:hover {
+    background: #2b5fe8;
+  }
 }
 
 @media (max-width: 767px) {
   .closing {
-    padding-block: 52px;
+    margin-top: -28px;
+    padding-block: 72px 64px;
+    border-radius: 28px 28px 0 0;
   }
 
   .closingInner,
@@ -122,7 +161,7 @@
   }
 
   .heading {
-    letter-spacing: -1.4px;
+    letter-spacing: -0.035em;
   }
 
   .cta {

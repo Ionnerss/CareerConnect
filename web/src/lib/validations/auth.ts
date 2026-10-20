@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CONCORDIA_EMAIL_MESSAGE, isConcordiaEmail } from "@/lib/auth/concordia";
 
 export const signupSchema = z
   .object({
@@ -35,3 +36,14 @@ export const loginSchema = z.object({
 });
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
+
+/** Recruiter sign-up and log-in only accept Concordia addresses (see lib/auth/concordia.ts). */
+export const recruiterSignupSchema = signupSchema.refine(
+  (data) => isConcordiaEmail(data.email),
+  { message: CONCORDIA_EMAIL_MESSAGE, path: ["email"] },
+);
+
+export const recruiterLoginSchema = loginSchema.refine(
+  (data) => isConcordiaEmail(data.email),
+  { message: CONCORDIA_EMAIL_MESSAGE, path: ["email"] },
+);
