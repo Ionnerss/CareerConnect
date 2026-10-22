@@ -5,8 +5,7 @@ import { ApplicationStatusCountUI } from "@/components/job-applications/Applicat
 import { ApplicationFilters } from "@/components/job-applications/ApplicationFilters";
 import ApplicationList from "@/components/job-applications/ApplicationList";
 import type { ApplicationCardData } from "@/lib/application_status/application_status_logic";
-import { buttonVariants } from "@/components/ui/button";
-import Link from "next/link";
+import { PageBody, PageHero } from "@/components/app/page-hero";
 
 
 type applicationProps = {
@@ -56,22 +55,27 @@ export default function ApplicationStatusClient({ applications }: applicationPro
     }), [applications]);
 
     return (
-        <main className="min-h-screen px-8 pt-4 pb-8">
-            <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-                   <Link href="/dashboard" className={buttonVariants({ size: "lg" })}>
-                    Back to Dashboard
-                    </Link>
-                <ApplicationStatusCountUI status_count={counts} />
+        <main>
+            <PageHero
+                label="Applications"
+                title="Your applications"
+                description="Every application and its latest status, in one place."
+            />
 
-                <ApplicationFilters
-                    selectedStatus={selectedStatus}
-                    onStatusChange={setSelectedStatus}
-                    searchQuery={searchQuery}
-                    onSearchChange={setSearchQuery}
-                />
+            <PageBody>
+                <div className="flex w-full flex-col gap-4">
+                    <ApplicationStatusCountUI status_count={counts} />
 
-                <ApplicationList applications={filteredApplications} />
-            </div>
+                    <ApplicationFilters
+                        selectedStatus={selectedStatus}
+                        onStatusChange={setSelectedStatus}
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
+                    />
+
+                    <ApplicationList applications={filteredApplications} />
+                </div>
+            </PageBody>
         </main>
     );
 }

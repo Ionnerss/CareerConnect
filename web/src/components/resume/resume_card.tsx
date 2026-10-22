@@ -147,7 +147,7 @@ export function ResumeCard({ resume }: ResumeCardProps) {
     }
 
     return (
-        <div className="w-full max-w-6xl rounded-lg border p-4">
+        <div className="w-full rounded-2xl border border-[#E3E6EB] bg-white p-4">
             <input
                 ref={fileInputRef}
                 type="file"
@@ -158,11 +158,11 @@ export function ResumeCard({ resume }: ResumeCardProps) {
 
             <div className="flex items-center justify-between gap-4">
                 <div className="flex min-w-0 flex-col">
-                    <p className="truncate text-lg font-bold">
+                    <p className="truncate text-lg font-bold text-[#0E1726]">
                         {resume.file_name.replace(/\.pdf$/i, "")}
                     </p>
 
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-[#4B5563]">
                         Uploaded: {uploadedDate}
                     </p>
                 </div>

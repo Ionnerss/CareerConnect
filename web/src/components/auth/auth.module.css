@@ -1,0 +1,332 @@
+/* Scoped styles for /auth/login and /auth/signup. Tokens mirror the homepage
+   (home.module.css) so the two stay visually in step. */
+.auth {
+  --navy: #0e1726;
+  --blue: #1d4ed8;
+  --blue-dark: #1e40af;
+  --ink: #0e1726;
+  --muted: #5b6577;
+  --line: #d9dde5;
+  --surface: #ffffff;
+  --page: #f5f6f8;
+  --danger: #b42318;
+
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  background: var(--page);
+  color: var(--ink);
+}
+
+.aside {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 48px;
+  padding: 40px 48px;
+  background: var(--navy);
+  color: #fff;
+}
+
+.aside::after {
+  content: "";
+  position: absolute;
+  inset: auto -20% -35% auto;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(29, 78, 216, 0.55), transparent 70%);
+  pointer-events: none;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--blue);
+  font-size: 16px;
+}
+
+.asideCopy h2 {
+  margin: 0 0 14px;
+  font-weight: 800;
+  font-size: clamp(28px, 3.2vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.asideCopy p {
+  margin: 0;
+  max-width: 34ch;
+  color: #b9c2d3;
+  line-height: 1.6;
+}
+
+.asideList {
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  color: #dfe5f1;
+  font-size: 15px;
+}
+
+.asideList li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.asideList li::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6f95ff;
+}
+
+.main {
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 440px;
+  padding: 36px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px rgba(14, 23, 38, 0.04),
+    0 18px 40px -24px rgba(14, 23, 38, 0.25);
+}
+
+.title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.form {
+  margin-top: 28px;
+  display: grid;
+  gap: 18px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.16);
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.fieldError {
+  margin: 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.formError {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fef3f2;
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.submit {
+  height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--blue);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.submit:focus-visible {
+  outline: 3px solid rgba(29, 78, 216, 0.4);
+  outline-offset: 2px;
+}
+
+.submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) {
+  .submit:not(:disabled):hover {
+    background: var(--blue-dark);
+  }
+}
+
+.switch {
+  margin: 22px 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.switch a {
+  color: var(--blue);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.switch a:hover,
+.switch a:focus-visible {
+  text-decoration: underline;
+}
+
+@media (max-width: 860px) {
+  .auth {
+    grid-template-columns: 1fr;
+  }
+
+  .aside {
+    padding: 24px;
+    gap: 0;
+  }
+
+  .asideCopy {
+    display: none;
+  }
+
+  .main {
+    padding: 24px 16px 40px;
+    align-items: start;
+  }
+
+  .card {
+    padding: 28px 22px;
+  }
+}
+
+/* Job seeker / Recruiter switch on the login page */
+.roleSwitch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 22px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--page);
+}
+
+.roleOption {
+  min-height: 40px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.roleOption[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(14, 23, 38, 0.12);
+}
+
+.roleOption:focus-visible {
+  outline: 3px solid rgba(29, 78, 216, 0.4);
+  outline-offset: 1px;
+}
+
+@media (hover: hover) {
+  .roleOption[aria-pressed="false"]:hover {
+    color: var(--ink);
+  }
+}
+
+.note {
+  margin: 14px 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.note a {
+  color: var(--blue);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.note a:hover,
+.note a:focus-visible {
+  text-decoration: underline;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
