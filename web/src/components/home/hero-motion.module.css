@@ -1,0 +1,147 @@
+/*
+ * Hero sequence: copy rises in, the profile card appears, then a line draws
+ * down from the profile to each opportunity and the skills they share light
+ * up. Everything is visible by default, so reduced-motion visitors and
+ * visitors without CSS animation simply see the finished state.
+ */
+
+@keyframes heroEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(var(--hero-distance, 16px));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawDown {
+  from {
+    transform: scaleY(0);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes drawAcross {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes skillMatch {
+  from {
+    background-color: #eef1f6;
+    color: #3b4658;
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.08);
+  }
+
+  to {
+    background-color: #dce7ff;
+    color: #1d3fa6;
+    transform: scale(1);
+  }
+}
+
+.hero [data-hero-motion="title"] {
+  --hero-delay: 0ms;
+  --hero-distance: 18px;
+}
+
+.hero [data-hero-motion="description"] {
+  --hero-delay: 120ms;
+  --hero-distance: 14px;
+}
+
+.hero [data-hero-motion="actions"] {
+  --hero-delay: 220ms;
+  --hero-distance: 12px;
+}
+
+.hero [data-hero-motion="hint"] {
+  --hero-delay: 280ms;
+  --hero-distance: 8px;
+}
+
+.hero [data-hero-motion="profile"] {
+  --hero-delay: 300ms;
+  --hero-distance: 24px;
+}
+
+.hero [data-hero-motion="job-first"] {
+  --hero-delay: 560ms;
+  --hero-distance: 18px;
+}
+
+.hero [data-hero-motion="job-second"] {
+  --hero-delay: 660ms;
+  --hero-distance: 18px;
+}
+
+.hero [data-hero-motion="caption"] {
+  --hero-delay: 900ms;
+  --hero-distance: 0px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero [data-hero-motion] {
+    animation-name: heroEntrance;
+    animation-duration: 1000ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    animation-delay: var(--hero-delay, 0ms);
+    animation-fill-mode: backwards;
+  }
+
+  /* The connection line: spine down, then a branch across to each job. */
+  .hero [data-hero-motion="job-first"]::before {
+    animation: drawDown 420ms cubic-bezier(0.65, 0, 0.35, 1) 900ms backwards;
+  }
+
+  .hero [data-hero-motion="job-first"]::after {
+    animation: drawAcross 260ms cubic-bezier(0.65, 0, 0.35, 1) 1320ms backwards;
+  }
+
+  .hero [data-hero-motion="job-second"]::before {
+    animation: drawDown 360ms cubic-bezier(0.65, 0, 0.35, 1) 1320ms backwards;
+  }
+
+  .hero [data-hero-motion="job-second"]::after {
+    animation: drawAcross 260ms cubic-bezier(0.65, 0, 0.35, 1) 1680ms backwards;
+  }
+
+  /* Shared skills light up once the line has reached them. */
+  .hero [data-match="true"] {
+    animation: skillMatch 700ms ease 1900ms backwards;
+  }
+
+  .hero [data-hero-button] {
+    transition: background-color 180ms ease;
+  }
+
+  .hero [data-hero-button] svg {
+    transition: transform 180ms ease;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .hero [data-hero-button]:hover svg {
+    transform: translateY(3px);
+  }
+}
+
+/* Reveal a group immediately if someone tabs into it mid-entrance. */
+.hero [data-hero-motion]:focus-within {
+  animation: none;
+}
