@@ -1,9 +1,9 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import JobSearchBar from "@/components/jobs/job-search-bar";
 import JobFiltersUrl from "@/components/jobs/JobFiltersUrl";
 import PaginatedJobList from "@/components/jobs/PaginatedJobList";
+import { PageBody, PageHero } from "@/components/app/page-hero";
 import { searchJobs } from "@/lib/jobs/search";
 
 type JobsPageProps = {
@@ -29,35 +29,27 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10 font-[Arial,Helvetica,sans-serif]">
-      <div className="mx-auto w-full max-w-7xl">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold">Find jobs</h1>
-          <Link
-            href="/dashboard"
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            Back to dashboard
-          </Link>
-        </div>
-
-        <Suspense
-          fallback={
-            <p className="text-sm text-muted-foreground">
-              Loading search...
-            </p>
-          }
-        >
-          <JobSearchBar defaultQuery={result.query} />
-        </Suspense>
-
-        <div className="mt-6">
+    <main>
+      <PageHero
+        label="Jobs"
+        title="Find jobs"
+        description="Search by keyword, then narrow it down with filters."
+      >
+        {/* Keyword search */}
+        <div className="w-full max-w-3xl rounded-2xl bg-white p-2 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]">
           <Suspense
-            fallback={
-              <p className="text-sm text-muted-foreground">
-                Loading filters...
-              </p>
-            }
+            fallback={<p className="px-3 py-2 text-sm text-[#4B5563]">Loading search...</p>}
+          >
+            <JobSearchBar defaultQuery={result.query} />
+          </Suspense>
+        </div>
+      </PageHero>
+
+      <PageBody>
+        {/* Existing filtering interface - Task #130 */}
+        <div>
+          <Suspense
+            fallback={<p className="text-sm text-[#4B5563]">Loading filters...</p>}
           >
             <JobFiltersUrl />
           </Suspense>
@@ -90,7 +82,7 @@ export default async function JobsPage({ searchParams }: JobsPageProps) {
             </Suspense>
           )}
         </section>
-      </div>
+      </PageBody>
     </main>
   );
 }

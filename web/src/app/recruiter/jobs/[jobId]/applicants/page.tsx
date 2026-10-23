@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PageBody, PageHero } from "@/components/app/page-hero";
 import CandidateComparison from "@/components/recruiter/candidate-comparison";
 import {
   AUTH_ERROR,
@@ -18,7 +19,9 @@ const dateFormatter = new Intl.DateTimeFormat("en-CA", {
   day: "numeric",
 });
 
-export default async function JobApplicantsPage({ params }: ApplicantsPageProps) {
+export default async function JobApplicantsPage({
+  params,
+}: ApplicantsPageProps) {
   const { jobId } = await params;
   const result = await getJobApplicants(jobId);
 
@@ -30,67 +33,94 @@ export default async function JobApplicantsPage({ params }: ApplicantsPageProps)
   const requirements = result.success ? await getJobRequirements(jobId) : null;
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10">
-      <div className="mx-auto w-full max-w-4xl">
-        <Link href="/recruiter/jobs" className="text-sm text-muted-foreground hover:underline">
-          ← Back to my job postings
-        </Link>
+    <main>
+      <PageHero
+        label="Recruiter"
+        title={
+          result.success ? `Applicants for ${result.job.title}` : "Applicants"
+        }
+        description={
+          result.success
+            ? `${result.job.location} · ${result.applicants.length} applicant${result.applicants.length === 1 ? "" : "s"}`
+            : undefined
+        }
+        action={
+          <Link
+            href="/recruiter/jobs"
+            className="inline-flex min-h-11 items-center rounded-lg text-sm font-semibold text-[#A9C1FF] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6B93FF]"
+          >
+            ← Back to my job postings
+          </Link>
+        }
+      />
 
+      <PageBody>
         {!result.success ? (
-          <p role="alert" className="mt-6 text-sm text-destructive">
+          <p
+            role="alert"
+            className="rounded-2xl border border-[#FCD9D9] bg-white p-5 text-sm text-destructive"
+          >
             {result.error}
           </p>
         ) : (
           <>
-            <div className="mt-4 mb-6">
-              <h1 className="text-2xl font-semibold">Applicants for {result.job.title}</h1>
-              <p className="text-sm text-muted-foreground">
-                {result.job.location} · {result.applicants.length} applicant
-                {result.applicants.length === 1 ? "" : "s"}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {result.required_skills.length > 0
-                  ? `Required skills: ${result.required_skills.join(", ")}. Applicants are listed best match first.`
-                  : "This posting lists no required skills, so skill match can't be calculated."}
-              </p>
-            </div>
+            <p className="mb-4 rounded-2xl border border-[#E3E6EB] bg-white px-5 py-3 text-sm text-[#4B5563]">
+              {result.required_skills.length > 0
+                ? `Required skills: ${result.required_skills.join(", ")}. Applicants are listed best match first.`
+                : "This posting lists no required skills, so skill match can't be calculated."}
+            </p>
 
             {result.applicants.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="rounded-2xl border border-[#E3E6EB] bg-white p-8 text-center text-sm text-[#4B5563]">
                 No one has applied to this posting yet.
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-border">
+              <div className="overflow-x-auto rounded-2xl border border-[#E3E6EB] bg-white">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-muted text-muted-foreground">
+                  <thead className="bg-[#F5F6F8] text-[#4B5563]">
                     <tr>
-                      <th scope="col" className="px-4 py-3 font-medium">Applicant</th>
-                      <th scope="col" className="px-4 py-3 font-medium">Applied on</th>
-                      <th scope="col" className="px-4 py-3 font-medium">Status</th>
-                      <th scope="col" className="px-4 py-3 font-medium">Skill match</th>
+                      <th scope="col" className="px-4 py-3 font-semibold">
+                        Applicant
+                      </th>
+                      <th scope="col" className="px-4 py-3 font-semibold">
+                        Applied on
+                      </th>
+                      <th scope="col" className="px-4 py-3 font-semibold">
+                        Status
+                      </th>
+                      <th scope="col" className="px-4 py-3 font-semibold">
+                        Skill match
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {result.applicants.map((applicant) => (
-                      <tr key={applicant.application_id} className="border-t border-border">
-                        <td className="px-4 py-3">
+                      <tr
+                        key={applicant.application_id}
+                        className="border-t border-[#EEF0F3]"
+                      >
+                        <td className="px-4 py-3 font-semibold text-[#0E1726]">
                           {applicant.full_name ?? (
-                            <span className="text-muted-foreground">Name not available</span>
+                            <span className="font-normal text-[#4B5563]">
+                              Name not available
+                            </span>
                           )}
                         </td>
                         <td className="px-4 py-3">
                           {dateFormatter.format(new Date(applicant.applied_at))}
                         </td>
                         <td className="px-4 py-3">
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                          <span className="rounded-full bg-[#E8EEFD] px-2.5 py-1 text-xs font-bold text-[#1D4ED8]">
                             {formatApplicationStatus(applicant.status)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           {applicant.skill_match ? (
                             <>
-                              <span className="font-medium">{applicant.skill_match.percent}%</span>
-                              <span className="text-muted-foreground">
+                              <span className="font-bold text-[#0E1726]">
+                                {applicant.skill_match.percent}%
+                              </span>
+                              <span className="text-[#4B5563]">
                                 {" "}
                                 ({applicant.skill_match.matched.length} of{" "}
                                 {applicant.skill_match.matched.length +
@@ -98,13 +128,14 @@ export default async function JobApplicantsPage({ params }: ApplicantsPageProps)
                                 skills)
                               </span>
                               {applicant.skill_match.missing.length > 0 && (
-                                <p className="text-xs text-muted-foreground">
-                                  Missing: {applicant.skill_match.missing.join(", ")}
+                                <p className="text-xs text-[#4B5563]">
+                                  Missing:{" "}
+                                  {applicant.skill_match.missing.join(", ")}
                                 </p>
                               )}
                             </>
                           ) : (
-                            <span className="text-muted-foreground">—</span>
+                            <span className="text-[#4B5563]">—</span>
                           )}
                         </td>
                       </tr>
@@ -122,12 +153,13 @@ export default async function JobApplicantsPage({ params }: ApplicantsPageProps)
               />
             ) : (
               <p role="alert" className="mt-10 text-sm text-destructive">
-                {requirements?.error ?? "Unable to load the requirements. Please try again."}
+                {requirements?.error ??
+                  "Unable to load the requirements. Please try again."}
               </p>
             )}
           </>
         )}
-      </div>
+      </PageBody>
     </main>
   );
 }

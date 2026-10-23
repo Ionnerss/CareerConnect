@@ -1,28 +1,56 @@
-import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
+import type { Metadata } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
+import HomeNavigation from "@/components/home/home-navigation";
+import HomeHero from "@/components/home/home-hero";
+import HomeStatement from "@/components/home/home-statement";
+import JobSeekerSection from "@/components/home/job-seeker-section";
+import OpportunitiesSection from "@/components/home/opportunities-section";
+import RecruiterSection from "@/components/home/recruiter-section";
+import HowItWorksSection from "@/components/home/how-it-works-section";
+import { HomeEnding, HomeFooter } from "@/components/home/home-ending";
+import { HomeAnchors } from "@/components/home/home-motion";
+import styles from "@/components/home/home.module.css";
+
+// The homepage look (font + navy/blue colours) is scoped to this page only,
+// the same way the dashboard does it, so no shared theme changes.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  fallback: ["system-ui", "Segoe UI", "Arial", "sans-serif"],
+});
+
+export const metadata: Metadata = {
+  title: "CareerConnect · Job search and application tracking",
+  description:
+    "Build a profile with your skills, experience and projects, search for jobs, and keep track of every application. Recruiters see who applied and how their skills match.",
+  openGraph: {
+    title: "CareerConnect · Job search and application tracking",
+    description:
+      "Showcase your skills, explore opportunities, and keep your next move organized.",
+    type: "website",
+  },
+};
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-4xl font-semibold">CareerConnect</h1>
-        <p className="mt-3 text-muted-foreground">
-          Organize your job search, track applications, and stay on top of
-          every opportunity in one place.
-        </p>
+    <div className={`${jakarta.className} ${styles.home}`} data-home-root>
+      <a href="#main-content" className={styles.skipLink}>
+        Skip to content
+      </a>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Link href="/auth/login" className={buttonVariants({ size: "lg" })}>
-            Log in
-          </Link>
-          <Link
-            href="/auth/signup"
-            className={buttonVariants({ size: "lg", variant: "outline" })}
-          >
-            Sign up
-          </Link>
-        </div>
-      </div>
+      <HomeAnchors />
+      <HomeNavigation />
+
+      <main id="main-content" tabIndex={-1}>
+        <HomeHero />
+        <HomeStatement />
+        <JobSeekerSection />
+        <OpportunitiesSection />
+        <RecruiterSection />
+        <HowItWorksSection />
+        <HomeEnding />
+      </main>
+      <HomeFooter />
     </div>
   );
 }

@@ -41,9 +41,9 @@ export default function ResumeListClient({ resumes }: ResumeListClientProps) {
                         setSelectedTab("active");
                         setSelectedPageNum(1);
                     }}
-                    className={`rounded-full border px-4 py-1.5 text-sm font-medium ${selectedTab === "active"
-                        ? "border-blue-600 bg-blue-600 text-white"
-                        : "border-gray-300 text-gray-600 hover:bg-gray-100"
+                    className={`min-h-10 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] ${selectedTab === "active"
+                        ? "bg-[#0E1726] text-white"
+                        : "bg-[#F1F2F4] text-[#374151] hover:bg-[#E3E6EB]"
                         }`}
                 >
                     Active
@@ -55,9 +55,9 @@ export default function ResumeListClient({ resumes }: ResumeListClientProps) {
                         setSelectedTab("archived");
                         setSelectedPageNum(1);
                     }}
-                    className={`rounded-full border px-4 py-1.5 text-sm font-medium ${selectedTab === "archived"
-                        ? "border-blue-600 bg-blue-600 text-white"
-                        : "border-gray-300 text-gray-600 hover:bg-gray-100"
+                    className={`min-h-10 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] ${selectedTab === "archived"
+                        ? "bg-[#0E1726] text-white"
+                        : "bg-[#F1F2F4] text-[#374151] hover:bg-[#E3E6EB]"
                         }`}
                 >
                     Archived
@@ -65,7 +65,7 @@ export default function ResumeListClient({ resumes }: ResumeListClientProps) {
             </div>
 
             {filteredResumes.length === 0 ? (
-                <p className="py-12 text-center text-gray-500">
+                <p className="w-full rounded-2xl border border-[#E3E6EB] bg-white py-12 text-center text-[#4B5563]">
                     No {selectedTab} resumes found.
                 </p>
             ) : (

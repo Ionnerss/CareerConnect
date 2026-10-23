@@ -5,9 +5,9 @@ export default async function ResumeList() {
     const resumes = await getUserResumes();
 
     return (
-        <section className="p-8">
+        <section>
             <div className="mb-6">
-                <h1 className="text-2xl font-bold">Your resumes</h1>
+                <h2 className="text-xl font-extrabold tracking-tight text-[#0E1726]">Your resumes</h2>
             </div>
 
             <ResumeListClient resumes={resumes} />

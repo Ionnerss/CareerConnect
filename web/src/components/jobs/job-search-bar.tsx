@@ -48,7 +48,7 @@ export default function JobSearchBar({
       action="/jobs"
       method="get"
       role="search"
-      className="flex w-full gap-2"
+      className="flex w-full flex-col gap-2 sm:flex-row"
     >
       <label htmlFor="job-search" className="sr-only">
         Search jobs
@@ -62,7 +62,7 @@ export default function JobSearchBar({
         defaultValue={defaultQuery}
         maxLength={MAX_JOB_SEARCH_LENGTH}
         placeholder="Job title, company, or keyword"
-        className="h-9"
+        className="h-12 rounded-xl border-0 bg-[#F5F6F8] px-4 text-base"
       />
 
       {/* Preserve selected filters when submitting a keyword search */}
@@ -75,7 +75,7 @@ export default function JobSearchBar({
         />
       ))}
 
-      <Button type="submit" size="lg">
+      <Button type="submit" size="lg" className="h-12 rounded-xl px-7 text-base font-bold">
         Search
       </Button>
 
@@ -85,6 +85,7 @@ export default function JobSearchBar({
           className={buttonVariants({
             variant: "outline",
             size: "lg",
+            className: "h-12 rounded-xl px-6",
           })}
         >
           Clear

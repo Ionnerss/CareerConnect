@@ -103,7 +103,7 @@ export default function PaginatedJobList({
     }
 
     return (
-      <div className="rounded-2xl border border-border bg-background px-6 py-12 text-center">
+      <div className="rounded-2xl border border-[#E3E6EB] bg-white px-6 py-12 text-center">
         <h2 className="text-lg font-semibold">
           No matching jobs found
         </h2>
@@ -133,7 +133,7 @@ export default function PaginatedJobList({
           </p>
         </div>
 
-        <span className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+        <span className="rounded-full border border-[#E3E6EB] bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
           Showing {startIndex + 1}–
           {Math.min(startIndex + jobs.length, totalCount)} of{" "}
           {totalCount}
@@ -154,15 +154,15 @@ export default function PaginatedJobList({
                     type="button"
                     onClick={() => handleSelectJob(job)}
                     aria-pressed={isSelected}
-                    className={`group w-full rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                    className={`group w-full rounded-2xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] ${
                       isSelected
-                        ? "border-blue-500 bg-blue-50/60 dark:bg-blue-950/20"
-                        : "border-border bg-background hover:border-blue-300 hover:bg-muted/30"
+                        ? "border-[#1D4ED8] bg-[#E8EEFD]/60"
+                        : "border-[#E3E6EB] bg-white hover:border-[#93B0F5]"
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       {/* Company initial */}
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-base font-semibold">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#E8EEFD] text-base font-extrabold text-[#1E40AF]">
                         {(job.firm_name || "C")
                           .trim()
                           .charAt(0)
@@ -171,7 +171,7 @@ export default function PaginatedJobList({
 
                       {/* Job information */}
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-sm font-semibold leading-snug tracking-tight group-hover:text-blue-600">
+                        <h3 className="text-sm font-semibold leading-snug tracking-tight group-hover:text-[#1D4ED8]">
                           {job.title || "Untitled position"}
                         </h3>
 
@@ -202,7 +202,7 @@ export default function PaginatedJobList({
 
                       <span
                         aria-hidden="true"
-                        className="text-muted-foreground group-hover:text-blue-600"
+                        className="text-muted-foreground group-hover:text-[#1D4ED8]"
                       >
                         →
                       </span>
@@ -221,12 +221,12 @@ export default function PaginatedJobList({
         </div>
 
         {/* Right column: sticky desktop job details */}
-        <div className="hidden min-w-0 lg:sticky lg:top-4 lg:col-span-3 lg:block">
+        <div className="hidden min-w-0 lg:sticky lg:top-24 lg:col-span-3 lg:block">
           {selectedJob && (
             <div
-              ref={desktopPanelRef}
-              className="h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-border bg-background shadow-sm"
-            >
+  ref={desktopPanelRef}
+  className="h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-[#E3E6EB] bg-white shadow-sm"
+>
               <JobDetails
                 job={selectedJob}
                 onClose={() => setSelectedJobId(null)}
@@ -252,7 +252,7 @@ export default function PaginatedJobList({
             role="dialog"
             aria-modal="true"
             aria-label="Selected job details"
-            className="animate-in slide-in-from-right relative z-10 h-full w-full max-w-xl overflow-y-auto bg-background p-4 shadow-2xl duration-300"
+            className="animate-in slide-in-from-right relative z-10 h-full w-full max-w-xl overflow-y-auto bg-white p-4 shadow-2xl duration-300"
           >
             <JobDetails
               job={selectedJob}
