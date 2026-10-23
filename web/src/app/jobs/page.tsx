@@ -1,4 +1,3 @@
-
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -8,16 +7,18 @@ import PaginatedJobList from "@/components/jobs/PaginatedJobList";
 import { searchJobs } from "@/lib/jobs/search";
 
 type JobsPageProps = {
-  searchParams: Promise<{ q?: string | string[] }>;
+  searchParams: Promise<{
+    q?: string | string[];
+    page?: string | string[];
+  }>;
 };
 
-export default async function JobsPage({
-  searchParams,
-}: JobsPageProps) {
-  const { q } = await searchParams;
+export default async function JobsPage({ searchParams }: JobsPageProps) {
+  const { q, page } = await searchParams;
 
   const result = await searchJobs(
-    Array.isArray(q) ? q[0] : q
+    Array.isArray(q) ? q[0] : q,
+    page
   );
 
   if (
@@ -31,10 +32,7 @@ export default async function JobsPage({
     <main className="min-h-screen bg-background px-4 py-10 font-[Arial,Helvetica,sans-serif]">
       <div className="mx-auto w-full max-w-7xl">
         <div className="mb-6 flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold">
-            Find jobs
-          </h1>
-
+          <h1 className="text-2xl font-semibold">Find jobs</h1>
           <Link
             href="/dashboard"
             className="text-sm text-muted-foreground hover:underline"
@@ -43,7 +41,6 @@ export default async function JobsPage({
           </Link>
         </div>
 
-        {/* Keyword search */}
         <Suspense
           fallback={
             <p className="text-sm text-muted-foreground">
@@ -54,7 +51,6 @@ export default async function JobsPage({
           <JobSearchBar defaultQuery={result.query} />
         </Suspense>
 
-        {/* Existing filtering interface - Task #130 */}
         <div className="mt-6">
           <Suspense
             fallback={
@@ -67,25 +63,31 @@ export default async function JobsPage({
           </Suspense>
         </div>
 
-        {/* Paginated job listings - Task #117 */}
         <section
           className="mt-8"
           aria-label="Job search results"
           aria-live="polite"
         >
           {!result.success ? (
-            <p
-              role="alert"
-              className="text-sm text-destructive"
-            >
+            <p role="alert" className="text-sm text-destructive">
               {result.error}
             </p>
           ) : (
-            <PaginatedJobList
-              key={result.query}
-              jobs={result.jobs}
-              query={result.query}
-            />
+            <Suspense
+              fallback={
+                <p className="text-sm text-muted-foreground">
+                  Loading jobs...
+                </p>
+              }
+            >
+              <PaginatedJobList
+                key={`${result.query}:${result.page}`}
+                jobs={result.jobs}
+                query={result.query}
+                page={result.page}
+                totalCount={result.totalCount}
+              />
+            </Suspense>
           )}
         </section>
       </div>

@@ -1,7 +1,7 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Pagination from "@/components/pagination/pagination";
 import { JobDetails } from "@/components/job-applications/JobDetails";
 import type { JobSearchResult } from "@/lib/jobs/search";
@@ -11,60 +11,58 @@ const JOBS_PER_PAGE = 6;
 type PaginatedJobListProps = {
   jobs: JobSearchResult[];
   query: string;
+  page: number;
+  totalCount: number;
 };
 
 export default function PaginatedJobList({
   jobs,
   query,
+  page,
+  totalCount,
 }: PaginatedJobListProps) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(
     jobs[0]?.id ?? null
   );
-
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const desktopPanelRef = useRef<HTMLDivElement>(null);
 
-  const totalPages = Math.ceil(jobs.length / JOBS_PER_PAGE);
+  const totalPages = Math.ceil(totalCount / JOBS_PER_PAGE);
+  const startIndex = (page - 1) * JOBS_PER_PAGE;
 
-  const safePage = Math.min(
-    Math.max(currentPage, 1),
-    Math.max(totalPages, 1)
-  );
+  const selectedJob = selectedJobId
+    ? jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null
+    : null;
 
-  const startIndex = (safePage - 1) * JOBS_PER_PAGE;
+  function handlePageChange(nextPage: number) {
+    if (nextPage < 1 || nextPage > totalPages) return;
 
-  const visibleJobs = jobs.slice(
-    startIndex,
-    startIndex + JOBS_PER_PAGE
-  );
+    const params = new URLSearchParams(searchParams.toString());
 
-  // Keep the selected job within the current page.
-  const selectedJob =
-    visibleJobs.find((job) => job.id === selectedJobId) ??
-    visibleJobs[0] ??
-    null;
-
-  function handlePageChange(page: number) {
-    if (page < 1 || page > totalPages) return;
-
-    setCurrentPage(page);
-
-    setSelectedJobId(
-      jobs[(page - 1) * JOBS_PER_PAGE]?.id ?? null
-    );
+    if (nextPage === 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(nextPage));
+    }
 
     setMobilePanelOpen(false);
+
+    const queryString = params.toString();
+    router.push(queryString ? `/jobs?${queryString}` : "/jobs");
   }
 
- function handleSelectJob(job: JobSearchResult) {
-  setSelectedJobId(job.id);
-  desktopPanelRef.current?.scrollTo({ top: 0, behavior: "instant" });
-  setMobilePanelOpen(true);
-}
+  function handleSelectJob(job: JobSearchResult) {
+    setSelectedJobId(job.id);
+    desktopPanelRef.current?.scrollTo({
+      top: 0,
+      behavior: "instant",
+    });
+    setMobilePanelOpen(true);
+  }
 
-  // Close the mobile drawer with Escape.
   useEffect(() => {
     if (!mobilePanelOpen) return;
 
@@ -82,6 +80,28 @@ export default function PaginatedJobList({
   }, [mobilePanelOpen]);
 
   if (jobs.length === 0) {
+    if (totalCount > 0) {
+      return (
+        <div className="rounded-2xl border border-border bg-background px-6 py-12 text-center">
+          <h2 className="text-lg font-semibold">
+            No jobs on this page
+          </h2>
+
+          <p className="mt-2 text-sm text-muted-foreground">
+            The available results may have changed.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => handlePageChange(1)}
+            className="mt-4 text-sm font-medium text-blue-600 hover:underline"
+          >
+            Return to page 1
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-2xl border border-border bg-background px-6 py-12 text-center">
         <h2 className="text-lg font-semibold">
@@ -91,7 +111,7 @@ export default function PaginatedJobList({
         <p className="mt-2 text-sm text-muted-foreground">
           {query
             ? `No jobs match "${query}". Try another keyword.`
-            : "No jobs have been posted yet. Check back later."}
+            : "No open jobs are available right now. Check back later."}
         </p>
       </div>
     );
@@ -108,15 +128,15 @@ export default function PaginatedJobList({
 
           <p className="mt-1 text-sm text-muted-foreground">
             {query
-              ? `${jobs.length} result${jobs.length === 1 ? "" : "s"} for "${query}"`
-              : `${jobs.length} job${jobs.length === 1 ? "" : "s"} available`}
+              ? `${totalCount} result${totalCount === 1 ? "" : "s"} for "${query}"`
+              : `${totalCount} job${totalCount === 1 ? "" : "s"} available`}
           </p>
         </div>
 
         <span className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-muted-foreground">
           Showing {startIndex + 1}–
-          {Math.min(startIndex + JOBS_PER_PAGE, jobs.length)} of{" "}
-          {jobs.length}
+          {Math.min(startIndex + jobs.length, totalCount)} of{" "}
+          {totalCount}
         </span>
       </div>
 
@@ -125,7 +145,7 @@ export default function PaginatedJobList({
         {/* Left column: job listings */}
         <div className="min-w-0 space-y-4 lg:col-span-2">
           <ul className="flex flex-col gap-3">
-            {visibleJobs.map((job) => {
+            {jobs.map((job) => {
               const isSelected = selectedJob?.id === job.id;
 
               return (
@@ -193,9 +213,8 @@ export default function PaginatedJobList({
             })}
           </ul>
 
-          {/* Existing pagination */}
           <Pagination
-            currentPage={safePage}
+            currentPage={page}
             totalPages={totalPages}
             onPageChange={handlePageChange}
           />
@@ -205,9 +224,9 @@ export default function PaginatedJobList({
         <div className="hidden min-w-0 lg:sticky lg:top-4 lg:col-span-3 lg:block">
           {selectedJob && (
             <div
-  ref={desktopPanelRef}
-  className="h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-border bg-background shadow-sm"
->
+              ref={desktopPanelRef}
+              className="h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-border bg-background shadow-sm"
+            >
               <JobDetails
                 job={selectedJob}
                 onClose={() => setSelectedJobId(null)}

@@ -1,16 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { JOB_SEARCH_LIMIT, buildJobSearchFilter, searchJobs } from "./search";
+import { buildJobSearchFilter, searchJobs } from "./search";
 
-const { mockGetUser, mockFrom, mockSelect, mockOr, mockOrder, mockLimit } = vi.hoisted(
-  () => ({
-    mockGetUser: vi.fn(),
-    mockFrom: vi.fn(),
-    mockSelect: vi.fn(),
-    mockOr: vi.fn(),
-    mockOrder: vi.fn(),
-    mockLimit: vi.fn(),
-  })
-);
+const {
+  mockGetUser,
+  mockFrom,
+  mockSelect,
+  mockEq,
+  mockOr,
+  mockOrder,
+  mockRange,
+} = vi.hoisted(() => ({
+  mockGetUser: vi.fn(),
+  mockFrom: vi.fn(),
+  mockSelect: vi.fn(),
+  mockEq: vi.fn(),
+  mockOr: vi.fn(),
+  mockOrder: vi.fn(),
+  mockRange: vi.fn(),
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
@@ -39,13 +46,24 @@ describe("searchJobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Every query-builder step returns the same chainable object.
-    const builder = { or: mockOr, order: mockOrder, limit: mockLimit };
+    const builder = {
+      eq: mockEq,
+      or: mockOr,
+      order: mockOrder,
+      range: mockRange,
+    };
+
     mockFrom.mockReturnValue({ select: mockSelect });
     mockSelect.mockReturnValue(builder);
+    mockEq.mockReturnValue(builder);
     mockOr.mockReturnValue(builder);
     mockOrder.mockReturnValue(builder);
-    mockLimit.mockResolvedValue({ data: [sampleJob], error: null });
+
+    mockRange.mockResolvedValue({
+      data: [sampleJob],
+      count: 8,
+      error: null,
+    });
   });
 
   it("asks the user to sign in when there is no session", async () => {
@@ -71,32 +89,84 @@ describe("searchJobs", () => {
     expect(buildJobSearchFilter("react")).toBe(
       "title.ilike.%react%,firm_name.ilike.%react%,description.ilike.%react%,required_skills.ilike.%react%,location.ilike.%react%"
     );
-    expect(result).toEqual({ success: true, query: "react", jobs: [sampleJob] });
+
+    // In "searches title, company, description, skills and location"
+    expect(result).toEqual({
+      success: true,
+      query: "react",
+      page: 1,
+      totalCount: 8,
+      jobs: [sampleJob],
+    });
   });
 
-  it("returns the newest jobs without a filter when the search is empty", async () => {
+  it("returns the first page of open jobs with the total count", async () => {
     signedIn();
 
     const result = await searchJobs("   ");
 
+    expect(mockFrom).toHaveBeenCalledWith("job");
+    expect(mockEq).toHaveBeenCalledWith("status", "open");
     expect(mockOr).not.toHaveBeenCalled();
-    expect(mockOrder).toHaveBeenCalledWith("created_at", { ascending: false });
-    expect(mockLimit).toHaveBeenCalledWith(JOB_SEARCH_LIMIT);
-    expect(result).toEqual({ success: true, query: "", jobs: [sampleJob] });
+    expect(mockOrder).toHaveBeenNthCalledWith(
+      1,
+      "created_at",
+      { ascending: false }
+    );
+    expect(mockOrder).toHaveBeenNthCalledWith(
+      2,
+      "id",
+      { ascending: false }
+    );
+    expect(mockRange).toHaveBeenCalledWith(0, 5);
+
+    expect(result).toEqual({
+      success: true,
+      query: "",
+      page: 1,
+      totalCount: 8,
+      jobs: [sampleJob],
+    });
+  });
+
+  it("requests the next six rows for page two", async () => {
+    signedIn();
+
+    const result = await searchJobs("react", "2");
+
+    expect(mockOr).toHaveBeenCalledWith(buildJobSearchFilter("react"));
+    expect(mockRange).toHaveBeenCalledWith(6, 11);
+    expect(result).toEqual({
+      success: true,
+      query: "react",
+      page: 2,
+      totalCount: 8,
+      jobs: [sampleJob],
+    });
   });
 
   it("returns an empty list when nothing matches", async () => {
     signedIn();
-    mockLimit.mockResolvedValueOnce({ data: [], error: null });
+    mockRange.mockResolvedValueOnce({
+      data: [],
+      count: 0,
+      error: null,
+    });
 
     const result = await searchJobs("astronaut");
 
-    expect(result).toEqual({ success: true, query: "astronaut", jobs: [] });
+    expect(result).toEqual({
+      success: true,
+      query: "astronaut",
+      page: 1,
+      totalCount: 0,
+      jobs: [],
+    });
   });
 
   it("returns a friendly error when the database fails", async () => {
     signedIn();
-    mockLimit.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
+    mockRange.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
 
     const result = await searchJobs("developer");
 
