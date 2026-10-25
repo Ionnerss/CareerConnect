@@ -163,10 +163,19 @@ export default function JobFilters({
   function updateSalarySlider(values: number[]) {
     if (values.length !== 2) return;
 
+    // Update only the handle that actually moved. A manually entered
+    // salary above the slider's $200k limit must not be overwritten
+    // when the user adjusts the opposite handle.
     setFilters((previous) => ({
       ...previous,
-      minSalary: String(values[0]),
-      maxSalary: String(values[1]),
+      minSalary:
+        values[0] !== sliderValues[0]
+          ? String(values[0])
+          : previous.minSalary,
+      maxSalary:
+        values[1] !== sliderValues[1]
+          ? String(values[1])
+          : previous.maxSalary,
     }));
 
     setError("");
@@ -299,7 +308,7 @@ export default function JobFilters({
               <div className={panelClass}>
                 <div className="mb-5">
                   <h3 className="text-base font-bold text-[#0E1726]">
-                    Salary range
+                    Salary range (CAD/year)
                   </h3>
                 </div>
 
@@ -310,7 +319,7 @@ export default function JobFilters({
                       htmlFor="min-salary"
                       className="mb-2 block text-xs font-semibold text-slate-600"
                     >
-                      Minimum ($)
+                      Minimum (CAD/year)
                     </label>
 
                     <input
@@ -334,7 +343,7 @@ export default function JobFilters({
                       htmlFor="max-salary"
                       className="mb-2 block text-xs font-semibold text-slate-600"
                     >
-                      Maximum ($)
+                      Maximum (CAD/year)
                     </label>
 
                     <input
@@ -467,9 +476,9 @@ export default function JobFilters({
                   className={inputClass}
                 >
                   <option value="">All experience levels</option>
-                  <option value="Entry Level">Entry level</option>
-                  <option value="Mid Level">Mid level</option>
-                  <option value="Senior Level">Senior level</option>
+                  <option value="Entry Level">Entry Level — 0–2 years</option>
+                  <option value="Mid Level">Mid Level — 3–5 years</option>
+                  <option value="Senior Level">Senior Level — 6+ years</option>
                 </select>
               </div>
             )}

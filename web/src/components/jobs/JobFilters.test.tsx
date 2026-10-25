@@ -69,11 +69,11 @@ describe("JobFilters", () => {
     );
 
     expect(
-      screen.getByLabelText("Minimum ($)")
+      screen.getByLabelText("Minimum (CAD/year)")
     ).toBeTruthy();
 
     expect(
-      screen.getByLabelText("Maximum ($)")
+      screen.getByLabelText("Maximum (CAD/year)")
     ).toBeTruthy();
 
     // Verify the dual-handle slider is rendered.
@@ -126,12 +126,12 @@ describe("JobFilters", () => {
     );
 
     await user.type(
-      screen.getByLabelText("Minimum ($)"),
+      screen.getByLabelText("Minimum (CAD/year)"),
       "50000"
     );
 
     await user.type(
-      screen.getByLabelText("Maximum ($)"),
+      screen.getByLabelText("Maximum (CAD/year)"),
       "100000"
     );
 
@@ -258,12 +258,12 @@ describe("JobFilters", () => {
 
     // Minimum is greater than maximum.
     await user.type(
-      screen.getByLabelText("Minimum ($)"),
+      screen.getByLabelText("Minimum (CAD/year)"),
       "100000"
     );
 
     await user.type(
-      screen.getByLabelText("Maximum ($)"),
+      screen.getByLabelText("Maximum (CAD/year)"),
       "50000"
     );
 
@@ -279,5 +279,92 @@ describe("JobFilters", () => {
 
     // Invalid filters must not be submitted.
     expect(onApply).not.toHaveBeenCalled();
+  });
+
+  it("displays experience ranges while preserving backend values", async () => {
+    const user = userEvent.setup();
+    const onApply = vi.fn();
+
+    render(<JobFilters onApply={onApply} />);
+
+    await user.click(
+      screen.getByRole("button", { name: /Experience/i })
+    );
+
+    const experienceSelect = screen.getByLabelText(
+      "Experience level"
+    ) as HTMLSelectElement;
+
+    expect(
+      screen.getByRole("option", { name: /Entry Level.*0.*2 years/i })
+    ).toHaveProperty("value", "Entry Level");
+
+    expect(
+      screen.getByRole("option", { name: /Mid Level.*3.*5 years/i })
+    ).toHaveProperty("value", "Mid Level");
+
+    expect(
+      screen.getByRole("option", { name: /Senior Level.*6\+/i })
+    ).toHaveProperty("value", "Senior Level");
+
+    await user.selectOptions(experienceSelect, "Senior Level");
+
+    await user.click(
+      screen.getByRole("button", { name: /Apply filters/i })
+    );
+
+    expect(onApply).toHaveBeenLastCalledWith({
+      location: "",
+      minSalary: "",
+      maxSalary: "",
+      experienceLevel: "Senior Level",
+      jobType: "",
+    });
+  });
+
+  it("preserves a manually entered salary above the slider maximum", async () => {
+    const user = userEvent.setup();
+    const onApply = vi.fn();
+
+    render(<JobFilters onApply={onApply} />);
+
+    await user.click(
+      screen.getByRole("button", { name: /Salary range/i })
+    );
+
+    const minimumInput = screen.getByLabelText(
+      "Minimum (CAD/year)"
+    ) as HTMLInputElement;
+
+    const maximumInput = screen.getByLabelText(
+      "Maximum (CAD/year)"
+    ) as HTMLInputElement;
+
+    await user.type(minimumInput, "80000");
+    await user.type(maximumInput, "250000");
+
+    expect(minimumInput.value).toBe("80000");
+    expect(maximumInput.value).toBe("250000");
+
+    // Update only the minimum thumb using the keyboard.
+    const minimumThumb = screen.getByRole("slider", {
+      name: "Minimum salary",
+    });
+
+    minimumThumb.focus();
+    await user.keyboard("{ArrowRight}");
+
+    // Moving the minimum thumb must not overwrite a larger manual maximum.
+    expect(maximumInput.value).toBe("250000");
+
+    await user.click(
+      screen.getByRole("button", { name: /Apply salary range/i })
+    );
+
+    expect(onApply).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        maxSalary: "250000",
+      })
+    );
   });
 });

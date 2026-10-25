@@ -37,7 +37,10 @@ export default function JobSearchBar({
     .filter(({ value }) => value !== "");
 
   const clearParams = new URLSearchParams(searchParams.toString());
+
+  // Clear the keyword and reset pagination to page 1.
   clearParams.delete("q");
+  clearParams.delete("page");
 
   const clearUrl = clearParams.toString()
     ? `/jobs?${clearParams.toString()}`
@@ -92,7 +95,7 @@ export default function JobSearchBar({
         Search
       </Button>
 
-      {/* Clear only the keyword, retaining selected filters */}
+      {/* Clear keyword and reset page, retaining selected filters */}
       {defaultQuery !== "" && (
         <Link
           href={clearUrl}

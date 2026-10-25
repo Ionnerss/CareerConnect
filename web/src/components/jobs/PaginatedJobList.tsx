@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Building2,
@@ -18,13 +19,18 @@ const JOBS_PER_PAGE = 6;
 type PaginatedJobListProps = {
   jobs: JobSearchResult[];
   query: string;
+  page: number;
+  totalCount: number;
 };
 
 export default function PaginatedJobList({
   jobs,
   query,
+  page,
+  totalCount,
 }: PaginatedJobListProps) {
-  const [currentPage, setCurrentPage] = useState(1);
+  const router = useRouter();
+
   const [selectedJobId, setSelectedJobId] = useState<string | null>(
     jobs[0]?.id ?? null
   );
@@ -32,23 +38,14 @@ export default function PaginatedJobList({
 
   const desktopPanelRef = useRef<HTMLDivElement>(null);
 
-  const totalPages = Math.ceil(jobs.length / JOBS_PER_PAGE);
+  // Supabase already returns the jobs for the requested page.
+  const totalPages = Math.ceil(totalCount / JOBS_PER_PAGE);
 
-  const safePage = Math.min(
-    Math.max(currentPage, 1),
-    Math.max(totalPages, 1)
-  );
-
-  const startIndex = (safePage - 1) * JOBS_PER_PAGE;
-
-  const visibleJobs = jobs.slice(
-    startIndex,
-    startIndex + JOBS_PER_PAGE
-  );
+  const startIndex = (page - 1) * JOBS_PER_PAGE;
 
   const selectedJob =
-    visibleJobs.find((job) => job.id === selectedJobId) ??
-    visibleJobs[0] ??
+    jobs.find((job) => job.id === selectedJobId) ??
+    jobs[0] ??
     null;
 
   function resetDetailsScroll() {
@@ -58,15 +55,30 @@ export default function PaginatedJobList({
     });
   }
 
-  function handlePageChange(page: number) {
-    if (page < 1 || page > totalPages) return;
+  function handlePageChange(nextPage: number) {
+    if (
+      nextPage < 1 ||
+      nextPage > totalPages ||
+      nextPage === page
+    ) {
+      return;
+    }
 
-    setCurrentPage(page);
-    setSelectedJobId(
-      jobs[(page - 1) * JOBS_PER_PAGE]?.id ?? null
+    // Preserve keyword search and filters when changing pages.
+    const params = new URLSearchParams(window.location.search);
+
+    if (nextPage === 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(nextPage));
+    }
+
+    const queryString = params.toString();
+
+    router.push(
+      queryString ? `/jobs?${queryString}` : "/jobs",
+      { scroll: false }
     );
-    setMobilePanelOpen(false);
-    resetDetailsScroll();
   }
 
   function handleSelectJob(job: JobSearchResult) {
@@ -103,14 +115,38 @@ export default function PaginatedJobList({
         </div>
 
         <h2 className="text-xl font-bold text-[#0E1726]">
-          No matching jobs found
+          {totalCount > 0
+            ? "No jobs on this page"
+            : "No matching jobs found"}
         </h2>
 
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#64748B]">
-          {query
-            ? `No jobs match "${query}". Try another keyword or adjust your search.`
-            : "No jobs have been posted yet. Check back later."}
+          {totalCount > 0
+            ? "This page has no results. Return to page 1 or adjust your search."
+            : query
+              ? `No jobs match "${query}". Try another keyword or adjust your search.`
+              : "No jobs match your current criteria. Check back later or adjust your filters."}
         </p>
+
+        {totalCount > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              const params = new URLSearchParams(
+                window.location.search
+              );
+              params.delete("page");
+              const queryString = params.toString();
+
+              router.push(
+                queryString ? `/jobs?${queryString}` : "/jobs"
+              );
+            }}
+            className="mt-5 rounded-xl bg-[#3151D5] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1E40AF]"
+          >
+            Return to page 1
+          </button>
+        )}
       </div>
     );
   }
@@ -133,15 +169,14 @@ export default function PaginatedJobList({
 
           <p className="mt-1 text-sm text-[#64748B]">
             {query
-              ? `${jobs.length} result${jobs.length === 1 ? "" : "s"} for "${query}"`
-              : `${jobs.length} job${jobs.length === 1 ? "" : "s"} available`}
+              ? `${totalCount} result${totalCount === 1 ? "" : "s"} for "${query}"`
+              : `${totalCount} job${totalCount === 1 ? "" : "s"} available`}
           </p>
         </div>
 
         <span className="rounded-full border border-[#E3E6EB] bg-white px-4 py-2 text-xs font-semibold text-[#64748B]">
           Showing {startIndex + 1}–
-          {Math.min(startIndex + JOBS_PER_PAGE, jobs.length)} of{" "}
-          {jobs.length}
+          {startIndex + jobs.length} of {totalCount}
         </span>
       </div>
 
@@ -150,11 +185,13 @@ export default function PaginatedJobList({
         {/* Left: list of jobs */}
         <div className="min-w-0 space-y-5 lg:col-span-2">
           <ul className="flex flex-col gap-3">
-            {visibleJobs.map((job) => {
+            {jobs.map((job) => {
               const isSelected = selectedJob?.id === job.id;
 
-              const company = job.firm_name?.trim() || "Company not listed";
-              const title = job.title?.trim() || "Untitled position";
+              const company =
+                job.firm_name?.trim() || "Company not listed";
+              const title =
+                job.title?.trim() || "Untitled position";
               const initial = company.charAt(0).toUpperCase();
 
               return (
@@ -254,22 +291,20 @@ export default function PaginatedJobList({
                         )}
                       </div>
                     </div>
-
-                    {/* Selected footer */}
                   </button>
                 </li>
               );
             })}
           </ul>
 
-          {/* Existing pagination component */}
-          <div className="rounded-2xl border border-[#E3E6EB] bg-white px-3 py-4 shadow-sm">
+          {/* Server-side pagination */}
+          {totalPages > 1 && (
             <Pagination
-            currentPage={safePage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
-          </div>
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          )}
         </div>
 
         {/* Right: sticky desktop details */}

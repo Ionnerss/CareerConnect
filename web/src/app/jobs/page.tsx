@@ -15,16 +15,20 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 type JobsPageProps = {
-  searchParams: Promise<{ q?: string | string[] }>;
+  searchParams: Promise<{
+    q?: string | string[];
+    page?: string | string[];
+  }>;
 };
 
 export default async function JobsPage({
   searchParams,
 }: JobsPageProps) {
-  const { q } = await searchParams;
+  const { q, page } = await searchParams;
 
   const result = await searchJobs(
-    Array.isArray(q) ? q[0] : q
+    Array.isArray(q) ? q[0] : q,
+    Array.isArray(page) ? page[0] : page
   );
 
   if (
@@ -35,7 +39,9 @@ export default async function JobsPage({
   }
 
   return (
-    <main className={`${jakarta.className} min-h-screen bg-[#F5F6F8] text-[#1F2937]`}>
+    <main
+      className={`${jakarta.className} min-h-screen bg-[#F5F6F8] text-[#1F2937]`}
+    >
       <PageHero
         label="EXPLORE OPPORTUNITIES"
         title="Find your next opportunity"
@@ -78,9 +84,11 @@ export default async function JobsPage({
             </p>
           ) : (
             <PaginatedJobList
-              key={result.query}
+              key={`${result.query}-${result.page}`}
               jobs={result.jobs}
               query={result.query}
+              page={result.page}
+              totalCount={result.totalCount}
             />
           )}
         </section>
