@@ -319,7 +319,7 @@ export default function JobFilters({
                       htmlFor="min-salary"
                       className="mb-2 block text-xs font-semibold text-slate-600"
                     >
-                      Minimum (CAD/year)
+                      Minimum
                     </label>
 
                     <input
@@ -343,7 +343,7 @@ export default function JobFilters({
                       htmlFor="max-salary"
                       className="mb-2 block text-xs font-semibold text-slate-600"
                     >
-                      Maximum (CAD/year)
+                      Maximum
                     </label>
 
                     <input
