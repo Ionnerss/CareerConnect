@@ -1,4 +1,3 @@
-
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import JobSearchBar from "@/components/jobs/job-search-bar";
@@ -8,16 +7,18 @@ import { PageBody, PageHero } from "@/components/app/page-hero";
 import { searchJobs } from "@/lib/jobs/search";
 
 type JobsPageProps = {
-  searchParams: Promise<{ q?: string | string[] }>;
+  searchParams: Promise<{
+    q?: string | string[];
+    page?: string | string[];
+  }>;
 };
 
-export default async function JobsPage({
-  searchParams,
-}: JobsPageProps) {
-  const { q } = await searchParams;
+export default async function JobsPage({ searchParams }: JobsPageProps) {
+  const { q, page } = await searchParams;
 
   const result = await searchJobs(
-    Array.isArray(q) ? q[0] : q
+    Array.isArray(q) ? q[0] : q,
+    page
   );
 
   if (
@@ -54,14 +55,31 @@ export default async function JobsPage({
           </Suspense>
         </div>
 
-        {/* Paginated job listings - Task #117 */}
-        <section className="mt-8" aria-label="Job search results" aria-live="polite">
+        <section
+          className="mt-8"
+          aria-label="Job search results"
+          aria-live="polite"
+        >
           {!result.success ? (
             <p role="alert" className="text-sm text-destructive">
               {result.error}
             </p>
           ) : (
-            <PaginatedJobList key={result.query} jobs={result.jobs} query={result.query} />
+            <Suspense
+              fallback={
+                <p className="text-sm text-muted-foreground">
+                  Loading jobs...
+                </p>
+              }
+            >
+              <PaginatedJobList
+                key={`${result.query}:${result.page}`}
+                jobs={result.jobs}
+                query={result.query}
+                page={result.page}
+                totalCount={result.totalCount}
+              />
+            </Suspense>
           )}
         </section>
       </PageBody>

@@ -37,6 +37,7 @@ export default function JobSearchBar({
 
   const clearParams = new URLSearchParams(searchParams.toString());
   clearParams.delete("q");
+  clearParams.delete("page");
 
   const clearUrl = clearParams.toString()
     ? `/jobs?${clearParams.toString()}`
