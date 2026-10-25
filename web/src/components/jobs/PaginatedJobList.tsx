@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   Building2,
@@ -30,23 +29,20 @@ export default function PaginatedJobList({
   totalCount,
 }: PaginatedJobListProps) {
   const router = useRouter();
-
+  const searchParams = useSearchParams();
   const [selectedJobId, setSelectedJobId] = useState<string | null>(
     jobs[0]?.id ?? null
   );
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
-
   const desktopPanelRef = useRef<HTMLDivElement>(null);
 
-  // Supabase already returns the jobs for the requested page.
+  // The server has already fetched the six jobs for this page.
   const totalPages = Math.ceil(totalCount / JOBS_PER_PAGE);
-
   const startIndex = (page - 1) * JOBS_PER_PAGE;
 
-  const selectedJob =
-    jobs.find((job) => job.id === selectedJobId) ??
-    jobs[0] ??
-    null;
+  const selectedJob = selectedJobId
+    ? jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null
+    : null;
 
   function resetDetailsScroll() {
     desktopPanelRef.current?.scrollTo({
@@ -56,29 +52,21 @@ export default function PaginatedJobList({
   }
 
   function handlePageChange(nextPage: number) {
-    if (
-      nextPage < 1 ||
-      nextPage > totalPages ||
-      nextPage === page
-    ) {
-      return;
-    }
+    if (nextPage < 1 || nextPage > totalPages || nextPage === page) return;
 
-    // Preserve keyword search and filters when changing pages.
-    const params = new URLSearchParams(window.location.search);
-
+    // Keep the current keyword and filters when navigating to a new page.
+    const params = new URLSearchParams(searchParams.toString());
     if (nextPage === 1) {
       params.delete("page");
     } else {
       params.set("page", String(nextPage));
     }
 
+    setMobilePanelOpen(false);
     const queryString = params.toString();
-
-    router.push(
-      queryString ? `/jobs?${queryString}` : "/jobs",
-      { scroll: false }
-    );
+    router.push(queryString ? `/jobs?${queryString}` : "/jobs", {
+      scroll: false,
+    });
   }
 
   function handleSelectJob(job: JobSearchResult) {
@@ -98,50 +86,29 @@ export default function PaginatedJobList({
     }
 
     window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [mobilePanelOpen]);
 
   if (jobs.length === 0) {
     return (
       <div className="rounded-3xl border border-[#E3E6EB] bg-white px-6 py-16 text-center shadow-sm">
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EEF2FF]">
-          <SearchX
-            aria-hidden="true"
-            className="h-8 w-8 text-[#1D4ED8]"
-          />
+          <SearchX aria-hidden="true" className="h-8 w-8 text-[#1D4ED8]" />
         </div>
-
         <h2 className="text-xl font-bold text-[#0E1726]">
-          {totalCount > 0
-            ? "No jobs on this page"
-            : "No matching jobs found"}
+          {totalCount > 0 ? "No jobs on this page" : "No matching jobs found"}
         </h2>
-
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#64748B]">
           {totalCount > 0
-            ? "This page has no results. Return to page 1 or adjust your search."
+            ? "The available results may have changed. Return to page 1 or adjust your search."
             : query
               ? `No jobs match "${query}". Try another keyword or adjust your search.`
               : "No jobs match your current criteria. Check back later or adjust your filters."}
         </p>
-
         {totalCount > 0 && (
           <button
             type="button"
-            onClick={() => {
-              const params = new URLSearchParams(
-                window.location.search
-              );
-              params.delete("page");
-              const queryString = params.toString();
-
-              router.push(
-                queryString ? `/jobs?${queryString}` : "/jobs"
-              );
-            }}
+            onClick={() => handlePageChange(1)}
             className="mt-5 rounded-xl bg-[#3151D5] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1E40AF]"
           >
             Return to page 1
@@ -162,21 +129,17 @@ export default function PaginatedJobList({
               Discover opportunities
             </span>
           </div>
-
           <h2 className="text-2xl font-extrabold tracking-tight text-[#0E1726]">
             Available opportunities
           </h2>
-
           <p className="mt-1 text-sm text-[#64748B]">
             {query
               ? `${totalCount} result${totalCount === 1 ? "" : "s"} for "${query}"`
               : `${totalCount} job${totalCount === 1 ? "" : "s"} available`}
           </p>
         </div>
-
         <span className="rounded-full border border-[#E3E6EB] bg-white px-4 py-2 text-xs font-semibold text-[#64748B]">
-          Showing {startIndex + 1}–
-          {startIndex + jobs.length} of {totalCount}
+          Showing {startIndex + 1}–{Math.min(startIndex + jobs.length, totalCount)} of {totalCount}
         </span>
       </div>
 
@@ -187,11 +150,8 @@ export default function PaginatedJobList({
           <ul className="flex flex-col gap-3">
             {jobs.map((job) => {
               const isSelected = selectedJob?.id === job.id;
-
-              const company =
-                job.firm_name?.trim() || "Company not listed";
-              const title =
-                job.title?.trim() || "Untitled position";
+              const company = job.firm_name?.trim() || "Company not listed";
+              const title = job.title?.trim() || "Untitled position";
               const initial = company.charAt(0).toUpperCase();
 
               return (
@@ -213,7 +173,6 @@ export default function PaginatedJobList({
                         className="absolute inset-y-0 left-0 w-1 bg-[#3157D5]"
                       />
                     )}
-
                     <div className="flex items-start gap-3.5">
                       {/* Company identity */}
                       <div
@@ -225,7 +184,6 @@ export default function PaginatedJobList({
                       >
                         {initial}
                       </div>
-
                       <div className="min-w-0 flex-1">
                         {/* Position title */}
                         <div className="flex items-start justify-between gap-2">
@@ -238,17 +196,13 @@ export default function PaginatedJobList({
                           >
                             {title}
                           </h3>
-
                           <ArrowRight
                             aria-hidden="true"
                             className={`mt-1 h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 ${
-                              isSelected
-                                ? "text-[#1D4ED8]"
-                                : "text-[#94A3B8]"
+                              isSelected ? "text-[#1D4ED8]" : "text-[#94A3B8]"
                             }`}
                           />
                         </div>
-
                         {/* Company name */}
                         <div className="mt-2 flex items-center gap-1.5">
                           <Building2
@@ -259,30 +213,21 @@ export default function PaginatedJobList({
                             {company}
                           </p>
                         </div>
-
                         {/* Key details */}
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                           {job.location && (
                             <span className="inline-flex items-center gap-1 rounded-lg border border-[#E5EAF2] bg-white/80 px-2.5 py-1.5 text-xs font-medium text-[#64748B]">
-                              <MapPin
-                                aria-hidden="true"
-                                className="h-3.5 w-3.5"
-                              />
+                              <MapPin aria-hidden="true" className="h-3.5 w-3.5" />
                               {job.location}
                             </span>
                           )}
-
                           {job.salary !== null && (
                             <span className="inline-flex items-center gap-1 rounded-lg border border-[#DCEFE7] bg-[#F0FAF5] px-2.5 py-1.5 text-xs font-semibold text-[#18794E]">
-                              <Wallet
-                                aria-hidden="true"
-                                className="h-3.5 w-3.5"
-                              />
+                              <Wallet aria-hidden="true" className="h-3.5 w-3.5" />
                               ${job.salary.toLocaleString("en-CA")}
                             </span>
                           )}
                         </div>
-
                         {/* Short preview */}
                         {job.description && (
                           <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-[#64748B]">
@@ -296,7 +241,6 @@ export default function PaginatedJobList({
               );
             })}
           </ul>
-
           {/* Server-side pagination */}
           {totalPages > 1 && (
             <Pagination
@@ -332,7 +276,6 @@ export default function PaginatedJobList({
             onClick={() => setMobilePanelOpen(false)}
             className="absolute inset-0 bg-[#0E1726]/60"
           />
-
           <aside
             role="dialog"
             aria-modal="true"

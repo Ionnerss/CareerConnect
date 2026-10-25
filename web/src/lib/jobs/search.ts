@@ -1,8 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { normalizeJobSearchQuery } from "@/lib/validations/job-search";
 
-export const JOB_SEARCH_LIMIT = 50;
-
 export type JobSearchResult = {
   id: string;
   title: string | null;
@@ -16,8 +14,18 @@ export type JobSearchResult = {
 };
 
 export type SearchJobsResponse =
-  | { success: true; query: string; jobs: JobSearchResult[] }
-  | { success: false; query: string; error: string };
+  | {
+      success: true;
+      query: string;
+      page: number;
+      totalCount: number;
+      jobs: JobSearchResult[];
+    }
+  | {
+      success: false;
+      query: string;
+      error: string;
+    };
 
 /** Columns a search term is matched against (case-insensitive, partial match). */
 const SEARCHABLE_COLUMNS = [
@@ -36,7 +44,7 @@ export function buildJobSearchFilter(query: string): string {
  * Returns job postings matching the search text.
  * An empty search returns the newest postings.
  */
-export async function searchJobs(rawQuery: unknown): Promise<SearchJobsResponse> {
+export async function searchJobs(rawQuery: unknown, rawPage: unknown = undefined): Promise<SearchJobsResponse> {
   const query = normalizeJobSearchQuery(rawQuery);
   const supabase = await createClient();
 
@@ -53,19 +61,29 @@ export async function searchJobs(rawQuery: unknown): Promise<SearchJobsResponse>
     };
   }
 
+  const pageNum = normalizePage(rawPage);
+
+  const JOBS_PER_PAGE = 6;
+
+  const firstRow = (pageNum - 1) * JOBS_PER_PAGE;
+  const lastRow = firstRow + JOBS_PER_PAGE - 1;
+
   let request = supabase
-    .from("job")
-    .select(
-      "id, title, firm_name, location, description, required_skills, salary, status, created_at"
-    );
+      .from("job")
+      .select(
+          "id, title, firm_name, location, description, required_skills, salary, status, created_at",
+          { count: "exact" }
+      )
+      .eq("status", "open");
 
   if (query !== "") {
-    request = request.or(buildJobSearchFilter(query));
+      request = request.or(buildJobSearchFilter(query));
   }
 
-  const { data, error } = await request
-    .order("created_at", { ascending: false })
-    .limit(JOB_SEARCH_LIMIT);
+  const { data, count, error } = await request
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(firstRow, lastRow);
 
   if (error) {
     return {
@@ -75,5 +93,33 @@ export async function searchJobs(rawQuery: unknown): Promise<SearchJobsResponse>
     };
   }
 
-  return { success: true, query, jobs: (data ?? []) as JobSearchResult[] };
+  return {
+    success: true,
+    query,
+    page: pageNum,
+    totalCount: count ?? 0,
+    jobs: (data ?? []) as JobSearchResult[],
+  };
+}
+
+function normalizePage(rawPage: unknown): number {
+    if (typeof rawPage === "number") {
+        return Number.isSafeInteger(rawPage) && rawPage > 0
+            ? rawPage
+            : 1;
+    }
+
+    if (typeof rawPage !== "string") {
+        return 1;
+    }
+
+    const content = rawPage.trim();
+
+    if (!/^\d+$/.test(content)) {
+        return 1;
+    }
+
+    const page = Number(content);
+
+    return Number.isSafeInteger(page) && page > 0 ? page : 1;
 }

@@ -30,6 +30,7 @@ export default function JobFiltersUrl() {
   function handleApply(filters: JobFilterValues) {
     // Preserve existing URL parameters, including keyword search.
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
 
     // Reset pagination to page 1 when filters change.
     params.delete("page");

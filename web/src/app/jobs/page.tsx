@@ -31,6 +31,7 @@ export default async function JobsPage({
     Array.isArray(page) ? page[0] : page
   );
 
+  // Preserve authentication redirect.
   if (
     !result.success &&
     result.error.startsWith("Unable to authenticate")
@@ -83,13 +84,21 @@ export default async function JobsPage({
               {result.error}
             </p>
           ) : (
-            <PaginatedJobList
-              key={`${result.query}-${result.page}`}
-              jobs={result.jobs}
-              query={result.query}
-              page={result.page}
-              totalCount={result.totalCount}
-            />
+            <Suspense
+              fallback={
+                <p className="text-sm text-muted-foreground">
+                  Loading jobs...
+                </p>
+              }
+            >
+              <PaginatedJobList
+                key={`${result.query}:${result.page}`}
+                jobs={result.jobs}
+                query={result.query}
+                page={result.page}
+                totalCount={result.totalCount}
+              />
+            </Suspense>
           )}
         </section>
       </PageBody>
