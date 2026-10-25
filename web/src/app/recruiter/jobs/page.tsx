@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Plus } from "lucide-react";
 import { PageBody, PageHero } from "@/components/app/page-hero";
 import { AUTH_ERROR, getRecruiterJobs } from "@/lib/recruiter/applicants";
 
@@ -16,6 +17,15 @@ export default async function RecruiterJobsPage() {
         label="Recruiter"
         title="My job postings"
         description="Open a posting to see its applicants, best skill match first."
+        action={
+          <Link
+            href="/recruiter/jobs/new"
+            className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-[#1D4ED8] px-5 text-sm font-bold text-white transition-colors hover:bg-[#1E40AF] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6B93FF]"
+          >
+            <Plus aria-hidden="true" className="size-4" />
+            Post a job
+          </Link>
+        }
       />
 
       <PageBody>
@@ -28,7 +38,13 @@ export default async function RecruiterJobsPage() {
           </p>
         ) : result.jobs.length === 0 ? (
           <p className="rounded-2xl border border-[#E3E6EB] bg-white p-8 text-center text-sm text-[#4B5563]">
-            You have not posted any jobs yet.
+            You have not posted any jobs yet.{" "}
+            <Link
+              href="/recruiter/jobs/new"
+              className="font-semibold text-[#1D4ED8] hover:text-[#1E40AF]"
+            >
+              Post your first job
+            </Link>
           </p>
         ) : (
           <ul className="flex flex-col gap-3">
