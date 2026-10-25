@@ -87,6 +87,7 @@ describe("JobPostingForm", () => {
     expect(screen.getByText("Company name is required.")).toBeDefined();
     expect(screen.getByText("Location is required.")).toBeDefined();
     expect(screen.getByText("Choose a work mode.")).toBeDefined();
+    expect(screen.getByText("Choose an employment type.")).toBeDefined();
     expect(screen.getByText("Add at least one required skill.")).toBeDefined();
     expect(screen.getByText("Description is required.")).toBeDefined();
     expect(screen.getByLabelText("Job title").getAttribute("aria-invalid")).toBe("true");
