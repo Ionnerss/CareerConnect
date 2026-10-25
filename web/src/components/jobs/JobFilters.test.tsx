@@ -3,32 +3,104 @@
  * @vitest-environment jsdom
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import JobFilters from "./JobFilters";
 
-// Clean up rendered components after each test
+// Radix UI Slider uses ResizeObserver, which jsdom does not provide.
+beforeAll(() => {
+  class MockResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+
+  vi.stubGlobal("ResizeObserver", MockResizeObserver);
+});
+
+// Clean up rendered components after every test.
 afterEach(() => {
   cleanup();
 });
 
 describe("JobFilters", () => {
-  it("renders all required filters and buttons", () => {
+  it("renders all required filters and buttons", async () => {
+    const user = userEvent.setup();
+
     render(<JobFilters onApply={vi.fn()} />);
 
-    expect(screen.getByLabelText("Location")).toBeTruthy();
-    expect(screen.getByLabelText("Minimum salary ($)")).toBeTruthy();
-    expect(screen.getByLabelText("Maximum salary ($)")).toBeTruthy();
-    expect(screen.getByLabelText("Experience level")).toBeTruthy();
-    expect(screen.getByLabelText("Job type")).toBeTruthy();
-
     expect(
-      screen.getByRole("button", { name: "Apply Filters" })
+      screen.getByRole("button", { name: /Location/i })
     ).toBeTruthy();
 
     expect(
-      screen.getByRole("button", { name: "Clear Filters" })
+      screen.getByRole("button", { name: /Salary range/i })
+    ).toBeTruthy();
+
+    expect(
+      screen.getByRole("button", { name: /Experience/i })
+    ).toBeTruthy();
+
+    expect(
+      screen.getByRole("button", { name: /Job type/i })
+    ).toBeTruthy();
+
+    expect(
+      screen.getByRole("button", { name: /Apply filters/i })
+    ).toBeTruthy();
+
+    expect(
+      screen.getByRole("button", { name: /Clear all/i })
+    ).toBeTruthy();
+
+    // Open location dropdown.
+    await user.click(
+      screen.getByRole("button", { name: /Location/i })
+    );
+
+    expect(
+      screen.getByLabelText("Preferred location")
+    ).toBeTruthy();
+
+    // Open salary dropdown.
+    await user.click(
+      screen.getByRole("button", { name: /Salary range/i })
+    );
+
+    expect(
+      screen.getByLabelText("Minimum ($)")
+    ).toBeTruthy();
+
+    expect(
+      screen.getByLabelText("Maximum ($)")
+    ).toBeTruthy();
+
+    // Verify the dual-handle slider is rendered.
+    expect(
+      screen.getByRole("slider", { name: "Minimum salary" })
+    ).toBeTruthy();
+
+    expect(
+      screen.getByRole("slider", { name: "Maximum salary" })
+    ).toBeTruthy();
+
+    // Open experience dropdown.
+    await user.click(
+      screen.getByRole("button", { name: /Experience/i })
+    );
+
+    expect(
+      screen.getByLabelText("Experience level")
+    ).toBeTruthy();
+
+    // Open job type dropdown.
+    await user.click(
+      screen.getByRole("button", { name: /Job type/i })
+    );
+
+    expect(
+      screen.getByLabelText("Job type")
     ).toBeTruthy();
   });
 
@@ -38,19 +110,34 @@ describe("JobFilters", () => {
 
     render(<JobFilters onApply={onApply} />);
 
-    await user.type(
-      screen.getByLabelText("Location"),
-      "Montreal"
+    // Set location.
+    await user.click(
+      screen.getByRole("button", { name: /Location/i })
     );
 
     await user.type(
-      screen.getByLabelText("Minimum salary ($)"),
+      screen.getByLabelText("Preferred location"),
+      "Montreal"
+    );
+
+    // Set salary range.
+    await user.click(
+      screen.getByRole("button", { name: /Salary range/i })
+    );
+
+    await user.type(
+      screen.getByLabelText("Minimum ($)"),
       "50000"
     );
 
     await user.type(
-      screen.getByLabelText("Maximum salary ($)"),
+      screen.getByLabelText("Maximum ($)"),
       "100000"
+    );
+
+    // Set experience level.
+    await user.click(
+      screen.getByRole("button", { name: /Experience/i })
     );
 
     await user.selectOptions(
@@ -58,13 +145,19 @@ describe("JobFilters", () => {
       "Entry Level"
     );
 
+    // Set job type.
+    await user.click(
+      screen.getByRole("button", { name: /Job type/i })
+    );
+
     await user.selectOptions(
       screen.getByLabelText("Job type"),
       "Full-time"
     );
 
+    // Apply all selected filters.
     await user.click(
-      screen.getByRole("button", { name: "Apply Filters" })
+      screen.getByRole("button", { name: /Apply filters/i })
     );
 
     expect(onApply).toHaveBeenCalledWith({
@@ -75,24 +168,21 @@ describe("JobFilters", () => {
       jobType: "Full-time",
     });
 
+    // Verify applied filters appear on the toolbar.
     expect(
-      screen.getByText("Location: Montreal")
+      screen.getByRole("button", { name: /Montreal/i })
     ).toBeTruthy();
 
     expect(
-      screen.getByText("Min salary: $50000")
+      screen.getByRole("button", { name: /Entry Level/i })
     ).toBeTruthy();
 
     expect(
-      screen.getByText("Max salary: $100000")
+      screen.getByRole("button", { name: /Full-time/i })
     ).toBeTruthy();
 
     expect(
-      screen.getByText("Experience: Entry Level")
-    ).toBeTruthy();
-
-    expect(
-      screen.getByText("Job type: Full-time")
+      screen.getByText(/5 active filters/i)
     ).toBeTruthy();
   });
 
@@ -102,17 +192,31 @@ describe("JobFilters", () => {
 
     render(<JobFilters onApply={onApply} />);
 
+    // Enter a location.
+    await user.click(
+      screen.getByRole("button", { name: /Location/i })
+    );
+
     await user.type(
-      screen.getByLabelText("Location"),
+      screen.getByLabelText("Preferred location"),
       "Toronto"
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Apply Filters" })
+      screen.getByRole("button", { name: /Apply filters/i })
     );
 
+    expect(onApply).toHaveBeenLastCalledWith({
+      location: "Toronto",
+      minSalary: "",
+      maxSalary: "",
+      experienceLevel: "",
+      jobType: "",
+    });
+
+    // Clear all selected filters.
     await user.click(
-      screen.getByRole("button", { name: "Clear Filters" })
+      screen.getByRole("button", { name: /Clear all/i })
     );
 
     expect(onApply).toHaveBeenLastCalledWith({
@@ -124,12 +228,21 @@ describe("JobFilters", () => {
     });
 
     expect(
-      (screen.getByLabelText("Location") as HTMLInputElement).value
-    ).toBe("");
+      screen.getByText(/0 active filters/i)
+    ).toBeTruthy();
+
+    // Verify the location input is cleared.
+    await user.click(
+      screen.getByRole("button", { name: /Location/i })
+    );
 
     expect(
-      screen.queryByText("Location: Toronto")
-    ).toBeNull();
+      (
+        screen.getByLabelText(
+          "Preferred location"
+        ) as HTMLInputElement
+      ).value
+    ).toBe("");
   });
 
   it("rejects an invalid salary range", async () => {
@@ -138,18 +251,24 @@ describe("JobFilters", () => {
 
     render(<JobFilters onApply={onApply} />);
 
+    // Open salary dropdown.
+    await user.click(
+      screen.getByRole("button", { name: /Salary range/i })
+    );
+
+    // Minimum is greater than maximum.
     await user.type(
-      screen.getByLabelText("Minimum salary ($)"),
+      screen.getByLabelText("Minimum ($)"),
       "100000"
     );
 
     await user.type(
-      screen.getByLabelText("Maximum salary ($)"),
+      screen.getByLabelText("Maximum ($)"),
       "50000"
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Apply Filters" })
+      screen.getByRole("button", { name: /Apply salary range/i })
     );
 
     expect(
@@ -158,6 +277,7 @@ describe("JobFilters", () => {
       "Minimum salary cannot exceed maximum salary."
     );
 
+    // Invalid filters must not be submitted.
     expect(onApply).not.toHaveBeenCalled();
   });
 });
