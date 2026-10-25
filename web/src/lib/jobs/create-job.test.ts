@@ -29,6 +29,7 @@ const form = {
   firm_name: "Acme Inc.",
   location: "Montreal, QC",
   work_mode: "Hybrid",
+  employment_type: "Full-time",
   required_skills: "React, typescript, react",
   salary: "65000",
   experience: "",
@@ -114,6 +115,7 @@ describe("createJobPosting", () => {
       firm_name: "Acme Inc.",
       location: "Montreal, QC",
       work_mode: "Hybrid",
+      employment_type: "Full-time",
       required_skills: "React, typescript",
       salary: 65000,
       experience: null,
@@ -152,5 +154,21 @@ describe("createJobPosting", () => {
     mocks.insertResult = { data: null, error: { code: "XX000", message: "boom" } };
 
     expect(await createJobPosting(form)).toEqual({ success: false, error: CREATE_JOB_ERROR });
+  });
+
+  it("rejects an invalid employment type before database access", async () => {
+    const result = await createJobPosting({
+      ...form,
+      employment_type: "Temporary",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: INVALID_JOB_ERROR,
+    });
+
+    expect(mocks.getUser).not.toHaveBeenCalled();
+    expect(mocks.from).not.toHaveBeenCalled();
+    expect(mocks.insert).not.toHaveBeenCalled();
   });
 });

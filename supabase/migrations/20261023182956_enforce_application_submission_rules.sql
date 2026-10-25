@@ -1,3 +1,9 @@
+CREATE OR REPLACE FUNCTION public.validate_application_resume()
+  RETURNS TRIGGER
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path TO ''
+  AS $function$
 BEGIN
     -- Preserve the existing applicant identity rule.
     IF NEW.applicant_id IS DISTINCT FROM (SELECT auth.uid()) THEN

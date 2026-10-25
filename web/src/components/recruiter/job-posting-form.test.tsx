@@ -31,6 +31,7 @@ async function fillValidForm(user: User) {
   await user.type(screen.getByLabelText("Company name"), "Acme Inc.");
   await user.type(screen.getByLabelText("Location"), "Montreal, QC");
   await user.selectOptions(screen.getByLabelText("Work mode"), "Hybrid");
+  await user.selectOptions(screen.getByLabelText("Employment type"), "Full-time");
   await user.type(screen.getByLabelText("Salary (CAD / year, optional)"), "65000");
   await user.type(screen.getByLabelText("Required skills"), "React, TypeScript");
   await user.type(screen.getByLabelText("Description"), "Build the web app.");
@@ -137,6 +138,7 @@ describe("JobPostingForm", () => {
       firm_name: "Acme Inc.",
       location: "Montreal, QC",
       work_mode: "Hybrid",
+      employment_type: "Full-time",
       required_skills: "React, TypeScript",
       salary: "65000",
       experience: "",
