@@ -75,10 +75,11 @@ export default async function JobsPage({
 
         {/* Job listings and details */}
         <section
-          className="mt-8"
-          aria-label="Job search results"
-          aria-live="polite"
-        >
+        id="job-results"
+        className="mt-8 scroll-mt-24"
+        aria-label="Job search results"
+        aria-live="polite"
+      >
           {!result.success ? (
             <p role="alert" className="text-sm text-destructive">
               {result.error}
@@ -92,7 +93,7 @@ export default async function JobsPage({
               }
             >
               <PaginatedJobList
-                key={`${result.query}:${result.page}`}
+                key={result.query}
                 jobs={result.jobs}
                 query={result.query}
                 page={result.page}

@@ -30,6 +30,18 @@ export default function PaginatedJobList({
 }: PaginatedJobListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const previousPageRef = useRef(page);
+
+useEffect(() => {
+  if (previousPageRef.current !== page) {
+    previousPageRef.current = page;
+
+    document.getElementById("job-results")?.scrollIntoView({
+      behavior: "instant",
+      block: "start",
+    });
+  }
+}, [page]);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(
     jobs[0]?.id ?? null
   );
@@ -64,9 +76,9 @@ export default function PaginatedJobList({
 
     setMobilePanelOpen(false);
     const queryString = params.toString();
-    router.push(queryString ? `/jobs?${queryString}` : "/jobs", {
-      scroll: false,
-    });
+  router.push(queryString ? `/jobs?${queryString}` : "/jobs", {
+  scroll: false,
+});
   }
 
   function handleSelectJob(job: JobSearchResult) {
