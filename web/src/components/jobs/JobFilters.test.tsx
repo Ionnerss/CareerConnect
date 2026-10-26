@@ -69,11 +69,11 @@ describe("JobFilters", () => {
     );
 
     expect(
-      screen.getByLabelText("Minimum (CAD/year)")
+      screen.getByLabelText("Minimum")
     ).toBeTruthy();
 
     expect(
-      screen.getByLabelText("Maximum (CAD/year)")
+      screen.getByLabelText("Maximum")
     ).toBeTruthy();
 
     // Verify the dual-handle slider is rendered.
@@ -126,12 +126,12 @@ describe("JobFilters", () => {
     );
 
     await user.type(
-      screen.getByLabelText("Minimum (CAD/year)"),
+      screen.getByLabelText("Minimum"),
       "50000"
     );
 
     await user.type(
-      screen.getByLabelText("Maximum (CAD/year)"),
+      screen.getByLabelText("Maximum"),
       "100000"
     );
 
@@ -258,12 +258,12 @@ describe("JobFilters", () => {
 
     // Minimum is greater than maximum.
     await user.type(
-      screen.getByLabelText("Minimum (CAD/year)"),
+      screen.getByLabelText("Minimum"),
       "100000"
     );
 
     await user.type(
-      screen.getByLabelText("Maximum (CAD/year)"),
+      screen.getByLabelText("Maximum"),
       "50000"
     );
 
@@ -333,11 +333,11 @@ describe("JobFilters", () => {
     );
 
     const minimumInput = screen.getByLabelText(
-      "Minimum (CAD/year)"
+      "Minimum"
     ) as HTMLInputElement;
 
     const maximumInput = screen.getByLabelText(
-      "Maximum (CAD/year)"
+      "Maximum"
     ) as HTMLInputElement;
 
     await user.type(minimumInput, "80000");
