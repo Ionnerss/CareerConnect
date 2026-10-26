@@ -1,6 +1,6 @@
-
 "use client";
 
+import Link from "next/link";
 import type { JobSearchResult } from "@/lib/jobs/search";
 
 type JobDetailsProps = {
@@ -206,20 +206,14 @@ export function JobDetails({ job, onClose }: JobDetailsProps) {
           )}
         </section>
 
-        {/* Application action */}
+             {/* Application action */}
         <div className="border-t border-border pt-6">
-          <button
-            type="button"
-            disabled
-            title="Application integration is pending"
-            className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white opacity-50"
+          <Link
+            href={`/jobs/${encodeURIComponent(job.id)}/apply`}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3151D5] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1E40AF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3151D5] focus-visible:ring-offset-2"
           >
             Apply for this job
-          </button>
-
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            Application functionality will be available after integration.
-          </p>
+          </Link>
         </div>
       </div>
     </section>
