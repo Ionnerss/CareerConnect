@@ -8,6 +8,7 @@ import {
   getJobApplicants,
 } from "@/lib/recruiter/applicants";
 import { getJobRequirements } from "@/lib/recruiter/candidate-comparison-service";
+import { ApplicantDocuments } from "@/components/recruiter/applicant-documents";
 
 type ApplicantsPageProps = {
   params: Promise<{ jobId: string }>;
@@ -91,6 +92,9 @@ export default async function JobApplicantsPage({
                       <th scope="col" className="px-4 py-3 font-semibold">
                         Skill match
                       </th>
+                      <th scope="col" className="px-4 py-3 font-semibold">
+                        Documents
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -137,6 +141,13 @@ export default async function JobApplicantsPage({
                           ) : (
                             <span className="text-[#4B5563]">—</span>
                           )}
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <ApplicantDocuments
+                            applicationId={applicant.application_id}
+                            hasResume={applicant.has_resume}
+                            hasCoverLetter={applicant.has_cover_letter}
+                          />
                         </td>
                       </tr>
                     ))}
