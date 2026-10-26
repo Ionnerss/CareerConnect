@@ -1,3 +1,5 @@
+# CareerConnect – Meeting Minutes
+
 **Date:** Sunday, October 20, 2026  
 **Time:** 6:45 PM – 7:15 PM  
 **Duration:** Approximately 30 minutes  
