@@ -19,6 +19,7 @@ import {
   getActiveApplicationResumes,
   submitJobApplication,
 } from "@/app/jobs/actions";
+import CoverLetterUpload from "./CoverLetterUpload";
 import { getApplicationProfileImport } from "@/app/jobs/[jobID]/apply/profile-import-actions";
 
 type Props = {
@@ -154,7 +155,8 @@ export default function JobApplicationForm({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [submittedApplicationId, setSubmittedApplicationId] =
+    useState<string | null>(null);
   const [error, setError] = useState("");
   const [importingProfile, setImportingProfile] = useState(false);
   const [importMessage, setImportMessage] = useState("");
@@ -340,7 +342,7 @@ export default function JobApplicationForm({
       });
 
       if (result.ok) {
-        setSubmitted(true);
+        setSubmittedApplicationId(result.applicationId);
         setConfirmOpen(false);
       } else {
         setError(submissionError(result.reason));
@@ -356,7 +358,7 @@ export default function JobApplicationForm({
     }
   }
 
-  if (submitted) {
+  if (submittedApplicationId) {
     return (
       <section
         role="status"
@@ -369,6 +371,7 @@ export default function JobApplicationForm({
           Your application for {jobTitle} at {company} was submitted
           with your selected saved resume.
         </p>
+        <CoverLetterUpload applicationId={submittedApplicationId} />
         <Link
           href="/application-status"
           className={`${buttonClass} mt-6 inline-flex`}

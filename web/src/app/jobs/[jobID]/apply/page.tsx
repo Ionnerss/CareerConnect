@@ -1,9 +1,9 @@
-﻿
-import Link from "next/link";
+﻿import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import JobApplicationForm from "@/components/job-applications/JobApplicationForm";
+import CoverLetterUpload from "@/components/job-applications/CoverLetterUpload";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -34,12 +34,11 @@ export default async function ApplyPage({
     redirect("/auth/login");
   }
 
-  // Retrieve the selected open job
+  // Retrieve the job so existing applicants can attach a letter if it closes
   const { data: job, error: jobError } = await supabase
     .from("job")
     .select("id, title, firm_name, location, status")
     .eq("id", jobID)
-    .eq("status", "open")
     .maybeSingle();
 
   if (jobError || !job) {
@@ -52,7 +51,7 @@ export default async function ApplyPage({
     error: applicationError,
   } = await supabase
     .from("applications")
-    .select("id, status")
+    .select("id, status, cover_letter_path")
     .eq("job_id", jobID)
     .eq("applicant_id", user.id)
     .maybeSingle();
@@ -74,11 +73,11 @@ export default async function ApplyPage({
             scroll={true}
             className="mb-6 inline-flex text-sm font-medium text-[#CBD5E1] transition-colors hover:text-white"
           >
-            â† Back to job listings
+            ← Back to job listings
           </Link>
 
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#A5B4FC]">
-            CareerConnect Â· Job Application
+            CareerConnect · Job Application
           </p>
 
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
@@ -90,7 +89,7 @@ export default async function ApplyPage({
 
             {job.location && (
               <>
-                <span aria-hidden="true">Â·</span>
+                <span aria-hidden="true">·</span>
                 <span>{job.location}</span>
               </>
             )}
@@ -126,6 +125,21 @@ export default async function ApplyPage({
               className="mt-5 inline-flex rounded-xl bg-[#3151D5] px-5 py-3 text-sm font-semibold text-white hover:bg-[#1E40AF]"
             >
               View my applications
+            </Link>
+          </section>
+        ) : !alreadyApplied && job.status !== "open" ? (
+          <section
+            role="status"
+            className="rounded-2xl border border-[#E3E6EB] bg-white p-8 shadow-sm"
+          >
+            <h2 className="text-xl font-bold text-[#0E1726]">
+              This job is no longer accepting applications
+            </h2>
+            <Link
+              href="/jobs"
+              className="mt-5 inline-flex text-sm font-semibold text-[#3151D5] hover:underline"
+            >
+              Browse open jobs
             </Link>
           </section>
         ) : alreadyApplied ? (
@@ -172,6 +186,10 @@ export default async function ApplyPage({
               </div>
             )}
 
+            {existingApplication && !existingApplication.cover_letter_path && (
+              <CoverLetterUpload applicationId={existingApplication.id} />
+            )}
+
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/application-status"
@@ -199,4 +217,3 @@ export default async function ApplyPage({
     </main>
   );
 }
-
