@@ -64,6 +64,7 @@ export async function createJobPosting(input: unknown): Promise<CreateJobRespons
       firm_name: parsed.data.firm_name,
       location: parsed.data.location,
       work_mode: parsed.data.work_mode,
+      employment_type: parsed.data.employment_type,
       required_skills: parsed.data.required_skills,
       salary: parsed.data.salary,
       experience: parsed.data.experience,

@@ -7,6 +7,7 @@ import { createJob } from "@/app/recruiter/jobs/actions";
 import {
   JOB_STATUS_OPTIONS,
   JOB_WORK_MODES,
+  JOB_EMPLOYMENT_TYPES,
   MAX_JOB_DESCRIPTION_LENGTH,
   jobPostingSchema,
   parseSkillList,
@@ -23,6 +24,7 @@ type FormValues = {
   experience: string;
   description: string;
   status: string;
+  employment_type: string;
 };
 
 type FieldName = keyof FormValues;
@@ -38,6 +40,7 @@ const EMPTY_FORM: FormValues = {
   experience: "",
   description: "",
   status: "open",
+  employment_type: "",
 };
 
 /** Where the recruiter lands after posting, and where Cancel goes. */
@@ -182,6 +185,28 @@ export function JobPostingForm() {
             {JOB_WORK_MODES.map((mode) => (
               <option key={mode} value={mode}>
                 {mode}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field
+          id="employment_type"
+          label="Employment type"
+          error={errors.employment_type}
+        >
+          <select
+            {...fieldProps("employment_type")}
+            className={ui.input}
+            onChange={(e) =>
+              updateField("employment_type", e.target.value)
+            }
+          >
+            <option value="">Select employment type</option>
+
+            {JOB_EMPLOYMENT_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type}
               </option>
             ))}
           </select>

@@ -3,6 +3,15 @@ import { z } from "zod";
 /** Work modes the `job` table accepts (job_work_mode_check). */
 export const JOB_WORK_MODES = ["On-site", "Remote", "Hybrid"] as const;
 
+
+/** Employment arrangements accepted by the job table. */
+export const JOB_EMPLOYMENT_TYPES = [
+  "Full-time",
+  "Part-time",
+  "Contract",
+  "Internship",
+] as const;
+
 /**
  * Statuses the `job` table accepts (job_status_check), with the words the form shows.
  * "Published" is stored as "open".
@@ -68,6 +77,10 @@ export const jobPostingSchema = z.object({
   location: requiredText("Location", 150),
 
   work_mode: z.enum(JOB_WORK_MODES, { error: "Choose a work mode." }),
+
+  employment_type: z.enum(JOB_EMPLOYMENT_TYPES, {
+    error: "Choose an employment type.",
+  }),
 
   required_skills: z
     .string({ error: "Add at least one required skill." })

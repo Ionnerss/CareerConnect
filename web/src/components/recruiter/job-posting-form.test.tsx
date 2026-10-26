@@ -31,6 +31,7 @@ async function fillValidForm(user: User) {
   await user.type(screen.getByLabelText("Company name"), "Acme Inc.");
   await user.type(screen.getByLabelText("Location"), "Montreal, QC");
   await user.selectOptions(screen.getByLabelText("Work mode"), "Hybrid");
+  await user.selectOptions(screen.getByLabelText("Employment type"), "Full-time");
   await user.type(screen.getByLabelText("Salary (CAD / year, optional)"), "65000");
   await user.type(screen.getByLabelText("Required skills"), "React, TypeScript");
   await user.type(screen.getByLabelText("Description"), "Build the web app.");
@@ -86,6 +87,7 @@ describe("JobPostingForm", () => {
     expect(screen.getByText("Company name is required.")).toBeDefined();
     expect(screen.getByText("Location is required.")).toBeDefined();
     expect(screen.getByText("Choose a work mode.")).toBeDefined();
+    expect(screen.getByText("Choose an employment type.")).toBeDefined();
     expect(screen.getByText("Add at least one required skill.")).toBeDefined();
     expect(screen.getByText("Description is required.")).toBeDefined();
     expect(screen.getByLabelText("Job title").getAttribute("aria-invalid")).toBe("true");
@@ -137,6 +139,7 @@ describe("JobPostingForm", () => {
       firm_name: "Acme Inc.",
       location: "Montreal, QC",
       work_mode: "Hybrid",
+      employment_type: "Full-time",
       required_skills: "React, TypeScript",
       salary: "65000",
       experience: "",

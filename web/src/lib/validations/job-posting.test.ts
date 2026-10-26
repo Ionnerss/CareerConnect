@@ -6,6 +6,7 @@ const valid = {
   firm_name: "Acme Inc.",
   location: "Montreal, QC",
   work_mode: "Hybrid",
+  employment_type: "Full-time",
   required_skills: "React, TypeScript, SQL",
   salary: "65000",
   experience: "2",
@@ -35,6 +36,7 @@ describe("jobPostingSchema", () => {
       firm_name: "Acme Inc.",
       location: "Montreal, QC",
       work_mode: "Hybrid",
+      employment_type: "Full-time",
       required_skills: "React, TypeScript, SQL",
       salary: 65000,
       experience: 2,
@@ -118,5 +120,37 @@ describe("jobPostingSchema", () => {
     expect(errorFor({ ...valid, experience: "51" }, "experience")).toBe(
       "Years of experience must be 50 or fewer.",
     );
+  });
+
+  it("only accepts supported employment types", () => {
+    for (const type of [
+      "Full-time",
+      "Part-time",
+      "Contract",
+      "Internship",
+    ]) {
+      expect(
+        jobPostingSchema.safeParse({
+          ...valid,
+          employment_type: type,
+        }).success
+      ).toBe(true);
+    }
+
+    for (const type of ["", "Temporary", "full-time"]) {
+      expect(
+        errorFor(
+          { ...valid, employment_type: type },
+          "employment_type"
+        )
+      ).toBe("Choose an employment type.");
+    }
+
+    expect(
+      errorFor(
+        { ...valid, employment_type: undefined },
+        "employment_type"
+      )
+    ).toBe("Choose an employment type.");
   });
 });
