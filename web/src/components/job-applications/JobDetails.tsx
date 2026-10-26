@@ -1,7 +1,8 @@
+
 "use client";
 
+import Link from "next/link";
 import type { JobSearchResult } from "@/lib/jobs/search";
-import { ApplyToJob } from "./ApplyToJob";
 
 type JobDetailsProps = {
   job: JobSearchResult;
@@ -208,7 +209,13 @@ export function JobDetails({ job, onClose }: JobDetailsProps) {
 
         {/* Application action */}
         <div className="border-t border-border pt-6">
-          <ApplyToJob key={job.id} jobId={job.id} />
+          <Link
+          href={`/jobs/${encodeURIComponent(job.id)}/apply`}
+          scroll={true}
+          className="flex w-full items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          Apply for this job
+        </Link>
         </div>
       </div>
     </section>
