@@ -1,4 +1,4 @@
-
+import JobApplicationForm from "@/components/job-applications/JobApplicationForm";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
@@ -94,25 +94,12 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             Complete your application for {title} at {company}.
           </p>
 
-          <div className="mt-8 rounded-xl border border-dashed border-[#C7D2FE] bg-[#F8FAFF] px-5 py-10 text-center">
-            <p className="text-sm font-semibold text-[#3151D5]">
-              Application form
-            </p>
-
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#64748B]">
-              Personal information, address, education, work experience,
-              skills, languages, professional links, and application
-              documents will appear here.
-            </p>
-          </div>
-
-          <div className="mt-8 flex justify-end">
-            <Link
-              href="/jobs"
-              className="rounded-xl border border-[#E3E6EB] px-5 py-3 text-sm font-semibold text-[#475569] transition-colors hover:bg-[#F5F6F8]"
-            >
-              Back to jobs
-            </Link>
+          <div className="mt-8">
+            <JobApplicationForm
+              jobId={job.id}
+              jobTitle={title}
+              company={company}
+            />
           </div>
         </section>
       </div>
