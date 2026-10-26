@@ -32,6 +32,9 @@ export default function JobFiltersUrl() {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("page");
 
+    // Reset pagination to page 1 when filters change.
+    params.delete("page");
+
     // Remove previously applied filters.
     for (const key of FILTER_KEYS) {
       params.delete(key);
