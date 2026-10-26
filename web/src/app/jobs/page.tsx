@@ -18,20 +18,41 @@ type JobsPageProps = {
   searchParams: Promise<{
     q?: string | string[];
     page?: string | string[];
+    location?: string | string[];
+    minSalary?: string | string[];
+    maxSalary?: string | string[];
+    experienceLevel?: string | string[];
+    jobType?: string | string[];
   }>;
 };
 
 export default async function JobsPage({
   searchParams,
 }: JobsPageProps) {
-  const { q, page } = await searchParams;
+  const {
+    q,
+    page,
+    location,
+    minSalary,
+    maxSalary,
+    experienceLevel,
+    jobType,
+  } = await searchParams;
 
+  // Pass keyword, pagination, and filters to Supabase.
   const result = await searchJobs(
     Array.isArray(q) ? q[0] : q,
-    Array.isArray(page) ? page[0] : page
+    Array.isArray(page) ? page[0] : page,
+    {
+      location,
+      minSalary,
+      maxSalary,
+      experienceLevel,
+      jobType,
+    }
   );
 
-  // Preserve authentication redirect.
+  // Redirect unauthenticated users.
   if (
     !result.success &&
     result.error.startsWith("Unable to authenticate")
@@ -92,7 +113,15 @@ export default async function JobsPage({
               }
             >
               <PaginatedJobList
-                key={`${result.query}:${result.page}`}
+                key={JSON.stringify([
+                  result.query,
+                  result.page,
+                  location,
+                  minSalary,
+                  maxSalary,
+                  experienceLevel,
+                  jobType,
+                ])}
                 jobs={result.jobs}
                 query={result.query}
                 page={result.page}
