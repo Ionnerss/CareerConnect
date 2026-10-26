@@ -1,7 +1,7 @@
-
 "use client";
 
 import type { JobSearchResult } from "@/lib/jobs/search";
+import { ApplyToJob } from "./ApplyToJob";
 
 type JobDetailsProps = {
   job: JobSearchResult;
@@ -208,18 +208,7 @@ export function JobDetails({ job, onClose }: JobDetailsProps) {
 
         {/* Application action */}
         <div className="border-t border-border pt-6">
-          <button
-            type="button"
-            disabled
-            title="Application integration is pending"
-            className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white opacity-50"
-          >
-            Apply for this job
-          </button>
-
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            Application functionality will be available after integration.
-          </p>
+          <ApplyToJob key={job.id} jobId={job.id} />
         </div>
       </div>
     </section>
