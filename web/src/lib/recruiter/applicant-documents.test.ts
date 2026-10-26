@@ -132,6 +132,22 @@ describe("getApplicantDocumentUrl", () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
+  it("rejects extra fields in a document request", async () => {
+    const result = await getApplicantDocumentUrl({
+      applicationId: APPLICATION,
+      kind: "resume",
+      mode: "view",
+      filePath: "another-user/private.pdf",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "Invalid document request.",
+    });
+
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
   it("blocks signed-out users", async () => {
     mockGetUser.mockResolvedValue({
       data: { user: null },
@@ -189,6 +205,26 @@ describe("getApplicantDocumentUrl", () => {
     expect(mockStorageFrom).not.toHaveBeenCalled();
   });
 
+  it("rejects an application that does not exist", async () => {
+    signedInAsRecruiter();
+
+    queue("applications", null);
+
+    const result = await getApplicantDocumentUrl({
+      applicationId: APPLICATION,
+      kind: "resume",
+      mode: "view",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "You cannot access this document.",
+    });
+
+    expect(mockFrom).not.toHaveBeenCalledWith("job");
+    expect(mockStorageFrom).not.toHaveBeenCalled();
+  });
+
   it("creates a view URL for an authorized resume", async () => {
     signedInAsRecruiter();
     allowOwnedApplication();
@@ -240,6 +276,54 @@ describe("getApplicantDocumentUrl", () => {
       60,
       { download: "my-resume.pdf" }
     );
+  });
+
+  it("rejects a missing resume record", async () => {
+    signedInAsRecruiter();
+    allowOwnedApplication();
+
+    queue("resumes", null);
+
+    const result = await getApplicantDocumentUrl({
+      applicationId: APPLICATION,
+      kind: "resume",
+      mode: "view",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "This document is not available.",
+    });
+
+    expect(mockStorageFrom).not.toHaveBeenCalled();
+  });
+
+  it("queries the resume using its applicant ownership", async () => {
+    signedInAsRecruiter();
+    allowOwnedApplication();
+
+    queue("resumes", {
+      file_path: `${APPLICANT}/${RESUME}.pdf`,
+      file_name: "resume.pdf",
+    });
+
+    await getApplicantDocumentUrl({
+      applicationId: APPLICATION,
+      kind: "resume",
+      mode: "view",
+    });
+
+    expect(calls).toContainEqual({
+      table: "resumes",
+      method: "eq",
+      args: ["id", RESUME],
+    });
+
+    expect(calls).toContainEqual({
+      table: "resumes",
+      method: "eq",
+      args: ["user_id", APPLICANT],
+    });
   });
 
   it("refuses a resume that does not belong to the applicant", async () => {
@@ -345,5 +429,31 @@ describe("getApplicantDocumentUrl", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("returns an error when signed URL data is missing", async () => {
+    signedInAsRecruiter();
+    allowOwnedApplication();
+
+    queue("resumes", {
+      file_path: `${APPLICANT}/${RESUME}.pdf`,
+      file_name: "resume.pdf",
+    });
+
+    mockSignedUrl.mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    const result = await getApplicantDocumentUrl({
+      applicationId: APPLICATION,
+      kind: "resume",
+      mode: "view",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "Unable to open this document. Please try again.",
+    });
   });
 });

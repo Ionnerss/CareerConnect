@@ -2,8 +2,20 @@
  * @vitest-environment jsdom
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  afterEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+
+import {
+  cleanup,
+  render,
+  screen,
+} from "@testing-library/react";
+
 import userEvent from "@testing-library/user-event";
 
 import { ApplicantDocuments } from "./applicant-documents";
@@ -22,6 +34,7 @@ vi.mock(
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe("ApplicantDocuments", () => {
@@ -35,15 +48,21 @@ describe("ApplicantDocuments", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "View resume" })
+      screen.getByRole("button", {
+        name: "View resume",
+      })
     ).toBeTruthy();
 
     expect(
-      screen.getByRole("button", { name: "Download resume" })
+      screen.getByRole("button", {
+        name: "Download resume",
+      })
     ).toBeTruthy();
 
     expect(
-      screen.getByRole("button", { name: "View cover letter" })
+      screen.getByRole("button", {
+        name: "View cover letter",
+      })
     ).toBeTruthy();
 
     expect(
@@ -63,7 +82,9 @@ describe("ApplicantDocuments", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "View resume" })
+      screen.getByRole("button", {
+        name: "View resume",
+      })
     ).toBeTruthy();
 
     expect(
@@ -111,5 +132,63 @@ describe("ApplicantDocuments", () => {
       kind: "resume",
       mode: "download",
     });
+  });
+
+  it("opens an authorized resume in a new tab", async () => {
+    const user = userEvent.setup();
+
+    const replace = vi.fn();
+
+    const popup = {
+      opener: null,
+      location: { replace },
+      close: vi.fn(),
+    };
+
+    const openSpy = vi
+      .spyOn(window, "open")
+      .mockReturnValue(popup as unknown as Window);
+
+    mockOpenDocument.mockResolvedValue({
+      success: true,
+      url: "https://example.com/signed-resume.pdf",
+    });
+
+    render(
+      <ApplicantDocuments
+        applicationId="app-1"
+        hasResume={true}
+        hasCoverLetter={false}
+      />
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "View resume",
+      })
+    );
+
+    expect(
+      await screen.findByText(
+        "Document opened in a new tab."
+      )
+    ).toBeTruthy();
+
+    expect(openSpy).toHaveBeenCalledWith(
+      "about:blank",
+      "_blank"
+    );
+
+    expect(mockOpenDocument).toHaveBeenCalledWith({
+      applicationId: "app-1",
+      kind: "resume",
+      mode: "view",
+    });
+
+    expect(replace).toHaveBeenCalledWith(
+      "https://example.com/signed-resume.pdf"
+    );
+
+    expect(popup.close).not.toHaveBeenCalled();
   });
 });
