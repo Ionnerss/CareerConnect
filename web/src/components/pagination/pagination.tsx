@@ -1,95 +1,112 @@
 
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
 type PaginationProps = {
-    currentPage: number;
-    totalPages: number;
-    onPageChange: (page: number) => void;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 };
 
 export default function Pagination({
-    currentPage,
-    totalPages,
-    onPageChange,
+  currentPage,
+  totalPages,
+  onPageChange,
 }: PaginationProps) {
-    if (totalPages <= 1) {
-        return null;
+  if (totalPages <= 1) {
+    return null;
+  }
+
+  const getPageNumbers = (): (number | string)[] => {
+    const pages: (number | string)[] = [1];
+
+    if (currentPage > 3) {
+      pages.push("...");
     }
 
-    const getPageNumbers = (): (number | string)[] => {
-        const pages: (number | string)[] = [1];
+    const startPage = Math.max(2, currentPage - 1);
+    const endPage = Math.min(totalPages - 1, currentPage + 1);
 
-        if (currentPage > 3) {
-            pages.push("...");
-        }
+    for (let page = startPage; page <= endPage; page++) {
+      pages.push(page);
+    }
 
-        const startPage = Math.max(2, currentPage - 1);
-        const endPage = Math.min(totalPages - 1, currentPage + 1);
+    if (currentPage < totalPages - 2) {
+      pages.push("...");
+    }
 
-        for (let page = startPage; page <= endPage; page++) {
-            pages.push(page);
-        }
+    if (totalPages > 1) {
+      pages.push(totalPages);
+    }
 
-        if (currentPage < totalPages - 2) {
-            pages.push("...");
-        }
+    return pages;
+  };
 
-        if (totalPages > 1) {
-            pages.push(totalPages);
-        }
+  const navigationButtonClass =
+    "flex h-11 w-11 items-center justify-center rounded-xl " +
+    "border border-[#E3E6EB] bg-white text-[#475569] " +
+    "transition-all duration-200 hover:border-[#A6BAF5] " +
+    "hover:bg-[#EEF2FF] hover:text-[#1D4ED8] " +
+    "focus-visible:outline-none focus-visible:ring-2 " +
+    "focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2 " +
+    "disabled:cursor-not-allowed disabled:opacity-35 " +
+    "disabled:hover:border-[#E3E6EB] disabled:hover:bg-white";
 
-        return pages;
-    };
+  return (
+    <nav
+      aria-label="Pagination"
+      className="mt-4 flex flex-wrap items-center justify-center gap-2"
+    >
+      {/* Previous page */}
+      <button
+        type="button"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        aria-label="Previous page"
+        className={navigationButtonClass}
+      >
+        <ChevronLeft aria-hidden="true" className="h-5 w-5" />
+      </button>
 
-    return (
-        <nav
-            aria-label="Pagination"
-            className="mt-4 flex flex-wrap items-center justify-center gap-2"
-        >
-            <button
-                onClick={() => onPageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                aria-label="Previous page"
-                className="min-h-10 min-w-10 rounded-xl border border-[#E3E6EB] bg-white px-3 text-sm font-semibold text-[#374151] transition-colors hover:bg-[#F1F2F4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-                &lt;
-            </button>
+      {/* Page numbers */}
+      {getPageNumbers().map((page, index) =>
+        typeof page === "number" ? (
+          <button
+            key={page}
+            type="button"
+            onClick={() => onPageChange(page)}
+            aria-label={`Page ${page}`}
+            aria-current={currentPage === page ? "page" : undefined}
+            className={`flex h-11 min-w-11 items-center justify-center rounded-xl border px-3 text-sm font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2 ${
+              currentPage === page
+                ? "border-[#1D4ED8] bg-[#1D4ED8] text-white shadow-[0_4px_12px_-5px_rgba(29,78,216,0.55)]"
+                : "border-[#E3E6EB] bg-white text-[#475569] hover:border-[#A6BAF5] hover:bg-[#EEF2FF] hover:text-[#1D4ED8]"
+            }`}
+          >
+            {page}
+          </button>
+        ) : (
+          <span
+            key={`ellipsis-${index}`}
+            aria-hidden="true"
+            className="flex h-11 items-center justify-center px-1 text-sm font-semibold text-[#94A3B8]"
+          >
+            {page}
+          </span>
+        )
+      )}
 
-            {getPageNumbers().map((page, index) =>
-                typeof page === "number" ? (
-                    <button
-                        key={page}
-                        onClick={() => onPageChange(page)}
-                        aria-current={
-                            currentPage === page ? "page" : undefined
-                        }
-                        className={`min-h-10 min-w-10 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] ${
-                            currentPage === page
-                                ? "border-[#0E1726] bg-[#0E1726] text-white"
-                                : "border-[#E3E6EB] bg-white text-[#374151] hover:bg-[#F1F2F4]"
-                        }`}
-                    >
-                        {page}
-                    </button>
-                ) : (
-                    <span
-                        key={`ellipsis-${index}`}
-                        className="px-1"
-                        aria-hidden="true"
-                    >
-                        {page}
-                    </span>
-                )
-            )}
-
-            <button
-                onClick={() => onPageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                aria-label="Next page"
-                className="min-h-10 min-w-10 rounded-xl border border-[#E3E6EB] bg-white px-3 text-sm font-semibold text-[#374151] transition-colors hover:bg-[#F1F2F4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-                &gt;
-            </button>
-        </nav>
-    );
+      {/* Next page */}
+      <button
+        type="button"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        aria-label="Next page"
+        className={navigationButtonClass}
+      >
+        <ChevronRight aria-hidden="true" className="h-5 w-5" />
+      </button>
+    </nav>
+  );
 }
