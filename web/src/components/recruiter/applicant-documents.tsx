@@ -21,6 +21,7 @@ export function ApplicantDocuments({
 }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   async function handleDocument(
     kind: DocumentKind,
@@ -29,6 +30,7 @@ export function ApplicantDocuments({
     if (busy !== null) return;
 
     setError(null);
+    setMessage(null);
 
     // Open a tab synchronously to avoid popup blockers
     // after the asynchronous Server Action finishes.
@@ -63,8 +65,10 @@ export function ApplicantDocuments({
 
       if (mode === "view") {
         tab?.location.replace(result.url);
+        setMessage("Document opened in a new tab.");
       } else {
         window.location.assign(result.url);
+        setMessage("Download requested.");
       }
     } catch {
       tab?.close();
@@ -100,7 +104,10 @@ export function ApplicantDocuments({
           onClick={() => void handleDocument(kind, "view")}
           className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[#D9E2F5] bg-white px-3 py-1.5 text-xs font-semibold text-[#1D4ED8] hover:bg-[#EEF2FF] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Eye aria-hidden="true" className="h-3.5 w-3.5" />
+          <Eye
+            aria-hidden="true"
+            className="h-3.5 w-3.5"
+          />
           View
         </button>
 
@@ -142,13 +149,28 @@ export function ApplicantDocuments({
       </div>
 
       {busy && (
-        <p role="status" className="text-xs text-[#64748B]">
+        <p
+          role="status"
+          className="text-xs text-[#64748B]"
+        >
           Opening document...
         </p>
       )}
 
+      {message && (
+        <p
+          role="status"
+          className="text-xs text-green-700"
+        >
+          {message}
+        </p>
+      )}
+
       {error && (
-        <p role="alert" className="text-xs text-red-600">
+        <p
+          role="alert"
+          className="text-xs text-red-600"
+        >
           {error}
         </p>
       )}
