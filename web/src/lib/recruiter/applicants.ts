@@ -19,6 +19,8 @@ export type JobApplicant = {
   applied_at: string;
   /** How well the applicant's skills cover the posting's required skills; null if none are required. */
   skill_match: SkillMatch | null;
+  has_resume: boolean;
+  has_cover_letter: boolean;
 };
 
 type Failure = { success: false; error: string };
@@ -139,7 +141,7 @@ export async function getJobApplicants(jobId: unknown): Promise<JobApplicantsRes
 
   const { data: applications, error: applicationsError } = await supabase
     .from("applications")
-    .select("id, applicant_id, status, created_at, profiles(full_name)")
+    .select("id, applicant_id, resume_id, cover_letter_path, status, created_at, profiles(full_name)")
     .eq("job_id", job.id)
     .order("created_at", { ascending: true });
 
@@ -182,6 +184,8 @@ export async function getJobApplicants(jobId: unknown): Promise<JobApplicantsRes
       full_name: profile?.full_name ?? null,
       status: application.status,
       applied_at: application.created_at,
+      has_resume: Boolean(application.resume_id),
+      has_cover_letter: Boolean(application.cover_letter_path),
       skill_match: computeSkillMatch(
         requiredSkills,
         skillsByApplicant.get(application.applicant_id) ?? []
