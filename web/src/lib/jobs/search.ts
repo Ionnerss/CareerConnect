@@ -1,0 +1,189 @@
+import { createClient } from "@/lib/supabase/server";
+import { normalizeJobSearchQuery } from "@/lib/validations/job-search";
+import { jobFiltersSchema } from "@/lib/validations/job-filters";
+
+export type JobSearchResult = {
+  id: string;
+  title: string | null;
+  firm_name: string | null;
+  location: string | null;
+  description: string | null;
+  required_skills: string | null;
+  salary: number | null;
+  status: string | null;
+  created_at: string;
+};
+
+export type SearchJobsResponse =
+  | {
+      success: true;
+      query: string;
+      page: number;
+      totalCount: number;
+      jobs: JobSearchResult[];
+    }
+  | {
+      success: false;
+      query: string;
+      error: string;
+    };
+
+const JOBS_PER_PAGE = 6;
+
+const SEARCHABLE_COLUMNS = [
+  "title",
+  "firm_name",
+  "description",
+  "required_skills",
+  "location",
+] as const;
+
+export function buildJobSearchFilter(query: string): string {
+  return SEARCHABLE_COLUMNS.map(
+    (column) => `${column}.ilike.%${query}%`
+  ).join(",");
+}
+
+/**
+ * Search open job postings using a keyword and optional filters.
+ * Filtering happens in Supabase before pagination.
+ */
+export async function searchJobs(
+  rawQuery: unknown,
+  rawPage: unknown = undefined,
+  rawFilters: unknown = {}
+): Promise<SearchJobsResponse> {
+  const query = normalizeJobSearchQuery(rawQuery);
+
+  const parsedFilters = jobFiltersSchema.safeParse(rawFilters);
+
+  if (!parsedFilters.success) {
+    return {
+      success: false,
+      query,
+      error: "Invalid job filters. Please adjust your search.",
+    };
+  }
+
+  const filters = parsedFilters.data;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return {
+      success: false,
+      query,
+      error: "Unable to authenticate. Please sign in again.",
+    };
+  }
+
+  const pageNum = normalizePage(rawPage);
+
+  const firstRow = (pageNum - 1) * JOBS_PER_PAGE;
+  const lastRow = firstRow + JOBS_PER_PAGE - 1;
+
+  let request = supabase
+    .from("job")
+    .select(
+      "id, title, firm_name, location, description, required_skills, salary, status, created_at",
+      { count: "exact" }
+    )
+    .eq("status", "open");
+
+  // Existing keyword search.
+  if (query !== "") {
+    request = request.or(buildJobSearchFilter(query));
+  }
+
+  // Case-insensitive partial location match.
+  if (filters.location !== undefined) {
+    request = request.ilike(
+      "location",
+      `%${filters.location}%`
+    );
+  }
+
+  // Salary boundaries.
+  if (filters.minSalary !== undefined) {
+    request = request.gte("salary", filters.minSalary);
+  }
+
+  if (filters.maxSalary !== undefined) {
+    request = request.lte("salary", filters.maxSalary);
+  }
+
+  // Experience level maps to years of experience.
+  switch (filters.experienceLevel) {
+    case "Entry Level":
+      request = request.gte("experience", 0);
+      request = request.lte("experience", 2);
+      break;
+
+    case "Mid Level":
+      request = request.gte("experience", 3);
+      request = request.lte("experience", 5);
+      break;
+
+    case "Senior Level":
+      request = request.gte("experience", 6);
+      break;
+  }
+
+  // Employment type introduced by PR #214.
+  if (filters.jobType !== undefined) {
+    request = request.eq(
+      "employment_type",
+      filters.jobType
+    );
+  }
+
+  // Apply ordering and pagination after all filters.
+  const { data, count, error } = await request
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(firstRow, lastRow);
+
+  if (error) {
+    return {
+      success: false,
+      query,
+      error: "Unable to load jobs. Please try again.",
+    };
+  }
+
+  return {
+    success: true,
+    query,
+    page: pageNum,
+    totalCount: count ?? 0,
+    jobs: (data ?? []) as JobSearchResult[],
+  };
+}
+
+function normalizePage(rawPage: unknown): number {
+  if (typeof rawPage === "number") {
+    return Number.isSafeInteger(rawPage) && rawPage > 0
+      ? rawPage
+      : 1;
+  }
+
+  if (typeof rawPage !== "string") {
+    return 1;
+  }
+
+  const content = rawPage.trim();
+
+  if (!/^\d+$/.test(content)) {
+    return 1;
+  }
+
+  const page = Number(content);
+
+  return Number.isSafeInteger(page) && page > 0
+    ? page
+    : 1;
+}

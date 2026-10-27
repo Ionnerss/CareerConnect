@@ -82,13 +82,19 @@ CareerConnect will use **Next.js**, **TypeScript**, and **PostgreSQL through Sup
 
    Ask a team member for the project connection details. Do not commit `.env.local` to Git.
 
-5. Start the development server:
+5. (Recruiter candidate comparison only) Add the AI Gateway key to `.env.local`. Ask Yousef for it, never commit it, and never prefix it with `NEXT_PUBLIC_`. See [docs/jev-setup.md](docs/jev-setup.md) for setup, key ownership, privacy and troubleshooting:
+
+   ```dotenv
+   AI_GATEWAY_API_KEY=your_vercel_ai_gateway_key
+   ```
+
+6. Start the development server:
 
    ```bash
    npm run dev
    ```
 
-6. Open [http://localhost:3000](http://localhost:3000) in your browser.
+7. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Proposed features ([More info here](https://github.com/Ionnerss/CareerConnect/wiki))
 * Skill gap map
