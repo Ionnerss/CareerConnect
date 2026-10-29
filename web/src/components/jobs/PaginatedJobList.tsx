@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Dialog } from "@base-ui/react/dialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
@@ -35,6 +36,7 @@ export default function PaginatedJobList({
   );
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const desktopPanelRef = useRef<HTMLDivElement>(null);
+  const selectedCardRef = useRef<HTMLButtonElement | null>(null);
 
   // The server has already fetched the six jobs for this page.
   const totalPages = Math.ceil(totalCount / JOBS_PER_PAGE);
@@ -72,21 +74,18 @@ export default function PaginatedJobList({
   function handleSelectJob(job: JobSearchResult) {
     setSelectedJobId(job.id);
     resetDetailsScroll();
-    setMobilePanelOpen(true);
+    setMobilePanelOpen(!window.matchMedia("(min-width: 1024px)").matches);
   }
 
-  // Close the mobile details drawer using Escape.
+  // A hidden mobile modal must not keep desktop navigation inert or scroll locked.
   useEffect(() => {
     if (!mobilePanelOpen) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setMobilePanelOpen(false);
-      }
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    function handleBreakpointChange() {
+      if (desktop.matches) setMobilePanelOpen(false);
     }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    desktop.addEventListener("change", handleBreakpointChange);
+    return () => desktop.removeEventListener("change", handleBreakpointChange);
   }, [mobilePanelOpen]);
 
   if (jobs.length === 0) {
@@ -158,7 +157,10 @@ export default function PaginatedJobList({
                 <li key={job.id}>
                   <button
                     type="button"
-                    onClick={() => handleSelectJob(job)}
+                    onClick={(event) => {
+                      selectedCardRef.current = event.currentTarget;
+                      handleSelectJob(job);
+                    }}
                     aria-pressed={isSelected}
                     className={`group relative w-full overflow-hidden rounded-2xl border px-4 py-5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2 ${
                       isSelected
@@ -268,26 +270,23 @@ export default function PaginatedJobList({
       </div>
 
       {/* Mobile: slide-in details drawer */}
-      {mobilePanelOpen && selectedJob && (
-        <div className="fixed inset-0 z-50 flex justify-end lg:hidden">
-          <button
-            type="button"
-            aria-label="Close job details"
-            onClick={() => setMobilePanelOpen(false)}
-            className="absolute inset-0 bg-[#0E1726]/60"
-          />
-          <aside
-            role="dialog"
-            aria-modal="true"
-            aria-label="Selected job details"
-            className="animate-in slide-in-from-right relative z-10 h-full w-full max-w-xl overflow-y-auto bg-white p-4 shadow-2xl duration-300"
-          >
-            <JobDetails
-              job={selectedJob}
-              onClose={() => setMobilePanelOpen(false)}
-            />
-          </aside>
-        </div>
+      {selectedJob && (
+        <Dialog.Root open={mobilePanelOpen} onOpenChange={setMobilePanelOpen}>
+          <Dialog.Portal>
+            <Dialog.Backdrop className="fixed inset-0 z-50 bg-[#0E1726]/60" />
+            <Dialog.Popup
+              aria-label="Selected job details"
+              finalFocus={selectedCardRef}
+              className="fixed inset-y-0 right-0 z-50 w-full max-w-xl overflow-y-auto overscroll-contain bg-white pt-[max(1rem,env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] shadow-2xl outline-none transition-transform duration-200 data-starting-style:translate-x-full data-ending-style:translate-x-full motion-reduce:transition-none"
+            >
+              <JobDetails
+                job={selectedJob}
+                onClose={() => setMobilePanelOpen(false)}
+                modal
+              />
+            </Dialog.Popup>
+          </Dialog.Portal>
+        </Dialog.Root>
       )}
     </div>
   );

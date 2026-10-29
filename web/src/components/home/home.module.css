@@ -1,23 +1,27 @@
 /*
  * Public homepage styles. Scoped to the homepage through CSS Modules, so
  * nothing here reaches the dashboard, the profile page or the shared theme.
- * Colours and type follow the dashboard: navy + blue, Plus Jakarta Sans.
+ * Quiet Confidence: Mercury palette, restrained surfaces, Plus Jakarta Sans.
  */
 
 .home {
-  --home-navy: #0e1726;
-  --home-blue: #1d4ed8;
-  --home-blue-hover: #2b5fe8;
-  --home-sky: #a9c1ff;
-  --home-bg: #f5f6f8;
-  --home-card: #ffffff;
-  --home-ink: #0e1726;
-  --home-muted: #5b6472;
-  --home-line: #e3e6eb;
-  --home-chip: #eef1f6;
-  --home-chip-ink: #3b4658;
-  --home-match: #dce7ff;
-  --home-match-ink: #1d3fa6;
+  --home-navy: var(--cc-marketing-bg);
+  --home-blue: var(--cc-action-bg);
+  --home-blue-hover: var(--cc-action-hover);
+  --home-sky: var(--cc-decorative-accent);
+  --home-bg: var(--cc-light-canvas);
+  --home-card: var(--cc-light-surface);
+  --home-ink: var(--cc-light-text);
+  --home-subtle: var(--cc-light-surface-subtle);
+  --home-lavender: var(--cc-light-surface-selected);
+  --home-on-dark: var(--cc-marketing-text);
+  --home-night-raised: var(--cc-marketing-raised);
+  --home-muted: var(--cc-light-text-secondary);
+  --home-line: var(--cc-light-border);
+  --home-chip: var(--cc-light-surface-muted);
+  --home-chip-ink: var(--cc-light-text-secondary);
+  --home-match: var(--cc-info-surface);
+  --home-match-ink: var(--cc-info-text);
   --home-mono:
     var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas,
     monospace;
@@ -94,11 +98,12 @@
 
 .brand {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
   gap: 10px;
   color: var(--home-ink);
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
@@ -112,7 +117,7 @@
   background: var(--home-blue);
   color: white;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .desktopLinks {
@@ -130,7 +135,6 @@
   padding-inline: 14px;
   border-radius: 10px;
   color: var(--home-ink);
-  transition: background-color 160ms ease;
 }
 
 .desktopLinks a:hover {
@@ -139,7 +143,7 @@
 
 .desktopLinks .login {
   margin-left: 10px;
-  border: 1px solid #cdd3dc;
+  border: 1px solid var(--cc-light-control-border);
 }
 
 .desktopLinks .signup,
@@ -149,7 +153,7 @@
 }
 
 .desktopLinks .signup:hover {
-  background: #1e40af;
+  background: var(--home-blue-hover);
 }
 
 .menuButton,
@@ -165,12 +169,12 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  min-height: 54px;
-  padding: 15px 24px;
+  min-height: 52px;
+  padding: 14px 24px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.4;
 }
 
@@ -180,31 +184,27 @@
 }
 
 .secondaryAction {
-  border-color: rgb(255 255 255 / 30%);
-  color: white;
+  border-color: var(--cc-light-control-border);
+  background: transparent;
+  color: var(--home-ink);
 }
 
 /* ---------- Hero ---------- */
 
 .heroBand {
-  position: relative;
-  overflow: hidden;
-  background:
-    radial-gradient(60% 70% at 85% 10%, rgb(29 78 216 / 38%), transparent 70%),
-    radial-gradient(rgb(169 193 255 / 16%) 1px, transparent 1.3px) 0 0 / 24px 24px,
-    var(--home-navy);
-  color: white;
+  background: var(--home-bg);
+  color: var(--home-ink);
+  border-bottom: 1px solid var(--home-line);
 }
 
 .hero {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
-  gap: clamp(32px, 4vw, 64px);
+  gap: clamp(32px, 5vw, 72px);
   width: min(100% - 80px, 1200px);
-  min-height: min(800px, calc(100svh - 72px));
   margin-inline: auto;
-  padding-block: 72px 150px;
+  padding-block: 72px 80px;
 }
 
 .heroCopy,
@@ -213,31 +213,30 @@
 }
 
 .heroLabel {
-  margin: 0 0 22px;
-  color: var(--home-sky);
-  font-family: var(--home-mono);
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  margin: 0 0 24px;
+  color: var(--home-muted);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .headline {
-  margin: 0 0 26px;
-  font-size: clamp(44px, 4.7vw, 66px);
-  font-weight: 800;
-  line-height: 1.04;
+  margin: 0 0 24px;
+  font-size: clamp(44px, 4.5vw, 64px);
+  font-weight: 600;
+  line-height: 1.08;
   letter-spacing: -0.045em;
 }
 
 .headline span {
-  color: var(--home-sky);
+  color: var(--home-blue);
 }
 
 .description {
   max-width: 480px;
   margin: 0;
-  color: #b8c4d9;
-  font-size: 18px;
+  color: var(--home-muted);
+  font-size: 17px;
   line-height: 1.7;
 }
 
@@ -250,7 +249,7 @@
 
 .actionHint {
   margin: 16px 0 0;
-  color: #8fa0bc;
+  color: var(--home-muted);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -259,16 +258,38 @@
 
 .showcase {
   width: 100%;
-  max-width: 480px;
+  max-width: 540px;
   margin: 0 0 0 auto;
+  padding: 24px;
+  border: 1px solid var(--home-night-raised);
+  border-radius: 24px;
+  background: var(--home-navy);
+  color: var(--home-on-dark);
+}
+
+.showcaseHeading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 20px;
+  color: var(--home-on-dark);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.showcaseNote {
+  color: var(--cc-marketing-text-secondary);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .profileCard {
-  padding: 26px;
-  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid var(--home-line);
+  border-radius: 16px;
   background: var(--home-card);
   color: var(--home-ink);
-  box-shadow: 0 30px 70px rgb(3 8 20 / 45%);
 }
 
 .person {
@@ -293,7 +314,7 @@
 .profileName {
   margin: 0 0 4px;
   font-size: 19px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.01em;
 }
@@ -386,7 +407,7 @@
 .opportunities > li::before,
 .opportunities > li::after {
   position: absolute;
-  background: rgb(169 193 255 / 70%);
+  background: var(--home-sky);
   content: "";
 }
 
@@ -419,7 +440,7 @@
   border-radius: 16px;
   background: var(--home-card);
   color: var(--home-ink);
-  box-shadow: 0 18px 40px rgb(3 8 20 / 35%);
+  border: 1px solid var(--home-line);
 }
 
 .companyMark {
@@ -430,7 +451,7 @@
   height: 40px;
   border-radius: 10px;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .jobTitle {
@@ -449,15 +470,15 @@
 
 .exampleLabel {
   margin-top: 18px;
-  color: #8fa0bc;
+  color: var(--cc-marketing-text-secondary);
   font-size: 12px;
   line-height: 1.6;
 }
 
 /* Letter tiles use a small set of two-tone pairs, as on the dashboard. */
 .tone0 {
-  background: #dce7ff;
-  color: #1d3fa6;
+  background: var(--home-match);
+  color: var(--home-match-ink);
 }
 
 .tone1 {
@@ -479,11 +500,8 @@
 
 .statement {
   position: relative;
-  z-index: 1;
-  margin-top: -36px;
-  padding-block: 112px 104px;
-  border-radius: 36px 36px 0 0;
-  background: var(--home-bg);
+  padding-block: 96px;
+  background: var(--home-card);
 }
 
 .statementInner {
@@ -492,20 +510,18 @@
 }
 
 .sectionLabel {
-  margin: 0 0 22px;
-  color: var(--home-blue);
-  font-family: var(--home-mono);
-  font-size: 12px;
+  margin: 0 0 20px;
+  color: var(--home-match-ink);
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  line-height: 1.5;
 }
 
 .statementText {
   margin: 0;
-  font-size: clamp(28px, 4.1vw, 54px);
-  font-weight: 800;
-  line-height: 1.16;
+  font-size: clamp(28px, 3.3vw, 44px);
+  font-weight: 600;
+  line-height: 1.3;
   letter-spacing: -0.035em;
 }
 
@@ -513,9 +529,9 @@
 
 .sectionHeading {
   margin: 0 0 22px;
-  font-size: clamp(34px, 3.9vw, 52px);
-  font-weight: 800;
-  line-height: 1.08;
+  font-size: clamp(32px, 3.5vw, 48px);
+  font-weight: 600;
+  line-height: 1.15;
   letter-spacing: -0.04em;
 }
 
@@ -587,9 +603,10 @@
 /* ---------- Job seekers ---------- */
 
 .candidateSection {
-  padding-block: 104px;
-  background: var(--home-card);
-  scroll-margin-top: 72px;
+  padding-block: 96px;
+  border-block: 1px solid var(--home-line);
+  background: var(--home-subtle);
+  scroll-margin-top: 88px;
 }
 
 .candidateGrid {
@@ -619,16 +636,14 @@
 .expandedProfile {
   overflow: hidden;
   border: 1px solid var(--home-line);
-  border-radius: 20px;
+  border-radius: 16px;
   background: var(--home-card);
-  box-shadow: 0 24px 60px rgb(14 23 38 / 8%);
+  box-shadow: 0 8px 24px rgb(40 37 59 / 4%);
 }
 
 .profileCover {
-  height: 84px;
-  background:
-    radial-gradient(rgb(169 193 255 / 22%) 1px, transparent 1.3px) 0 0 / 18px 18px,
-    var(--home-navy);
+  height: 72px;
+  background: var(--home-lavender);
 }
 
 .expandedProfileBody {
@@ -710,7 +725,7 @@
   display: inline-flex;
   align-items: center;
   padding: 8px 12px;
-  border: 1px solid #cdd3dc;
+  border: 1px solid var(--cc-light-control-border);
   border-radius: 999px;
   color: var(--home-muted);
   font-family: var(--home-mono);
@@ -724,10 +739,10 @@
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--home-line);
-  border-radius: 24px;
+  border-radius: 16px;
   background: var(--home-card);
   list-style: none;
-  box-shadow: 0 24px 60px rgb(14 23 38 / 6%);
+  box-shadow: none;
 }
 
 .jobList > li + li {
@@ -752,7 +767,7 @@
 .jobRowTitle {
   margin: 0 0 5px;
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.02em;
 }
@@ -792,9 +807,10 @@
 /* ---------- Recruiters ---------- */
 
 .recruiterSection {
-  padding-block: 104px;
-  background: var(--home-card);
-  scroll-margin-top: 72px;
+  padding-block: 96px;
+  border-block: 1px solid var(--home-line);
+  background: var(--home-subtle);
+  scroll-margin-top: 88px;
 }
 
 .recruiterGrid {
@@ -820,33 +836,32 @@
 .applicantWindow {
   overflow: hidden;
   border: 1px solid var(--home-line);
-  border-radius: 20px;
+  border-radius: 16px;
   background: var(--home-card);
-  box-shadow: 0 24px 60px rgb(14 23 38 / 8%);
+  box-shadow: 0 8px 24px rgb(40 37 59 / 4%);
 }
 
 .postingHeader {
   padding: 24px 26px;
-  background:
-    radial-gradient(rgb(169 193 255 / 18%) 1px, transparent 1.3px) 0 0 / 18px 18px,
-    var(--home-navy);
-  color: white;
+  border-bottom: 1px solid var(--home-line);
+  background: var(--home-lavender);
+  color: var(--home-ink);
 }
 
 .postingHeader .profilePartLabel {
-  color: var(--home-sky);
+  color: var(--home-muted);
 }
 
 .postingTitle {
   margin: 0 0 6px;
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.025em;
 }
 
 .postingHeader .profileEntryDetail {
-  color: #b8c4d9;
+  color: var(--home-muted);
 }
 
 .requiredSkills {
@@ -861,8 +876,8 @@
 .requiredSkills li {
   padding: 5px 10px;
   border-radius: 8px;
-  background: rgb(255 255 255 / 12%);
-  color: #e6edff;
+  background: var(--home-card);
+  color: var(--home-muted);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
@@ -919,7 +934,7 @@
 .applicantPercent {
   color: var(--home-blue);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .applicantDetail {
@@ -982,10 +997,9 @@
 
 .step {
   height: 100%;
-  padding: 30px;
-  border: 1px solid var(--home-line);
-  border-radius: 22px;
-  background: var(--home-card);
+  padding: 28px 24px;
+  border-top: 1px solid var(--home-line);
+  background: transparent;
 }
 
 .stepNumber {
@@ -1000,7 +1014,7 @@
 .stepTitle {
   margin: 0 0 10px;
   font-size: 21px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.025em;
 }
@@ -1031,28 +1045,15 @@
   }
 
   .secondaryAction:hover {
-    background: rgb(255 255 255 / 9%);
+    background: var(--home-lavender);
   }
 
-  .step {
-    transition:
-      transform 220ms ease,
-      box-shadow 220ms ease;
-  }
-
-  .step:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 22px 44px rgb(14 23 38 / 8%);
-  }
+  .step:hover { background: var(--home-subtle); }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .step {
-    transition: none;
-  }
-
-  .step:hover {
-    transform: none;
+@media (prefers-reduced-motion: no-preference) {
+  .desktopLinks a, .primaryAction, .secondaryAction, .step {
+    transition: background-color 180ms ease;
   }
 }
 
@@ -1063,12 +1064,14 @@
     grid-template-columns: 1fr;
     gap: 56px;
     min-height: auto;
-    padding-block: 56px 120px;
+    padding-block: 56px 64px;
   }
 
   .showcase {
     margin-inline: auto;
   }
+
+  .heroCopy { max-width: 640px; }
 
   .steps {
     grid-template-columns: 1fr;
@@ -1087,11 +1090,7 @@
   .illustrativeTag {
     justify-self: start;
   }
-}
 
-/* ---------- Phone ---------- */
-
-@media (max-width: 767px) {
   .navigation {
     flex-wrap: wrap;
     gap: 0;
@@ -1142,14 +1141,19 @@
     margin-top: 6px;
   }
 
+}
+
+/* ---------- Phone ---------- */
+
+@media (max-width: 767px) {
   .hero {
     width: calc(100% - 48px);
     gap: 44px;
-    padding-block: 44px 108px;
+    padding-block: 40px 56px;
   }
 
   .headline {
-    font-size: clamp(42px, 11vw, 58px);
+    font-size: clamp(36px, 9.8vw, 44px);
   }
 
   .description {
@@ -1168,9 +1172,19 @@
     font-size: 16px;
   }
 
-  .profileCard {
-    padding: 22px;
-  }
+  .showcase { padding: 16px; border-radius: 20px; }
+
+  .profileCard { padding: 20px; }
+
+  .person { align-items: flex-start; gap: 12px; }
+
+  .person > div:last-child { min-width: 0; }
+
+  .jobCard { gap: 10px; padding: 14px; }
+
+  .jobCard > div:last-child { min-width: 0; overflow-wrap: anywhere; }
+
+  .jobCard .companyMark { width: 32px; height: 32px; }
 
   .opportunities {
     padding-left: 36px;
@@ -1186,9 +1200,7 @@
   }
 
   .statement {
-    margin-top: -28px;
-    padding-block: 72px 64px;
-    border-radius: 28px 28px 0 0;
+    padding-block: 64px;
   }
 
   .statementInner,

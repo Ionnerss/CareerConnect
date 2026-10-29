@@ -2,14 +2,17 @@
 "use client";
 
 import Link from "next/link";
+import { Dialog } from "@base-ui/react/dialog";
 import type { JobSearchResult } from "@/lib/jobs/search";
 
 type JobDetailsProps = {
   job: JobSearchResult;
   onClose: () => void;
+  modal?: boolean;
 };
 
-export function JobDetails({ job, onClose }: JobDetailsProps) {
+export function JobDetails({ job, onClose, modal = false }: JobDetailsProps) {
+  const CloseButton = modal ? Dialog.Close : "button";
   const companyName = job.firm_name?.trim() || "Company not listed";
 
   const companyInitial = companyName.charAt(0).toUpperCase();
@@ -65,11 +68,11 @@ export function JobDetails({ job, onClose }: JobDetailsProps) {
             </span>
           </div>
 
-          <button
+          <CloseButton
             type="button"
             onClick={onClose}
             aria-label="Close job details"
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 lg:hidden"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 lg:hidden"
           >
             <svg
               viewBox="0 0 24 24"
@@ -83,7 +86,7 @@ export function JobDetails({ job, onClose }: JobDetailsProps) {
             >
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
-          </button>
+          </CloseButton>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "../styles/tokens.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -35,6 +36,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -49,42 +51,45 @@
 }
 
 :root {
-  /* CareerConnect palette: navy ink, blue action, soft grey page. */
-  --background: #f5f6f8;
-  --foreground: #0e1726;
-  --card: #ffffff;
-  --card-foreground: #0e1726;
-  --popover: #ffffff;
-  --popover-foreground: #0e1726;
-  --primary: #1d4ed8;
-  --primary-foreground: #ffffff;
-  --secondary: #eaeef7;
-  --secondary-foreground: #0e1726;
-  --muted: #eef0f4;
-  --muted-foreground: #5b6577;
-  --accent: #e8eefc;
-  --accent-foreground: #1e40af;
-  --destructive: #b42318;
-  --border: #d9dde5;
-  --input: #d9dde5;
-  --ring: #1d4ed8;
-  --chart-1: #93b0f5;
-  --chart-2: #5b86ee;
-  --chart-3: #1d4ed8;
-  --chart-4: #1e3a8a;
-  --chart-5: #0e1726;
+  /* Compatibility bridge: keep the public Tailwind/shadcn token names. */
+  --background: var(--cc-light-canvas);
+  --foreground: var(--cc-light-text);
+  --card: var(--cc-light-surface);
+  --card-foreground: var(--cc-light-text);
+  --popover: var(--cc-light-surface);
+  --popover-foreground: var(--cc-light-text);
+  --primary: var(--cc-action-bg);
+  --primary-hover: var(--cc-action-hover);
+  --primary-foreground: var(--cc-action-text);
+  --secondary: var(--cc-light-surface-selected);
+  --secondary-foreground: var(--cc-light-text);
+  --muted: var(--cc-light-surface-muted);
+  --muted-foreground: var(--cc-light-text-secondary);
+  --accent: var(--cc-light-surface-selected);
+  --accent-foreground: var(--cc-info-text);
+  --destructive: var(--cc-danger-text);
+  --border: var(--cc-light-border);
+  --input: var(--cc-light-control-border);
+  --ring: var(--cc-action-bg);
+  --chart-1: var(--cc-decorative-accent);
+  --chart-2: var(--cc-info-text);
+  --chart-3: var(--cc-action-bg);
+  --chart-4: var(--cc-light-text-secondary);
+  --chart-5: var(--cc-light-text);
   --radius: 0.75rem;
-  --sidebar: #0e1726;
-  --sidebar-foreground: #e6ebf5;
-  --sidebar-primary: #1d4ed8;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1b2740;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #24324d;
-  --sidebar-ring: #6f95ff;
+  --sidebar: var(--cc-marketing-bg);
+  --sidebar-foreground: var(--cc-marketing-text);
+  --sidebar-primary: var(--cc-action-bg);
+  --sidebar-primary-foreground: var(--cc-action-text);
+  --sidebar-accent: var(--cc-marketing-raised);
+  --sidebar-accent-foreground: var(--cc-marketing-text);
+  --sidebar-border: var(--cc-marketing-raised);
+  --sidebar-ring: var(--cc-decorative-accent);
 }
 
 .dark {
+  /* Preserve the existing neutral dark palette and use an opaque hover. */
+  --primary-hover: color-mix(in oklab, var(--primary) 90%, var(--background));
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

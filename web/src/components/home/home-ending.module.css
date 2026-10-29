@@ -2,9 +2,9 @@
 
 .closing,
 .footer {
-  --end-navy: #0e1726;
-  --end-blue: #1d4ed8;
-  --end-sky: #a9c1ff;
+  --end-navy: var(--home-navy);
+  --end-blue: var(--home-blue);
+  --end-sky: var(--home-sky);
 
   background: var(--end-navy);
   color: white;
@@ -13,13 +13,8 @@
 .closing {
   position: relative;
   z-index: 1;
-  margin-top: -36px;
   padding: 104px 0 96px;
-  border-radius: 36px 36px 0 0;
-  background:
-    radial-gradient(60% 90% at 50% 0%, rgb(29 78 216 / 30%), transparent 70%),
-    radial-gradient(rgb(169 193 255 / 14%) 1px, transparent 1.3px) 0 0 / 24px 24px,
-    var(--end-navy);
+  background: var(--end-navy);
   text-align: center;
 }
 
@@ -31,7 +26,7 @@
 .heading {
   margin: 0 0 22px;
   font-size: clamp(38px, 5.6vw, 68px);
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.05;
   letter-spacing: -0.045em;
 }
@@ -43,7 +38,7 @@
 .description {
   max-width: 560px;
   margin: 0 auto;
-  color: #b8c4d9;
+  color: var(--cc-marketing-text-secondary);
   font-size: 17px;
   line-height: 1.75;
 }
@@ -67,7 +62,7 @@
 
 .note {
   margin: 14px 0 0;
-  color: #8fa0bc;
+  color: var(--cc-marketing-text-secondary);
   font-size: 13px;
   line-height: 1.75;
 }
@@ -89,11 +84,12 @@
 
 .brand {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
   gap: 10px;
   color: #fff;
   font-size: 17px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.02em;
   text-decoration: none;
 }
@@ -106,7 +102,7 @@
   border-radius: 9px;
   background: var(--end-blue);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .links {
@@ -120,7 +116,7 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  color: #b8c4d9;
+  color: var(--cc-marketing-text-secondary);
   font-size: 13px;
   text-decoration: none;
 }
@@ -138,21 +134,19 @@
   outline-offset: 4px;
 }
 
-@media (hover: hover) and (pointer: fine) {
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .cta {
     transition: background-color 180ms ease;
   }
 
   .cta:hover {
-    background: #2b5fe8;
+    background: var(--home-blue-hover);
   }
 }
 
 @media (max-width: 767px) {
   .closing {
-    margin-top: -28px;
     padding-block: 72px 64px;
-    border-radius: 28px 28px 0 0;
   }
 
   .closingInner,

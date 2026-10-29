@@ -39,8 +39,8 @@
 
 @keyframes skillMatch {
   from {
-    background-color: #eef1f6;
-    color: #3b4658;
+    background-color: var(--home-chip);
+    color: var(--home-chip-ink);
     transform: scale(1);
   }
 
@@ -49,8 +49,8 @@
   }
 
   to {
-    background-color: #dce7ff;
-    color: #1d3fa6;
+    background-color: var(--home-match);
+    color: var(--home-match-ink);
     transform: scale(1);
   }
 }

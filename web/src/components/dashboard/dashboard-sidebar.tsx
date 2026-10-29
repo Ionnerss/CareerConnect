@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Check, FileText, Search, UserRound } from "lucide-react";
 import type { NextStep } from "@/lib/dashboard/summary";
+import styles from "./dashboard.module.css";
 
 type ProfileCardProps = {
   displayName: string;
@@ -9,43 +10,26 @@ type ProfileCardProps = {
   resumeCount: number;
 };
 
-/** Left column: who is signed in, with links to profile and resume. */
 export function DashboardProfileCard({ displayName, email, initials, resumeCount }: ProfileCardProps) {
   return (
-    <section
-      aria-label="Your profile"
-      className="overflow-hidden rounded-2xl border border-[#E3E6EB] bg-white"
-    >
-      <div aria-hidden="true" className="h-16 bg-[#1D4ED8] [background-image:linear-gradient(135deg,#1D4ED8,#0E1726)]" />
-      <div className="flex flex-col items-center gap-1 px-5 pb-5 text-center">
-        <span
-          aria-hidden="true"
-          className="-mt-9 flex size-[72px] items-center justify-center rounded-full border-4 border-white bg-[#0E1726] text-xl font-extrabold text-white"
-        >
-          {initials}
-        </span>
-        <p className="mt-2 text-lg font-bold text-[#0E1726]">{displayName}</p>
-        <p className="w-full truncate text-sm text-[#4B5563]">{email}</p>
-      </div>
-      <dl className="grid grid-cols-1 border-t border-[#EEF0F3] px-5 py-3 text-sm">
-        <div className="flex items-center justify-between">
-          <dt className="text-[#4B5563]">Resumes uploaded</dt>
-          <dd className="font-mono font-bold text-[#0E1726]">{resumeCount}</dd>
+    <section aria-labelledby="dashboard-profile-heading" className={styles.profile}>
+      <h2 id="dashboard-profile-heading">Your profile</h2>
+      <div className={styles.profileIdentity}>
+        <span aria-hidden="true" className={styles.avatar}>{initials}</span>
+        <div>
+          <p className={styles.profileName}>{displayName}</p>
+          <p className={styles.secondary}>{email}</p>
         </div>
+      </div>
+      <dl className={styles.resumeCount}>
+        <div><dt>Resumes uploaded</dt><dd>{resumeCount}</dd></div>
       </dl>
-      <div className="flex flex-col border-t border-[#EEF0F3]">
-        <Link
-          href="/profile"
-          className="flex min-h-11 items-center gap-2 px-5 text-sm font-semibold text-[#1F2937] hover:bg-[#F5F6F8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1D4ED8]"
-        >
-          <UserRound aria-hidden="true" className="size-4 text-[#4B5563]" />
-          Edit profile
+      <div className={styles.profileLinks}>
+        <Link href="/profile" className={styles.secondaryButton}>
+          <UserRound aria-hidden="true" size={16} /> Edit profile
         </Link>
-        <Link
-          href="/upload-resume"
-          className="flex min-h-11 items-center gap-2 border-t border-[#EEF0F3] px-5 text-sm font-semibold text-[#1F2937] hover:bg-[#F5F6F8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1D4ED8]"
-        >
-          <FileText aria-hidden="true" className="size-4 text-[#4B5563]" />
+        <Link href="/upload-resume" className={styles.secondaryButton}>
+          <FileText aria-hidden="true" size={16} />
           {resumeCount > 0 ? "Manage resume" : "Upload resume"}
         </Link>
       </div>
@@ -53,60 +37,41 @@ export function DashboardProfileCard({ displayName, email, initials, resumeCount
   );
 }
 
-type NextStepsProps = {
-  steps: NextStep[];
-};
+type NextStepsProps = { steps: NextStep[] };
 
-/** Right column: a short checklist built from real profile data. */
+/** Highlight the first unfinished step; completed work remains visible as text. */
 export function DashboardNextSteps({ steps }: NextStepsProps) {
-  const doneCount = steps.filter((step) => step.done).length;
-  const percent = Math.round((doneCount / steps.length) * 100);
+  const nextStep = steps.find((step) => !step.done);
+  if (!nextStep) return null;
 
   return (
-    <section
-      aria-labelledby="next-steps-heading"
-      className="flex flex-col gap-4 rounded-2xl border border-[#E3E6EB] bg-white p-5"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <h2 id="next-steps-heading" className="text-base font-bold text-[#0E1726]">
-          Get started
-        </h2>
-        <span className="font-mono text-xs font-semibold text-[#4B5563]">
-          {doneCount}/{steps.length} done
-        </span>
+    <section aria-labelledby="next-steps-heading" className={styles.nextSteps}>
+      <div className={styles.nextStepLead}>
+        <div>
+          <h2 id="next-steps-heading">Your next step</h2>
+          <p>Build the foundations for your job search.</p>
+        </div>
+        <Link href={nextStep.href} className={styles.primaryButton}>
+          {nextStep.label} <ArrowRight aria-hidden="true" size={16} />
+        </Link>
       </div>
-      <div
-        role="progressbar"
-        aria-label="Getting started progress"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent}
-        className="h-2 overflow-hidden rounded-full bg-[#E8EEFD]"
-      >
-        <div className="h-full rounded-full bg-[#1D4ED8]" style={{ width: `${percent}%` }} />
-      </div>
-      <ul className="flex flex-col gap-1">
+      <ul className={styles.checklist}>
         {steps.map((step) => (
           <li key={step.id}>
             {step.done ? (
-              <p className="flex min-h-11 items-center gap-3 text-sm text-[#4B5563]">
-                <span className="flex size-6 items-center justify-center rounded-full bg-[#047857] text-white">
-                  <Check aria-hidden="true" className="size-3.5" strokeWidth={3} />
-                </span>
-                <span className="line-through decoration-[#9CA3AF]">{step.label}</span>
-                <span className="sr-only">(done)</span>
-              </p>
+              <span className={styles.completedStep}>
+                <Check aria-hidden="true" size={16} />
+                {step.label}<span className="sr-only"> (done)</span>
+              </span>
+            ) : step.id === nextStep.id ? (
+              <span className={styles.currentStep}>
+                <span aria-hidden="true" className={styles.stepCircle} />
+                {step.label}<span className="sr-only"> (next step)</span>
+              </span>
             ) : (
-              <Link
-                href={step.href}
-                className="group flex min-h-11 items-center gap-3 rounded-lg text-sm font-semibold text-[#0E1726] hover:text-[#1D4ED8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]"
-              >
-                <span
-                  aria-hidden="true"
-                  className="size-6 rounded-full border-2 border-[#C7D5FA] group-hover:border-[#1D4ED8]"
-                />
-                <span className="flex-1">{step.label}</span>
-                <ArrowRight aria-hidden="true" className="size-4 opacity-0 transition-opacity group-hover:opacity-100" />
+              <Link href={step.href} className={styles.stepLink}>
+                <span aria-hidden="true" className={styles.stepCircle} />{step.label}
+                <ArrowRight aria-hidden="true" size={14} />
               </Link>
             )}
           </li>

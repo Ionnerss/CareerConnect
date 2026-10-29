@@ -13,17 +13,9 @@ import {
   getFirstName,
   getInitials,
 } from "@/lib/dashboard/summary";
-import DashboardHeader from "@/components/dashboard/dashboard-header";
-import DashboardHero from "@/components/dashboard/dashboard-hero";
-import DashboardStats from "@/components/dashboard/dashboard-stats";
-import DashboardApplications from "@/components/dashboard/dashboard-applications";
-import {
-  DashboardNextSteps,
-  DashboardProfileCard,
-  DashboardShortcuts,
-} from "@/components/dashboard/dashboard-sidebar";
+import DashboardView from "@/components/dashboard/dashboard-view";
 
-// The new look (font + navy/blue colours) is scoped to this page only.
+// Typography and visual tokens stay scoped to the dashboard.
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   display: "swap",
@@ -81,37 +73,19 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className={`${jakarta.className} min-h-screen bg-[#F5F6F8] text-[#1F2937]`}>
-      <DashboardHeader initials={initials} />
-
-      <main>
-        <DashboardHero firstName={firstName} todayLabel={todayLabel} />
-
-        <div className="relative z-10 mx-auto -mt-6 flex max-w-[1200px] flex-wrap items-start gap-6 px-4 pb-16 sm:px-6">
-          <aside className="flex w-full flex-col gap-4 lg:sticky lg:top-24 lg:w-[260px] lg:shrink-0">
-            <DashboardProfileCard
-              displayName={fullName ?? email}
-              email={email}
-              initials={initials}
-              resumeCount={summary.resumeCount}
-            />
-          </aside>
-
-          <div className="flex min-w-0 flex-[999_1_480px] flex-col gap-6">
-            <DashboardStats counts={counts} />
-            <DashboardApplications
-              applications={applications}
-              loadError={applicationsLoadError}
-              now={now}
-            />
-          </div>
-
-          <aside className="flex w-full flex-col gap-4 lg:w-[280px] lg:shrink-0">
-            {steps.some((step) => !step.done) && <DashboardNextSteps steps={steps} />}
-            <DashboardShortcuts />
-          </aside>
-        </div>
-      </main>
-    </div>
+    <DashboardView
+      className={jakarta.className}
+      firstName={firstName}
+      displayName={fullName ?? email}
+      email={email}
+      initials={initials}
+      resumeCount={summary.resumeCount}
+      todayLabel={todayLabel}
+      counts={counts}
+      steps={steps}
+      applications={applications}
+      applicationsLoadError={applicationsLoadError}
+      now={now}
+    />
   );
 }

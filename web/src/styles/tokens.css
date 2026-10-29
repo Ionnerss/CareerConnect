@@ -1,0 +1,36 @@
+/* Quiet Confidence foundation. Values only: no component or layout rules.
+ * Light aliases stay fixed when .dark is present, preserving approved pages.
+ * Existing shadcn theme variables are intentionally not mapped in this batch.
+ */
+:root {
+  --cc-light-canvas: #fbfcfd;
+  --cc-light-surface: #ffffff;
+  --cc-light-surface-subtle: #fbfbff;
+  --cc-light-surface-selected: #edecfb;
+  --cc-light-surface-muted: #f1f0f5;
+  --cc-light-text: #28253b;
+  --cc-light-text-secondary: #554e7b;
+  --cc-light-border: #e3e2eb;
+  --cc-light-control-border: #70707d;
+
+  --cc-action-bg: #5266eb;
+  --cc-action-hover: #394db8;
+  --cc-action-text: #ffffff;
+
+  --cc-marketing-bg: #171721;
+  --cc-marketing-raised: #1e1e2a;
+  --cc-marketing-text: #ededf3;
+  --cc-marketing-text-secondary: #c3c3cc;
+  --cc-decorative-accent: #9cb4e8;
+
+  --cc-info-text: #394db8;
+  --cc-info-surface: #edecfb;
+  --cc-success-text: #18784d;
+  --cc-success-surface: #e9f6ee;
+  --cc-warning-text: #925400;
+  --cc-warning-surface: #fff4e0;
+  --cc-danger-text: #b42318;
+  --cc-danger-surface: #fdeceb;
+  --cc-neutral-text: #554e7b;
+  --cc-neutral-surface: #f1f0f5;
+}

@@ -23,14 +23,22 @@
 }
 
 .scrollText[data-reveal="ready"] .word:not([data-on="true"]) {
-  color: #7f8a9c;
+  color: var(--home-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .scrollText[data-reveal="ready"] .word { color: inherit; }
+
   .reveal[data-reveal],
   .word {
     opacity: 1;
     transform: none;
     transition: none;
   }
+}
+
+/* Tabbing into an unrevealed section must never hide the focused control. */
+.reveal[data-reveal="armed"]:focus-within {
+  opacity: 1;
+  transform: none;
 }

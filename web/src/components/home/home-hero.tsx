@@ -94,6 +94,10 @@ export default function HomeHero() {
         </div>
 
         <figure className={styles.showcase}>
+          <div className={styles.showcaseHeading} aria-hidden="true">
+            <span>Profile &amp; opportunities</span>
+            <span className={styles.showcaseNote}>Illustrative preview</span>
+          </div>
           <article
             className={styles.profileCard}
             aria-labelledby="example-profile-name"
