@@ -265,13 +265,13 @@ describe("MFA login redirects", () => {
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
-  it("does not check MFA after rejecting a recruiter-role mismatch", async () => {
+  it("checks MFA before rejecting a recruiter-role mismatch", async () => {
     await logIn("recruiter", "job_seeker");
 
     await screen.findByRole("alert");
 
     expect(mocks.signOut).toHaveBeenCalledOnce();
-    expect(mocks.getAal).not.toHaveBeenCalled();
+    expect(mocks.getAal).toHaveBeenCalledOnce();
     expect(mocks.push).not.toHaveBeenCalled();
   });
 });

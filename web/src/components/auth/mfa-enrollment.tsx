@@ -21,6 +21,10 @@ export default function MfaEnrollment() {
     // Existing MFA status
     const [isCheckingMfa, setIsCheckingMfa] = useState(true);
     const [mfaCheckFailed, setMfaCheckFailed] = useState(false);
+    const [verifiedFactors, setVerifiedFactors] = useState<{ id: string; friendly_name?: string }[]>([]);
+    const [selectedFactorId, setSelectedFactorId] = useState("");
+    const [freshCode, setFreshCode] = useState("");
+    const [isManaging, setIsManaging] = useState(false);
 
     // Check existing MFA factors when the page loads.
     useEffect(() => {
@@ -42,6 +46,7 @@ export default function MfaEnrollment() {
 
                 if (!cancelled) {
                     setIsVerified(hasVerifiedTotp);
+                    setVerifiedFactors(data.totp.filter((factor) => factor.status === "verified"));
                 }
             } catch {
                 if (!cancelled) {
@@ -69,7 +74,6 @@ export default function MfaEnrollment() {
             isEnrolling ||
             isCheckingMfa ||
             mfaCheckFailed ||
-            isVerified ||
             enrollmentData
         ) {
             return;
@@ -80,6 +84,30 @@ export default function MfaEnrollment() {
 
         try {
             const supabase = createClient();
+
+            if (isVerified) {
+                if (!/^\d{6}$/.test(freshCode) || !selectedFactorId) {
+                    setErrorMessage("Select an authenticator and enter its current code.");
+                    return;
+                }
+                const verified = await supabase.auth.mfa.challengeAndVerify({
+                    factorId: selectedFactorId, code: freshCode,
+                });
+                setFreshCode("");
+                if (verified.error) {
+                    setErrorMessage("Current authenticator verification failed.");
+                    return;
+                }
+            }
+
+            // A refreshed page can leave an unverified setup behind. Only
+            // remove this account's unverified TOTP factors before retrying.
+            const existing = await supabase.auth.mfa.listFactors();
+            if (existing.error || !existing.data) throw new Error("Unable to check existing factors.");
+            for (const factor of existing.data.all.filter((item) => item.factor_type === "totp" && item.status === "unverified")) {
+                const removed = await supabase.auth.mfa.unenroll({ factorId: factor.id });
+                if (removed.error) throw new Error("Unable to clear the interrupted setup.");
+            }
 
             const { data, error } = await supabase.auth.mfa.enroll({
                 factorType: "totp",
@@ -122,8 +150,7 @@ export default function MfaEnrollment() {
         if (
             !enrollmentData ||
             !/^\d{6}$/.test(verificationCode) ||
-            isVerifying ||
-            isVerified
+            isVerifying
         ) {
             return;
         }
@@ -149,6 +176,10 @@ export default function MfaEnrollment() {
 
             // Verification succeeded.
             setIsVerified(true);
+            const factors = await supabase.auth.mfa.listFactors();
+            if (!factors.error && factors.data) {
+                setVerifiedFactors(factors.data.totp.filter((factor) => factor.status === "verified"));
+            }
 
             // Clear sensitive enrollment information from state.
             setEnrollmentData(null);
@@ -159,6 +190,60 @@ export default function MfaEnrollment() {
             );
         } finally {
             setIsVerifying(false);
+        }
+    }
+
+    async function handleCancelSetup() {
+        if (!enrollmentData || isManaging) return;
+        setIsManaging(true);
+        try {
+            const result = await createClient().auth.mfa.unenroll({ factorId: enrollmentData.factorId });
+            if (result.error) throw result.error;
+            setEnrollmentData(null);
+            setVerificationCode("");
+            setErrorMessage(null);
+        } catch {
+            setErrorMessage("Could not cancel setup. Please retry before starting again.");
+        } finally {
+            setIsManaging(false);
+        }
+    }
+
+    async function handleRemoveFactor() {
+        if (isManaging || !selectedFactorId || !/^\d{6}$/.test(freshCode)) return;
+        const last = verifiedFactors.length === 1;
+        if (!window.confirm(last
+            ? "Disable two-factor authentication? Password-only sign-in will be allowed again."
+            : "Remove this authenticator? Keep your backup available.")) return;
+        setIsManaging(true);
+        setErrorMessage(null);
+        try {
+            const supabase = createClient();
+            const current = await supabase.auth.mfa.listFactors();
+            if (current.error || !current.data?.totp.some(
+                (factor) => factor.id === selectedFactorId && factor.status === "verified"
+            )) throw new Error("Factor unavailable.");
+            const verified = await supabase.auth.mfa.challengeAndVerify({
+                factorId: selectedFactorId, code: freshCode,
+            });
+            setFreshCode("");
+            if (verified.error) throw new Error("Fresh verification failed.");
+            const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            if (assurance.error || assurance.data?.currentLevel !== "aal2") throw new Error("Assurance unavailable.");
+            const removed = await supabase.auth.mfa.unenroll({ factorId: selectedFactorId });
+            if (removed.error) throw removed.error;
+            const refresh = await supabase.auth.refreshSession();
+            if (refresh.error) throw new Error("Factor removed. Sign out and in again to refresh your session.");
+            const factors = await supabase.auth.mfa.listFactors();
+            if (factors.error || !factors.data) throw new Error("Factor removed. Refresh this page to check status.");
+            const remaining = factors.data.totp.filter((factor) => factor.status === "verified");
+            setVerifiedFactors(remaining);
+            setIsVerified(remaining.length > 0);
+            setSelectedFactorId("");
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : "Unable to remove authenticator.");
+        } finally {
+            setIsManaging(false);
         }
     }
 
@@ -183,38 +268,39 @@ export default function MfaEnrollment() {
                     Authentication settings are temporarily unavailable.
                     Refresh the page to try again.
                 </p>
-            ) : isVerified ? (
-                /* MFA already enabled */
-                <div
-                    role="status"
-                    className="space-y-3 rounded-lg border border-green-300 bg-green-50 p-6"
-                >
-                    <h3 className="text-xl font-semibold text-green-800">
-                        Two-Factor Authentication Enabled
-                    </h3>
-
-                    <p className="text-sm text-green-700">
-                        Your account has a verified authenticator.
-                        Two-factor authentication is enabled.
-                    </p>
-
-                    <p className="text-sm text-green-700">
-                        Your authenticator will be required during login
-                        once the MFA login challenge is implemented.
-                    </p>
-                </div>
             ) : !enrollmentData ? (
                 /* No verified MFA factor */
+                <div className="space-y-4">
+                {isVerified && <>
+                    <p role="status">Two-factor authentication is enabled with {verifiedFactors.length} authenticator(s).</p>
+                    <p>Add a second authenticator as a backup. Losing every authenticator may lock you out; password reset does not bypass MFA.</p>
+                    <label className="block" htmlFor="existing-factor">Existing authenticator</label>
+                    <select id="existing-factor" value={selectedFactorId} disabled={isManaging || isEnrolling}
+                        onChange={(event) => setSelectedFactorId(event.target.value)} className="rounded border p-2">
+                        <option value="">Select an authenticator</option>
+                        {verifiedFactors.map((factor) => <option key={factor.id} value={factor.id}>
+                            {factor.friendly_name || `Authenticator ${factor.id.slice(0, 8)}`}
+                        </option>)}
+                    </select>
+                    <label className="block" htmlFor="fresh-code">Fresh code from selected authenticator</label>
+                    <input id="fresh-code" value={freshCode} inputMode="numeric" autoComplete="one-time-code"
+                        onChange={(event) => setFreshCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                        disabled={isManaging || isEnrolling} maxLength={6} className="rounded border p-2" />
+                    <button type="button" onClick={handleRemoveFactor}
+                        disabled={isManaging || isEnrolling || !selectedFactorId || freshCode.length !== 6}
+                        className="block rounded border px-5 py-3">Remove selected authenticator</button>
+                </>}
                 <button
                     type="button"
                     onClick={handleEnroll}
-                    disabled={isEnrolling}
+                    disabled={isEnrolling || isManaging || (isVerified && (!selectedFactorId || freshCode.length !== 6))}
                     className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {isEnrolling
                         ? "Setting up..."
-                        : "Enable Two-Factor Authentication"}
+                        : isVerified ? "Add backup authenticator" : "Enable Two-Factor Authentication"}
                 </button>
+                </div>
             ) : (
                 /* Authenticator enrollment */
                 <div className="space-y-5">
@@ -301,8 +387,7 @@ export default function MfaEnrollment() {
                             onClick={handleVerify}
                             disabled={
                                 verificationCode.length !== 6 ||
-                                isVerifying ||
-                                isVerified
+                                isVerifying
                             }
                             className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -310,6 +395,8 @@ export default function MfaEnrollment() {
                                 ? "Verifying..."
                                 : "Verify and Enable 2FA"}
                         </button>
+                        <button type="button" onClick={handleCancelSetup} disabled={isManaging || isVerifying}
+                            className="ml-3 rounded border px-5 py-3">Cancel setup</button>
                     </div>
 
                     <p

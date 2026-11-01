@@ -8,7 +8,9 @@ export const metadata: Metadata = {
     description: "Complete two-factor authentication to access your account.",
 };
 
-export default async function MfaPage() {
+export default async function MfaPage({ searchParams }: {
+    searchParams: Promise<{ next?: string }>;
+}) {
     const supabase = await createClient();
 
     const {
@@ -36,7 +38,7 @@ export default async function MfaPage() {
                     Two-Factor Authentication
                 </h2>
 
-                <MfaChallenge />
+                <MfaChallenge returnTo={(await searchParams).next} />
             </section>
         </main>
     );

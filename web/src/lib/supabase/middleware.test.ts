@@ -135,7 +135,7 @@ describe("MFA route protection", () => {
     expect(response.status).toBe(307);
 
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3000/auth/mfa"
+      "http://localhost:3000/auth/mfa?next=%2Fupload-resume"
     );
   });
 
@@ -255,7 +255,7 @@ describe("MFA route protection", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3000/auth/mfa"
+      "http://localhost:3000/auth/mfa?next=%2Fupload-resume"
     );
   });
 
@@ -274,7 +274,7 @@ describe("MFA route protection", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3000/auth/mfa"
+      "http://localhost:3000/auth/mfa?next=%2Fupload-resume"
     );
   });
 
@@ -296,7 +296,7 @@ describe("MFA route protection", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3000/auth/mfa"
+      "http://localhost:3000/auth/mfa?next=%2Fprofile"
     );
   });
 

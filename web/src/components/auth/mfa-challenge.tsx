@@ -1,17 +1,50 @@
 
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getHomePathForRole } from "@/lib/auth/roles";
 
-export default function MfaChallenge() {
+export default function MfaChallenge({ returnTo }: { returnTo?: string }) {
     const router = useRouter();
 
     const [verificationCode, setVerificationCode] = useState("");
     const [isVerifying, setIsVerifying] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [factors, setFactors] = useState<{ id: string; friendly_name?: string }[]>([]);
+    const [factorId, setFactorId] = useState("");
+    const [isSigningOut, setIsSigningOut] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+        void createClient().auth.mfa.listFactors().then(({ data, error }) => {
+            if (!active) return;
+            if (error || !data) {
+                setErrorMessage("Unable to retrieve your authenticators. Please refresh or sign out.");
+                return;
+            }
+            const verified = data.totp.filter((factor) => factor.status === "verified");
+            setFactors(verified);
+            setFactorId(verified[0]?.id ?? "");
+        }).catch(() => {
+            if (active) setErrorMessage("Network error. Refresh or sign out.");
+        });
+        return () => { active = false; };
+    }, []);
+
+    async function handleSignOut() {
+        if (isSigningOut) return;
+        setIsSigningOut(true);
+        const { error } = await createClient().auth.signOut({ scope: "global" });
+        if (error) {
+            setErrorMessage("Unable to sign out. Please try again.");
+            setIsSigningOut(false);
+            return;
+        }
+        router.replace("/auth/login");
+        router.refresh();
+    }
 
     async function handleVerify(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -27,7 +60,7 @@ export default function MfaChallenge() {
         try {
             const supabase = createClient();
 
-            // Step 1: Retrieve the user's MFA factors.
+            // Verify the selected factor still belongs to this account.
             const {
                 data: factorsData,
                 error: factorsError,
@@ -42,7 +75,7 @@ export default function MfaChallenge() {
 
             // Step 2: Find a verified TOTP factor.
             const verifiedFactor = factorsData.totp.find(
-                (factor) => factor.status === "verified"
+                (factor) => factor.id === factorId && factor.status === "verified"
             );
 
             if (!verifiedFactor) {
@@ -60,9 +93,9 @@ export default function MfaChallenge() {
                 });
 
             if (verifyError) {
-                setErrorMessage(
-                    "Invalid, expired, or rejected verification code. Please try again."
-                );
+                setErrorMessage(verifyError.status === 429 || verifyError.code?.includes("rate_limit")
+                    ? "Too many attempts. Wait a few minutes before trying again."
+                    : "Invalid or expired code. Enter the current code and retry.");
                 return;
             }
 
@@ -117,7 +150,13 @@ export default function MfaChallenge() {
             // Step 7: Redirect only after successful MFA.
             setVerificationCode("");
 
-            router.replace(getHomePathForRole(profile.role));
+            const safeReturn = returnTo?.startsWith("/") && !returnTo.startsWith("//") &&
+                !returnTo.includes("\\") && !returnTo.includes("#") &&
+                (profile.role === "recruiter"
+                    ? returnTo.startsWith("/recruiter/") || returnTo === "/recruiter"
+                    : ["/dashboard", "/upload-resume", "/jobs", "/profile", "/application-status"].some(
+                        (path) => returnTo === path || returnTo.startsWith(`${path}/`)));
+            router.replace(safeReturn && returnTo ? returnTo : getHomePathForRole(profile.role));
         } catch {
             setErrorMessage(
                 "An unexpected error occurred during verification. Please try again."
@@ -137,6 +176,16 @@ export default function MfaChallenge() {
                     {errorMessage}
                 </p>
             )}
+
+            {factors.length > 1 && <div className="space-y-2">
+                <label htmlFor="mfa-factor" className="block text-sm font-medium">Authenticator</label>
+                <select id="mfa-factor" value={factorId} onChange={(event) => setFactorId(event.target.value)}
+                    disabled={isVerifying} className="rounded border p-2">
+                    {factors.map((factor) => <option key={factor.id} value={factor.id}>
+                        {factor.friendly_name || `Authenticator ${factor.id.slice(0, 8)}`}
+                    </option>)}
+                </select>
+            </div>}
 
             <div className="space-y-2">
                 <label
@@ -169,7 +218,7 @@ export default function MfaChallenge() {
             <button
                 type="submit"
                 disabled={
-                    verificationCode.length !== 6 ||
+                    !factorId || verificationCode.length !== 6 ||
                     isVerifying
                 }
                 className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -178,6 +227,8 @@ export default function MfaChallenge() {
                     ? "Verifying..."
                     : "Verify and Continue"}
             </button>
+            <button type="button" onClick={handleSignOut} disabled={isSigningOut || isVerifying}
+                className="ml-3 rounded border px-5 py-3">{isSigningOut ? "Signing out..." : "Cancel and sign out"}</button>
         </form>
     );
 }

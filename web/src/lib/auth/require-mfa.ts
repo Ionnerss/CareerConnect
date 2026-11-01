@@ -2,6 +2,20 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMfaStatus } from "@/lib/auth/mfa";
 
+/** Check the same authenticated client that will perform the protected operation. */
+export async function checkMfaForClient(supabase: Awaited<ReturnType<typeof createClient>>) {
+  try {
+    const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error || !data) return "AUTH_UNAVAILABLE" as const;
+    if ((data.currentLevel === "aal1" && data.nextLevel === "aal1") ||
+        (data.currentLevel === "aal2" && data.nextLevel === "aal2")) return null;
+    if (data.currentLevel === "aal1" && data.nextLevel === "aal2") return "MFA_REQUIRED" as const;
+    return "AUTH_UNAVAILABLE" as const;
+  } catch {
+    return "AUTH_UNAVAILABLE" as const;
+  }
+}
+
 
 export type MfaActionErrorCode =
   | "UNAUTHENTICATED"

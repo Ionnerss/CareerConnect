@@ -177,6 +177,7 @@ export async function updateSession(request: NextRequest) {
 
     url.pathname = "/auth/mfa";
     url.search = "";
+    url.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
 
     return withSessionCookies(
       NextResponse.redirect(url)

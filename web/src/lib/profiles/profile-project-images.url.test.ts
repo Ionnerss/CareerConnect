@@ -18,6 +18,7 @@ const storedImage = {
 };
 
 const mockGetUser = vi.fn();
+const mockAssurance = vi.fn();
 const mockFrom = vi.fn();
 const mockStorageFrom = vi.fn();
 const mockCreateSignedUrl = vi.fn();
@@ -46,6 +47,7 @@ beforeEach(() => {
         },
         error: null,
     });
+    mockAssurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null });
 
     mockFrom.mockReturnValue(imageQuery(storedImage));
 
@@ -61,13 +63,19 @@ beforeEach(() => {
     });
 
     vi.mocked(createClient).mockResolvedValue({
-        auth: { getUser: mockGetUser },
+        auth: { getUser: mockGetUser, mfa: { getAuthenticatorAssuranceLevel: mockAssurance } },
         from: mockFrom,
         storage: { from: mockStorageFrom },
     } as never);
 });
 
 describe("getProjectImageUrl", () => {
+    it("does not sign an image URL while MFA is incomplete", async () => {
+        mockAssurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal2" }, error: null });
+        expect(await getProjectImageUrl(imageId)).toMatchObject({ success: false, code: "MFA_REQUIRED" });
+        expect(mockFrom).not.toHaveBeenCalled();
+        expect(mockCreateSignedUrl).not.toHaveBeenCalled();
+    });
     it("rejects an invalid image ID before creating a client", async () => {
         expect(await getProjectImageUrl("bad-id")).toEqual({
             success: false,

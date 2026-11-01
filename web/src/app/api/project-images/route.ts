@@ -6,6 +6,8 @@ import {
 const failureStatuses: Record<string, number> = {
     INVALID_INPUT: 400,
     UNAUTHENTICATED: 401,
+    MFA_REQUIRED: 403,
+    AUTH_UNAVAILABLE: 503,
     PROJECT_NOT_FOUND: 404,
     IMAGE_NOT_FOUND: 404,
     OUTCOME_UNCERTAIN: 503,

@@ -13,6 +13,7 @@
 import { z } from "zod";
 import { JevError } from "@/lib/ai/jev";
 import { createClient } from "@/lib/supabase/server";
+import { checkMfaForClient } from "@/lib/auth/require-mfa";
 import { requirementsInputSchema } from "@/lib/validations/job-requirements";
 import {
   compareCandidates,
@@ -36,6 +37,8 @@ export const MAX_COMPARE_LIMIT = 25;
 export type ComparisonErrorCode =
   | "INVALID_INPUT"
   | "UNAUTHENTICATED"
+  | "MFA_REQUIRED"
+  | "AUTH_UNAVAILABLE"
   | "FORBIDDEN"
   | "JOB_NOT_FOUND"
   | "NO_REQUIREMENTS"
@@ -45,6 +48,8 @@ export type ComparisonErrorCode =
 export const COMPARISON_ERROR_STATUS: Record<ComparisonErrorCode, number> = {
   INVALID_INPUT: 400,
   UNAUTHENTICATED: 401,
+  MFA_REQUIRED: 403,
+  AUTH_UNAVAILABLE: 503,
   FORBIDDEN: 403,
   JOB_NOT_FOUND: 404,
   NO_REQUIREMENTS: 409,
@@ -134,6 +139,11 @@ async function requireOwnedJob(
   if (userError || !user) {
     return failure("UNAUTHENTICATED", AUTH_ERROR);
   }
+
+  const mfaError = await checkMfaForClient(supabase);
+  if (mfaError) return failure(mfaError, mfaError === "MFA_REQUIRED"
+    ? "Complete two-factor authentication to continue."
+    : "Unable to verify authentication security.");
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")

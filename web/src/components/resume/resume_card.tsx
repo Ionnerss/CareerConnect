@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { MoreVertical, Pencil, Archive, Trash2, Replace, Download, Eye } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { archiveResume, unarchiveResume, downloadResume, renameResume, replaceResume, deleteResume, viewResume } from "@/lib/resumes/resume_actions_logic";
+import { safeArchiveResume, safeUnarchiveResume, safeDownloadResume, safeRenameResume, safeReplaceResume, safeDeleteResume, safeViewResume } from "@/lib/resumes/resume_safe_actions";
+import Link from "next/link";
 import type { ResumeCardData } from "@/lib/resumes/resume_logic";
 
 type ResumeCardProps = {
@@ -17,6 +18,14 @@ export function ResumeCard({ resume }: ResumeCardProps) {
     const [isPending, startTransition] = useTransition();
     const [errorMessage, setErrorMessage] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [authDestination, setAuthDestination] = useState<string | null>(null);
+
+    function requireSuccess<T>(result: { ok: true; value: T } | { ok: false; code: string; message: string }): T {
+        if (result.ok) return result.value;
+        if (result.code === "MFA_REQUIRED") setAuthDestination("/auth/mfa");
+        if (result.code === "UNAUTHENTICATED") setAuthDestination("/auth/login");
+        throw new Error(result.message);
+    }
 
     const uploadedDate = resume.uploaded_at
         ? new Date(resume.uploaded_at).toLocaleDateString()
@@ -28,9 +37,9 @@ export function ResumeCard({ resume }: ResumeCardProps) {
         startTransition(async () => {
             try {
                 if (resume.archived_at) {
-                    await unarchiveResume(resume.id);
+                    requireSuccess(await safeUnarchiveResume(resume.id));
                 } else {
-                    await archiveResume(resume.id);
+                    requireSuccess(await safeArchiveResume(resume.id));
                 }
 
                 router.refresh();
@@ -49,7 +58,7 @@ export function ResumeCard({ resume }: ResumeCardProps) {
 
         startTransition(async () => {
             try {
-                const url = await downloadResume(resume.id);
+                const url = requireSuccess(await safeDownloadResume(resume.id));
                 window.location.assign(url);
             } catch (error) {
                 setErrorMessage(
@@ -70,7 +79,7 @@ export function ResumeCard({ resume }: ResumeCardProps) {
 
         startTransition(async () => {
             try {
-                await renameResume(resume.id, newName);
+                requireSuccess(await safeRenameResume(resume.id, newName));
                 router.refresh();
             } catch (error) {
                 setErrorMessage(
@@ -98,7 +107,7 @@ export function ResumeCard({ resume }: ResumeCardProps) {
 
         startTransition(async () => {
             try {
-                await replaceResume(resume.id, formData);
+                requireSuccess(await safeReplaceResume(resume.id, formData));
                 router.refresh();
             } catch (error) {
                 setErrorMessage(
@@ -117,7 +126,7 @@ export function ResumeCard({ resume }: ResumeCardProps) {
 
         startTransition(async () => {
             try {
-                await deleteResume(resume.id);
+                requireSuccess(await safeDeleteResume(resume.id));
                 router.refresh();
             } catch (error) {
                 setErrorMessage(
@@ -150,7 +159,7 @@ export function ResumeCard({ resume }: ResumeCardProps) {
         startTransition(async () => {
             try {
                 // Generate the signed URL.
-                const url = await viewResume(resume.id);
+                const url = requireSuccess(await safeViewResume(resume.id));
 
                 // Navigate the already-open tab to the PDF.
                 if (!newTab.closed) {
@@ -266,7 +275,7 @@ export function ResumeCard({ resume }: ResumeCardProps) {
 
             {errorMessage && (
                 <p className="mt-2 text-sm text-red-600">
-                    {errorMessage}
+                    {errorMessage} {authDestination && <Link href={authDestination} className="underline">Continue</Link>}
                 </p>
             )}
         </div>

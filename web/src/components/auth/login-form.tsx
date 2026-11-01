@@ -76,7 +76,25 @@ export default function LoginForm({ initialRole = "job_seeker" }: { initialRole?
         return;
       }
 
-      // Step 2: Retrieve the user's actual account role.
+      // MFA must precede profile reads: profile RLS may deny AAL1 sessions.
+      const { data: aalData, error: aalError } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalError || !aalData) {
+        setFormError("Unable to verify your authentication requirements. Please try again.");
+        return;
+      }
+      const { currentLevel, nextLevel } = aalData;
+      if (currentLevel === "aal1" && nextLevel === "aal2") {
+        router.push("/auth/mfa");
+        return;
+      }
+      if (!((currentLevel === "aal1" && nextLevel === "aal1") ||
+            (currentLevel === "aal2" && nextLevel === "aal2"))) {
+        setFormError("Your authentication session could not be verified. Please sign in again.");
+        return;
+      }
+
+      // Retrieve the user's actual account role after assurance is confirmed.
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role")
@@ -104,40 +122,7 @@ export default function LoginForm({ initialRole = "job_seeker" }: { initialRole?
         return;
       }
 
-      // Step 3: Check whether MFA is required.
-      const {
-        data: aalData,
-        error: aalError,
-      } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-
-      if (aalError || !aalData) {
-        setFormError(
-          "Unable to verify your authentication requirements. Please try again."
-        );
-        return;
-      }
-
-      const { currentLevel, nextLevel } = aalData;
-
-      // Step 4: MFA is enrolled but not yet verified.
-      if (currentLevel === "aal1" && nextLevel === "aal2") {
-        router.push("/auth/mfa");
-        return;
-      }
-
-      // Step 5: No MFA required, or MFA already verified.
-      if (
-        (currentLevel === "aal1" && nextLevel === "aal1") ||
-        (currentLevel === "aal2" && nextLevel === "aal2")
-      ) {
-        router.push(getHomePathForRole(actualRole));
-        return;
-      }
-
-      // Step 6: Reject unknown or inconsistent session states.
-      setFormError(
-        "Your authentication session could not be verified. Please sign in again."
-      );
+      router.push(getHomePathForRole(actualRole));
     } catch {
       setFormError(
         "An unexpected error has occurred. Please try again."

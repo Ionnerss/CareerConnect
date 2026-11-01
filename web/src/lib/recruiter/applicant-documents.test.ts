@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}));
 
 const {
   mockGetUser,
+  mockAssurance,
   mockFrom,
   mockStorageFrom,
   mockSignedUrl,
@@ -12,6 +13,7 @@ const {
   calls,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
+  mockAssurance: vi.fn(),
   mockFrom: vi.fn(),
   mockStorageFrom: vi.fn(),
   mockSignedUrl: vi.fn(),
@@ -28,7 +30,7 @@ const {
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
+    auth: { getUser: mockGetUser, mfa: { getAuthenticatorAssuranceLevel: mockAssurance } },
     from: mockFrom,
     storage: { from: mockStorageFrom },
   })),
@@ -102,6 +104,7 @@ function allowOwnedApplication() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockAssurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null });
   calls.length = 0;
 
   for (const key of Object.keys(results)) {
@@ -121,6 +124,14 @@ beforeEach(() => {
 });
 
 describe("getApplicantDocumentUrl", () => {
+  it("does not issue signed URLs for an enrolled password-only session", async () => {
+    signedInAsRecruiter();
+    mockAssurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal2" }, error: null });
+    const result = await getApplicantDocumentUrl({ applicationId: APPLICATION, kind: "resume", mode: "view" });
+    expect(result).toMatchObject({ success: false });
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockStorageFrom).not.toHaveBeenCalled();
+  });
   it("rejects invalid input without database access", async () => {
     const result = await getApplicantDocumentUrl({
       applicationId: "invalid",

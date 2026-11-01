@@ -10,6 +10,7 @@ const userId = "fee295f1-dfe8-451e-b378-d07e355dc525";
 const projectId = "11111111-1111-4111-8111-111111111111";
 
 const mockGetUser = vi.fn();
+const mockAssurance = vi.fn();
 const mockFrom = vi.fn();
 const mockStorageFrom = vi.fn();
 const mockUpload = vi.fn();
@@ -91,6 +92,7 @@ beforeEach(() => {
         data: { user: { id: userId } },
         error: null,
     });
+    mockAssurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null });
 
     mockUpload.mockResolvedValue({
         data: { path: "uploaded" },
@@ -108,13 +110,20 @@ beforeEach(() => {
     });
 
     vi.mocked(createClient).mockResolvedValue({
-        auth: { getUser: mockGetUser },
+        auth: { getUser: mockGetUser, mfa: { getAuthenticatorAssuranceLevel: mockAssurance } },
         from: mockFrom,
         storage: { from: mockStorageFrom },
     } as never);
 });
 
 describe("uploadProjectImage", () => {
+    it("blocks password-only sessions before project lookup or upload", async () => {
+        mockAssurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal2" }, error: null });
+        const result = await uploadProjectImage({ projectId, file: jpegFile() });
+        expect(result).toMatchObject({ success: false, code: "MFA_REQUIRED" });
+        expect(mockFrom).not.toHaveBeenCalled();
+        expect(mockStorageFrom).not.toHaveBeenCalled();
+    });
     it("rejects invalid input before creating a Supabase client", async () => {
         const result = await uploadProjectImage({
             projectId,

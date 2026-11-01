@@ -5,6 +5,7 @@ import { submitApplication } from "./submit-application";
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   getUser: vi.fn(),
+  assurance: vi.fn(),
   from: vi.fn(),
 
   // Job query
@@ -40,6 +41,12 @@ const validInput = {
   resumeId: RESUME_ID,
 };
 
+it("blocks password-only enrolled sessions before any database query", async () => {
+  mocks.assurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal2" }, error: null });
+  expect(await submitApplication(validInput)).toEqual({ ok: false, reason: "mfa_required" });
+  expect(mocks.from).not.toHaveBeenCalled();
+});
+
 // Mock Supabase's chainable query builders.
 const jobQuery = {
   select: mocks.jobSelect,
@@ -66,6 +73,7 @@ beforeEach(() => {
   mocks.createClient.mockResolvedValue({
     auth: {
       getUser: mocks.getUser,
+      mfa: { getAuthenticatorAssuranceLevel: mocks.assurance },
     },
     from: mocks.from,
   });
@@ -77,6 +85,7 @@ beforeEach(() => {
     },
     error: null,
   });
+  mocks.assurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null });
 
   // Default: job exists and is open
   mocks.jobSelect.mockReturnValue(jobQuery);

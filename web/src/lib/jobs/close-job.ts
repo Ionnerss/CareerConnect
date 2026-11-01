@@ -1,6 +1,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { checkMfaForClient } from "@/lib/auth/require-mfa";
 
 export type CloseJobResult =
   | { success: true; jobId: string }
@@ -44,6 +45,9 @@ export async function closeJobPosting(
       error: CLOSE_JOB_ERRORS.signedOut,
     };
   }
+  const mfaError = await checkMfaForClient(supabase);
+  if (mfaError) return { success: false, error: mfaError === "MFA_REQUIRED"
+    ? "Complete two-factor authentication to continue." : "Unable to verify authentication security." };
 
   // Verify the user is a recruiter.
   const { data: profile, error: profileError } = await supabase

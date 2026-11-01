@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { checkMfaForClient } from "@/lib/auth/require-mfa";
 
 type UploadResult =
   | { ok: true }
@@ -10,6 +11,8 @@ type UploadResult =
       reason:
         | "invalid_file"
         | "signed_out"
+        | "mfa_required"
+        | "auth_unavailable"
         | "application_unavailable"
         | "already_attached"
         | "upload_failed";
@@ -45,6 +48,9 @@ export async function uploadApplicationCoverLetter(
   if (authError || !user) {
     return { ok: false, reason: "signed_out" };
   }
+
+  const mfaError = await checkMfaForClient(supabase);
+  if (mfaError) return { ok: false, reason: mfaError === "MFA_REQUIRED" ? "mfa_required" : "auth_unavailable" };
 
   const { data: application, error: lookupError } = await supabase
     .from("applications")
