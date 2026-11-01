@@ -401,7 +401,6 @@ async function run() {
     console.log(
       "Enter this test-only TOTP secret in your authenticator:"
     );
-    console.log(data.totp.secret);
 
     const code = await codePrompt("Recruiter");
 

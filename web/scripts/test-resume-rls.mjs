@@ -142,7 +142,6 @@ async function run() {
 
     // For a disposable test account only.
     console.log("Enter this key into your authenticator app:");
-    console.log(data.totp.secret);
 
     const code = await askCode();
 
