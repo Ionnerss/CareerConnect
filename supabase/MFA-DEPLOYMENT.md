@@ -21,25 +21,6 @@ Server checks supplement RLS; the RLS policy is the direct Supabase API boundary
 | Recruiter job mutations | recruiter actions | `job` INSERT/UPDATE/DELETE policies |
 | Image mutations | profile and project image routes/services | profile/project image tables and Storage write policies |
 
-## Deployment
-
-1. Review the current dashboard schema and policies against the branch; confirm the resume helper and policies already exist. Confirm TOTP MFA is enabled in Supabase Auth settings and the enrollment limits match the intended backup-factor count.
-2. Apply [`pending-mfa-policy.sql`](./pending-mfa-policy.sql) in the **Supabase dashboard SQL editor** in an isolated test environment first. Use a transaction and review for duplicate policy names; do not apply the same policy twice. Inspect the generated SQL with a teammate.
-3. Following [`how-to-migrate.md`](./how-to-migrate.md), run `supabase db pull` to record the actual remote changes on the branch. Do not use `db push`. The pending SQL script is review material, not a generated migration.
-4. Repeat in the intended environment after direct API checks. Review any live auth hooks, email confirmation and password-reset redirects; password reset must never remove factors. Auth configuration and hooks are not fully represented by repository files.
-
-## Direct acceptance evidence to record
-
-Use disposable job seeker and recruiter accounts. Record environment, branch commit, expected result and actual result. Do not record tokens, TOTP seeds, cookies or signed URLs.
-
-- No-MFA account: normal role-appropriate login and owned operations.
-- MFA account: enroll and verify, log out, password login, challenge; before verification, direct GET/POST to protected pages, actions, API routes, table REST endpoints and private Storage requests must fail. Invalid codes and modified browser state must not change this.
-- After verification, own data and authorized recruiter applicant data work; another user's records/files remain inaccessible.
-- Repeat with an old session from before enrollment, refreshed session, interrupted enrollment, a backup factor, removal of one factor and removal of the last factor. Test network failures and rate limits.
-- Try direct factor removal with an `aal1` session. Supabase must reject it. An existing `aal2` token can still call Supabase Auth's unenroll endpoint directly without the application's fresh-code UI; strict server-enforced recency requires an Auth-level control outside this frontend.
-
-The resume actions issue 60-second signed URLs. A previously issued URL can remain usable until expiry after logout or factor changes. Do not claim immediate revocation. Review other file URL issuers before release.
-
 ## Rollback
 
 In the dashboard, drop only the policies introduced by `pending-mfa-policy.sql` (the twelve account-data policies, three `job` policies, one cover-letter and three image policies). Then `db pull` the resulting remote schema and review the diff. Do not remove the existing resume helper or resume policies as part of this rollback. Rollback weakens protection for enrolled accounts; restrict access while coordinating it.
