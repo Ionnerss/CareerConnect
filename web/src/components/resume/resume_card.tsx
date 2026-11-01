@@ -132,11 +132,36 @@ export function ResumeCard({ resume }: ResumeCardProps) {
     async function handleViewResume() {
         setErrorMessage("");
 
+        // Open the tab immediately while the user click is active.
+        // This prevents Safari from blocking it after an async request.
+        const newTab = window.open("about:blank", "_blank");
+
+        if (!newTab) {
+            setErrorMessage(
+                "Pop-up blocked. Please allow pop-ups for this site."
+            );
+            return;
+        }
+
+        // Prevent the new tab from accessing the original window.
+        newTab.opener = null;
+        newTab.document.title = "Opening resume...";
+
         startTransition(async () => {
             try {
+                // Generate the signed URL.
                 const url = await viewResume(resume.id);
-                window.open(url, "_blank", "noopener,noreferrer");
+
+                // Navigate the already-open tab to the PDF.
+                if (!newTab.closed) {
+                    newTab.location.replace(url);
+                }
             } catch (error) {
+                // Close the empty tab if something goes wrong.
+                if (!newTab.closed) {
+                    newTab.close();
+                }
+
                 setErrorMessage(
                     error instanceof Error
                         ? error.message

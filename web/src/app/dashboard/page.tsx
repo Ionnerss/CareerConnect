@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import {
   getUserApplications,
   type ApplicationCardData,
@@ -22,6 +21,7 @@ import {
   DashboardProfileCard,
   DashboardShortcuts,
 } from "@/components/dashboard/dashboard-sidebar";
+import { requireMfaForPage } from "@/lib/auth/require-mfa";
 
 // The new look (font + navy/blue colours) is scoped to this page only.
 const jakarta = Plus_Jakarta_Sans({
@@ -36,11 +36,7 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const { user } = await requireMfaForPage();
   if (!user) {
     redirect("/auth/login");
   }

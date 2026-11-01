@@ -1,20 +1,9 @@
 "use server";
-import { createClient } from "@/lib/supabase/server";
+
+import { requireMfaForAction } from "@/lib/auth/require-mfa";
 
 export async function archiveResume(resumeId: string) {
-
-    const supabase = await createClient();
-
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) throw userError;
-    if (!user) throw new Error("You must be logged in.");
-
-    console.log("Logged-in user:", user.id);
-    console.log("Resume ID to archive:", resumeId);
+    const { supabase, user } = await requireMfaForAction();
 
     const { data, error } = await supabase
         .from("resumes")
@@ -26,19 +15,13 @@ export async function archiveResume(resumeId: string) {
         .maybeSingle();
 
     if (error) throw error;
-    if (!data) throw new Error("Resume not found or already archived.");
+    if (!data) {
+        throw new Error("Resume not found or already archived.");
+    }
 }
 
 export async function unarchiveResume(resumeId: string) {
-    const supabase = await createClient();
-
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) throw userError;
-    if (!user) throw new Error("You must be logged in.");
+    const { supabase, user } = await requireMfaForAction();
 
     const { data, error } = await supabase
         .from("resumes")
@@ -50,20 +33,13 @@ export async function unarchiveResume(resumeId: string) {
         .maybeSingle();
 
     if (error) throw error;
-    if (!data) throw new Error("Resume not found or not archived.");
+    if (!data) {
+        throw new Error("Resume not found or not archived.");
+    }
 }
 
-
 export async function downloadResume(resumeId: string) {
-    const supabase = await createClient();
-
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) throw userError;
-    if (!user) throw new Error("You must be logged in.");
+    const { supabase, user } = await requireMfaForAction();
 
     const { data: resume, error } = await supabase
         .from("resumes")
@@ -85,17 +61,8 @@ export async function downloadResume(resumeId: string) {
     return data.signedUrl;
 }
 
-
 export async function viewResume(resumeId: string) {
-    const supabase = await createClient();
-
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) throw userError;
-    if (!user) throw new Error("You must be logged in.");
+    const { supabase, user } = await requireMfaForAction();
 
     const { data: resume, error } = await supabase
         .from("resumes")
@@ -115,21 +82,21 @@ export async function viewResume(resumeId: string) {
     return data.signedUrl;
 }
 
-export async function renameResume(resumeId: string, newName: string) {
-    const supabase = await createClient();
+export async function renameResume(
+    resumeId: string,
+    newName: string
+) {
+    const { supabase, user } = await requireMfaForAction();
 
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) throw userError;
-    if (!user) throw new Error("You must be logged in.");
-
-    const baseName = newName.trim().replace(/\.pdf$/i, "").trim();
+    const baseName = newName
+        .trim()
+        .replace(/\.pdf$/i, "")
+        .trim();
 
     if (!baseName || baseName.length > 100) {
-        throw new Error("Enter a filename between 1 and 100 characters.");
+        throw new Error(
+            "Enter a filename between 1 and 100 characters."
+        );
     }
 
     const { data, error } = await supabase
@@ -144,13 +111,11 @@ export async function renameResume(resumeId: string, newName: string) {
     if (!data) throw new Error("Resume not found.");
 }
 
-export async function replaceResume(resumeId: string, formData: FormData) {
-    const supabase = await createClient();
-    const { data: { user },
-        error: userError } = await supabase.auth.getUser();
-
-    if (userError) throw userError;
-    if (!user) throw new Error("You must be logged in.");
+export async function replaceResume(
+    resumeId: string,
+    formData: FormData
+) {
+    const { supabase, user } = await requireMfaForAction();
 
     const file = formData.get("file");
 
@@ -158,7 +123,10 @@ export async function replaceResume(resumeId: string, formData: FormData) {
         throw new Error("Select a PDF file.");
     }
 
-    if (file.type !== "application/pdf" || !file.name.toLowerCase().endsWith(".pdf")) {
+    if (
+        file.type !== "application/pdf" ||
+        !file.name.toLowerCase().endsWith(".pdf")
+    ) {
         throw new Error("Only PDF files are allowed.");
     }
 
@@ -197,11 +165,7 @@ export async function replaceResume(resumeId: string, formData: FormData) {
 }
 
 export async function deleteResume(resumeId: string) {
-    const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError) throw userError;
-    if (!user) throw new Error("You must be logged in.");
+    const { supabase, user } = await requireMfaForAction();
 
     const { data: resume, error } = await supabase
         .from("resumes")

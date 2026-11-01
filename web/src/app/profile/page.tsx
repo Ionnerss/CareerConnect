@@ -31,6 +31,7 @@ import {
 import DashboardHeader from "@/components/dashboard/dashboard-header";
 import { DashboardShortcuts } from "@/components/dashboard/dashboard-sidebar";
 import { getInitials } from "@/lib/profiles/profile-image-url";
+import { requireMfaForPage } from "@/lib/auth/require-mfa";
 
 // Same font and colours as the dashboard so the two pages feel like one app.
 const jakarta = Plus_Jakarta_Sans({
@@ -86,6 +87,7 @@ function ProfileShell({ initials, children }: { initials: string; children: Reac
 }
 
 export default async function ProfilePage() {
+  await requireMfaForPage();
   const result = await getCurrentProfile();
 
   if (!("profile" in result) || !result.profile) {

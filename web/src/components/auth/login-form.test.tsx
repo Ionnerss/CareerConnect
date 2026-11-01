@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   signOut: vi.fn(),
   maybeSingle: vi.fn(),
   push: vi.fn(),
+  getAal: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/client", () => ({ createClient: mocks.createClient }));
@@ -23,12 +24,23 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.getAal.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1", }, error: null });
   mocks.signIn.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
   mocks.signOut.mockResolvedValue({ error: null });
   mocks.createClient.mockReturnValue({
-    auth: { signInWithPassword: mocks.signIn, signOut: mocks.signOut },
+    auth: {
+      signInWithPassword: mocks.signIn,
+      signOut: mocks.signOut,
+      mfa: {
+        getAuthenticatorAssuranceLevel: mocks.getAal,
+      },
+    },
     from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: mocks.maybeSingle }) }),
+      select: () => ({
+        eq: () => ({
+          maybeSingle: mocks.maybeSingle,
+        }),
+      }),
     }),
   });
 });
@@ -150,3 +162,117 @@ describe("login role switch", () => {
     expect(screen.getByText(/Use your Concordia email/)).toBeTruthy();
   });
 });
+
+describe("MFA login redirects", () => {
+  it("redirects a job seeker requiring MFA to the challenge page", async () => {
+    mocks.getAal.mockResolvedValue({
+      data: {
+        currentLevel: "aal1",
+        nextLevel: "aal2",
+      },
+      error: null,
+    });
+
+    await logIn("job_seeker", "job_seeker");
+
+    await waitFor(() => {
+      expect(mocks.push).toHaveBeenCalledWith("/auth/mfa");
+    });
+
+    expect(mocks.push).not.toHaveBeenCalledWith("/dashboard");
+    expect(mocks.getAal).toHaveBeenCalledOnce();
+  });
+
+  it("redirects a recruiter requiring MFA to the challenge page", async () => {
+    mocks.getAal.mockResolvedValue({
+      data: {
+        currentLevel: "aal1",
+        nextLevel: "aal2",
+      },
+      error: null,
+    });
+
+    await logIn("recruiter", "recruiter");
+
+    await waitFor(() => {
+      expect(mocks.push).toHaveBeenCalledWith("/auth/mfa");
+    });
+
+    expect(mocks.push).not.toHaveBeenCalledWith("/recruiter/jobs");
+  });
+
+  it("allows a user whose MFA is already verified", async () => {
+    mocks.getAal.mockResolvedValue({
+      data: {
+        currentLevel: "aal2",
+        nextLevel: "aal2",
+      },
+      error: null,
+    });
+
+    await logIn("job_seeker", "job_seeker");
+
+    await waitFor(() => {
+      expect(mocks.push).toHaveBeenCalledWith("/dashboard");
+    });
+  });
+
+  it("does not redirect when the MFA status request fails", async () => {
+    mocks.getAal.mockResolvedValue({
+      data: null,
+      error: new Error("MFA service unavailable"),
+    });
+
+    await logIn("job_seeker", "job_seeker");
+
+    expect(
+      await screen.findByText(/Unable to verify your authentication requirements/i)
+    ).toBeTruthy();
+
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("rejects an inconsistent MFA session", async () => {
+    mocks.getAal.mockResolvedValue({
+      data: {
+        currentLevel: "aal2",
+        nextLevel: "aal1",
+      },
+      error: null,
+    });
+
+    await logIn("job_seeker", "job_seeker");
+
+    expect(
+      await screen.findByText(/authentication session could not be verified/i)
+    ).toBeTruthy();
+
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing MFA assurance data", async () => {
+    mocks.getAal.mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    await logIn("job_seeker", "job_seeker");
+
+    expect(
+      await screen.findByText(/Unable to verify your authentication requirements/i)
+    ).toBeTruthy();
+
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("does not check MFA after rejecting a recruiter-role mismatch", async () => {
+    await logIn("recruiter", "job_seeker");
+
+    await screen.findByRole("alert");
+
+    expect(mocks.signOut).toHaveBeenCalledOnce();
+    expect(mocks.getAal).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+});
+

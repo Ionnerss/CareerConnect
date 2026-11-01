@@ -1,5 +1,5 @@
 // This is the file to handle logic for Application Status Page and dashboard application status information
-import { createClient } from "@/lib/supabase/server";
+import { requireMfaForAction } from "@/lib/auth/require-mfa";
 
 export type ApplicationStatusCount = {
     total: number,
@@ -23,14 +23,7 @@ export type ApplicationCardData = {
 
 
 export async function getUserApplications(): Promise<ApplicationCardData[]> {
-    const supabase = await createClient();
-
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError) throw userError;
+    const { supabase, user } = await requireMfaForAction();
     if (!user) return [];
 
     const { data: applications, error: applicationsError } = await supabase

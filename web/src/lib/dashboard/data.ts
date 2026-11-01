@@ -1,6 +1,6 @@
 // Loads the extra numbers the dashboard needs (name, resume count).
 // Applications come from getUserApplications() so the dashboard and the status page stay in sync.
-import { createClient } from "@/lib/supabase/server";
+import { requireMfaForAction } from "../auth/require-mfa";
 
 export type DashboardProfileSummary = {
   fullName: string | null;
@@ -15,7 +15,11 @@ export type DashboardProfileSummary = {
 export async function getDashboardProfileSummary(
   userId: string
 ): Promise<DashboardProfileSummary> {
-  const supabase = await createClient();
+  const { supabase, user } = await requireMfaForAction();
+
+  if (user.id !== userId) {
+    throw new Error("Unauthorized profile access.");
+  }
 
   const [profileResult, resumeResult] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
