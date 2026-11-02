@@ -6,7 +6,7 @@ import { ApplicationFilters } from "@/components/job-applications/ApplicationFil
 import ApplicationList from "@/components/job-applications/ApplicationList";
 import type { ApplicationCardData } from "@/lib/application_status/application_status_logic";
 import { PageBody, PageHero } from "@/components/app/page-hero";
-
+import ApplicationStatusRealtime from "@/lib/application_status/change-status-real-time";
 
 type applicationProps = {
     applications: ApplicationCardData[];
@@ -56,6 +56,7 @@ export default function ApplicationStatusClient({ applications }: applicationPro
 
     return (
         <main>
+            <ApplicationStatusRealtime />
             <PageHero
                 label="Applications"
                 title="Your applications"
