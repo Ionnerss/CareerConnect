@@ -1,0 +1,263 @@
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+PROMPT: alright then lets get back to work. Let's start working on user story #50 (issue #50) for CareerConnect. 
+Give me a step by step plan on how we're gonna tackle this section. I'll make a new branch and we can get started
+
+START MFA: https://chatgpt.com/s/t_6ae61d23eff48191ad517f577a3bdcc2 
+# CareerConnect — Issue #50: Two-Factor Authentication
+
+Open · Future Enhancement
+
+User Story #11 · Issue #50
+
+I reviewed [GitHub issue #50](https://github.com/Ionnerss/CareerConnect/issues/50?utm_source=chatgpt.com), the current `dev` branch (`231ff2c`), and Supabase's MFA documentation.
+
+The feature has not been implemented yet. CareerConnect currently supports email/password authentication, but it has no authenticator-app enrollment, verification challenge, or MFA-aware authorization.
+
+The user story states:
+
+> As a user, I want to enable two-factor authentication using an authenticator app so that someone who obtains my password cannot access my protected account data without the second factor.
+
+One important distinction: adding a six-digit code screen is not sufficient security. Supabase can issue a valid `aal1` session immediately after password authentication. We must also prevent that session from accessing protected account data when the user has enabled MFA.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://supabase.com\&sz=32)
+
+Supabase Docs
+
+
+
+## 1. Architecture we'll use
+
+I recommend implementing optional authenticator-app MFA for both job seekers and recruiters, using Supabase Auth's built-in TOTP functionality.
+
+Account login flow
+
+Email + Password
+
+Supabase verifies credentials
+
+Check MFA assurance level
+
+Is a verified second factor required?
+
+MFA not enabled
+
+Continue
+
+MFA enabled
+
+Verify TOTP
+
+Authorized application access
+
+With the appropriate assurance level
+
+Supabase already manages TOTP secrets, factor enrollment, verification, and authentication assurance levels. We should not build our own OTP algorithm or database table for storing authentication secrets.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://supabase.com\&sz=32)
+
+Supabase Docs+1
+
+
+
+## 2. Step-by-step implementation plan
+
+Step 1 — Prepare the branch and authentication architecture
+
+Create the feature branch from the latest `dev`. Confirm the existing login, logout, routing, session refresh, and Supabase configuration.
+
+Deliverable: a documented MFA flow with clear boundaries and no unnecessary changes to existing authentication.
+
+Step 2 — Implement authenticator enrollment
+
+Add a shared Account Security page where either account type can enable 2FA.
+
+Users will scan the QR code using an authenticator app, or manually enter the setup secret, and then confirm a six-digit TOTP code.
+
+A factor must not be treated as enabled until verification succeeds.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://supabase.com\&sz=32)
+
+Supabase Docs
+
+
+
+Proposed route: `web/src/app/account/security/`.
+
+Step 3 — Integrate MFA into login
+
+Modify the existing login flow to detect when a verified second factor is required.
+
+If the session is at `aal1` and the next level is `aal2`, redirect to an MFA verification page instead of the dashboard.
+
+After successful verification, restore the appropriate job-seeker or recruiter destination.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://supabase.com\&sz=32)
+
+Supabase Docs+1
+
+
+
+Proposed route: `web/src/app/auth/mfa/`.
+
+Step 4 — Enforce MFA on protected data
+
+This is the critical security step.
+
+We need to protect account pages, server actions, API endpoints, and database reads and writes for accounts with MFA enabled.
+
+I recommend a reusable server-side assurance check and carefully scoped restrictive RLS policies. Existing users without MFA must continue working normally.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://supabase.com\&sz=32)
+
+Supabase Docs
+
+
+
+We will inspect the existing RLS policies before writing any migration.
+
+Step 5 — Factor management and recovery
+
+Allow users to view their MFA status, enroll an additional authenticator, and disable an existing factor after reauthentication.
+
+Supabase currently does not support built-in MFA recovery codes. We should support a backup authenticator factor and document an account-recovery procedure before release.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://supabase.com\&sz=32)
+
+Supabase Docs+1
+
+
+
+Step 6 — Testing and verification
+
+Test enrollment, successful verification, incorrect codes, expired challenges, interrupted sessions, factor removal, and normal password-only login.
+
+Crucially, use a real Supabase account to verify that a password-only session cannot read protected account data after MFA enrollment.
+
+Run the full CI pipeline and add focused unit and component tests.
+
+## 3. Repository files affected
+
+These are the files I identified as likely touchpoints, not a finalized modification list.
+
+| File                                     | Planned work                                             |
+| ---------------------------------------- | -------------------------------------------------------- |
+| `web/src/components/auth/login-form.tsx` | Detect pending MFA verification                          |
+| `web/src/lib/supabase/middleware.ts`     | Extend route enforcement without creating redirect loops |
+| `web/src/components/app/role-gate.tsx`   | Coordinate role checks with MFA assurance                |
+| `web/src/lib/supabase/server.ts`         | Reuse current authenticated Supabase client              |
+| `web/src/app/auth/mfa/`                  | New verification page                                    |
+| `web/src/app/account/security/`          | New enrollment and management page                       |
+| `web/src/lib/auth/`                      | Shared MFA logic and tests                               |
+| `supabase/migrations/`                   | Authorization policies, if required                      |
+
+There is also an existing recruiter account page and a separate job-seeker profile page. I recommend linking both to the same security-settings feature rather than implementing 2FA twice.
+
+One issue I noticed during inspection: the current middleware's protected-route list does not include the recruiter route prefix, although recruiter pages have an additional authentication layer through `AppShell`. We'll need consistent MFA enforcement across both flows.
+
+## 4. What successful implementation looks like
+
+| Scenario                                                     | Expected behavior              |
+| ------------------------------------------------------------ | ------------------------------ |
+| User without MFA logs in                                     | Normal login                   |
+| User enables MFA                                             | QR setup and code verification |
+| MFA-enabled user enters correct password                     | Second factor required         |
+| User enters correct authenticator code                       | Access granted                 |
+| User enters incorrect code                                   | Access denied, retry allowed   |
+| User directly opens a protected URL before MFA               | Redirect to verification       |
+| User directly queries protected data using an `aal1` session | Request denied                 |
+| User disables MFA after required verification                | Normal login restored          |
+
+The direct-data-access test is especially important. A frontend redirect alone would not satisfy the user story's security objective.
+
+## 5. Let's create the branch
+
+Recommended branch
+
+`feature/totp-two-factor-auth-50`
+
+&#x20;Copy
+
+From your CareerConnect repository root, ensure your working tree is clean, then run:
+
+```
+git status --short
+git switch dev
+git pull --ff-only origin dev
+git switch -c feature/totp-two-factor-auth-50
+```
+
+The first actual implementation task will be checking the Supabase MFA configuration and building the shared assurance-level check, before touching the login UI. That gives us a dependable foundation for the rest of the feature.
+
+Scope decision: Because #50 is currently labeled Future Enhancement and its description does not specify mandatory enrollment, we'll implement opt-in TOTP for both roles. We will not force all existing CareerConnect accounts to enable 2FA.
+
+### Sources consulted
+
+- [CareerConnect issue #50](https://github.com/Ionnerss/CareerConnect/issues/50?utm_source=chatgpt.com)
+- CareerConnect `dev` branch (`231ff2c`): login, signup, middleware, role gates, account pages, existing tests, and migration workflow
+- [Supabase MFA overview](https://supabase.com/docs/guides/auth/auth-mfa?utm_source=chatgpt.com)
+- [Supabase TOTP authentication](https://supabase.com/docs/guides/auth/auth-mfa/totp?utm_source=chatgpt.com)
+- [Supabase JavaScript MFA API](https://supabase.com/docs/reference/javascript/auth-mfa?utm_source=chatgpt.com)
+
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+PROMPT: alright, made the branch, what's the first thing we gotta do, guide me through it
+
+CONFIGURING SUPABASE FOR MFA: https://chatgpt.com/s/t_6ae61d3d776081919994b06c6c45ecc0 
+
+## Step 1 — Configure Supabase for two-factor authentication
+
+Before modifying the login page, we need to make sure Supabase can enroll and verify authenticator-app codes.
+
+I checked CareerConnect's `dev` configuration and found something important.
+
+Local TOTP authentication is currently disabled.
+
+In `supabase/config.toml`, the settings are:
+
+```
+[auth.mfa.totp]
+enroll_enabled = false
+verify_enabled = false
+```
+
+These settings control your local Supabase environment, not necessarily the hosted project your application currently uses.
+
+Supabase's hosted projects support TOTP MFA by default, but the feature can be controlled through authentication settings.&#x20;
+
+[image](https://www.google.com/s2/favicons?domain=https://supabase.com\&sz=32)
+
+Supabase Docs+1
+
+
+
+### Your first task
+
+Open `supabase/config.toml` on your new branch.
+
+Find the `[auth.mfa.totp]` section, near line 303, and change both settings to `true`.
+
+Do not change the phone MFA settings. We're implementing authenticator-app codes, not SMS authentication.
+
+Once you've made that change, don't commit yet. We'll verify the hosted configuration next.
+
+Expected result: Both local TOTP settings are enabled. No application code or database migrations are needed for this step.
+
+When you've changed them, tell me done. We'll then check the hosted Supabase project and move on to the authentication assurance-level logic.
+
+### Sources consulted
+
+- CareerConnect `dev`: `supabase/config.toml`, `web/src/lib/supabase/client.ts`
+- [Supabase TOTP MFA documentation](https://supabase.com/docs/guides/auth/auth-mfa/totp?utm_source=chatgpt.com)
+- [Supabase MFA configuration reference](https://supabase.com/docs/guides/local-development/cli/config?utm_source=chatgpt.com)

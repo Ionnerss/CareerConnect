@@ -26,6 +26,7 @@ const image = {
 };
 
 const mockGetUser = vi.fn();
+const mockAssurance = vi.fn();
 const mockFrom = vi.fn();
 const mockStorageFrom = vi.fn();
 const mockRemove = vi.fn();
@@ -91,6 +92,7 @@ beforeEach(() => {
         data: { user: { id: userId } },
         error: null,
     });
+    mockAssurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null });
 
     mockRemove.mockResolvedValue({
         data: [],
@@ -102,7 +104,7 @@ beforeEach(() => {
     });
 
     vi.mocked(createClient).mockResolvedValue({
-        auth: { getUser: mockGetUser },
+        auth: { getUser: mockGetUser, mfa: { getAuthenticatorAssuranceLevel: mockAssurance } },
         from: mockFrom,
         storage: { from: mockStorageFrom },
     } as never);

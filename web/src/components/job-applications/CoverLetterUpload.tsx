@@ -34,6 +34,8 @@ export default function CoverLetterUpload({
             ? "Choose a PDF smaller than 5 MB."
             : result.reason === "signed_out"
               ? "Please sign in and try again."
+              : result.reason === "mfa_required"
+                ? "Complete two-factor authentication at /auth/mfa, then retry."
               : "Could not attach the cover letter. You can retry here later."
         );
       }

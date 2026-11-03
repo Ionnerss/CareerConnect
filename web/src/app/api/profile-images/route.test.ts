@@ -123,6 +123,8 @@ describe("POST /api/profile-images", () => {
         { code: "PROFILE_CONFLICT", status: 409 },
         { code: "BACKEND_ERROR", status: 500 },
         { code: "OUTCOME_UNCERTAIN", status: 503 },
+        { code: "MFA_REQUIRED", status: 403 },
+        { code: "AUTH_UNAVAILABLE", status: 503 },
     ];
 
     it.each(failureCases)(

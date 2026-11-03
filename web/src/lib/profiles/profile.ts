@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { profileSchema } from "../validations/profile";
+import { checkMfaForClient } from "@/lib/auth/require-mfa";
 
 export async function getCurrentProfile() {
     const supabase = await createClient();
@@ -12,6 +13,10 @@ export async function getCurrentProfile() {
             error: "Unable to authenticate. Please sign in again."
         };
     }
+
+    const mfaError = await checkMfaForClient(supabase);
+    if (mfaError) return { success: false, code: mfaError,
+        error: "Complete two-factor authentication or sign in again." };
 
     const { data: profile, error: profileError } = await supabase
     .from("profiles")
@@ -57,6 +62,10 @@ export async function updateCurrentProfile(input: unknown) {
             error: "Unable to authenticate. Please sign in again."
         };
     }
+
+    const mfaError = await checkMfaForClient(supabase);
+    if (mfaError) return { success: false, code: mfaError,
+        error: "Complete two-factor authentication or sign in again." };
 
     const { data: profile, error: profileError } = await supabase
     .from("profiles")

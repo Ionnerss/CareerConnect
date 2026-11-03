@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { getDashboardProfileSummary } from "@/lib/dashboard/data";
 import { getInitials } from "@/lib/dashboard/summary";
 import { PageBody, PageHero } from "@/components/app/page-hero";
+import { requireMfaForPage } from "@/lib/auth/require-mfa";
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -14,10 +14,7 @@ export const metadata: Metadata = {
 
 /** Recruiter account page: who you are signed in as. Recruiters have no resume, skills or experience. */
 export default async function RecruiterAccountPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await requireMfaForPage();
 
   if (!user) {
     redirect("/auth/login?as=recruiter");

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { uploadProfileImage } from "./profile-images";
+import { MfaActionError } from "@/lib/auth/require-mfa";
 
 const mocks = vi.hoisted(() => ({
     createClient: vi.fn(),
@@ -13,10 +14,26 @@ const mocks = vi.hoisted(() => ({
     maybeSingle: vi.fn(),
     upload: vi.fn(),
     remove: vi.fn(),
+    requireMfaForAction: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
     createClient: mocks.createClient,
+}));
+
+
+vi.mock("@/lib/auth/require-mfa", () => ({
+  requireMfaForAction: mocks.requireMfaForAction,
+
+  MfaActionError: class MfaActionError extends Error {
+    constructor(
+      public readonly code: string,
+      message: string
+    ) {
+      super(message);
+      this.name = "MfaActionError";
+    }
+  },
 }));
 
 type ImagePaths = {
@@ -111,6 +128,27 @@ describe("uploadProfileImage", () => {
             auth: { getUser: mocks.getUser },
             from: mocks.profileFrom,
             storage: { from: mocks.storageFrom },
+        });
+
+        mocks.requireMfaForAction.mockImplementation(async () => {
+            const supabase = await mocks.createClient();
+
+            const {
+                data: { user },
+                error,
+            } = await supabase.auth.getUser();
+
+            if (error || !user) {
+                throw new MfaActionError(
+                "UNAUTHENTICATED",
+                "Authentication required."
+                );
+            }
+
+            return {
+                supabase,
+                user,
+            };
         });
 
         mocks.upload.mockResolvedValue({
@@ -790,4 +828,50 @@ describe("uploadProfileImage", () => {
             });
         },
     );
+
+    it("blocks upload when MFA is incomplete", async () => {
+        mocks.requireMfaForAction.mockRejectedValueOnce(
+            new MfaActionError(
+            "MFA_REQUIRED",
+            "Complete two-factor authentication to continue."
+            )
+        );
+
+        const result = await uploadProfileImage({
+            kind: "avatar",
+            file: jpegFile(),
+        });
+
+        expect(result).toEqual({
+            success: false,
+            code: "MFA_REQUIRED",
+            error:
+            "Complete two-factor authentication to continue.",
+        });
+
+        expect(mocks.profileFrom).not.toHaveBeenCalled();
+        expect(mocks.storageFrom).not.toHaveBeenCalled();
+        expect(mocks.upload).not.toHaveBeenCalled();
+    });
+
+    it("fails closed when MFA verification is unavailable", async () => {
+        mocks.requireMfaForAction.mockRejectedValueOnce(
+            new Error("Authentication service unavailable")
+        );
+
+        const result = await uploadProfileImage({
+            kind: "avatar",
+            file: jpegFile(),
+        });
+
+        expect(result).toEqual({
+            success: false,
+            code: "AUTH_UNAVAILABLE",
+            error:
+            "Unable to verify your authentication security level.",
+        });
+
+        expect(mocks.profileFrom).not.toHaveBeenCalled();
+        expect(mocks.storageFrom).not.toHaveBeenCalled();
+    });
 });

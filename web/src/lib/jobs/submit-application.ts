@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { createClient } from "../supabase/server";// Match your existing server-client import.
+import { checkMfaForClient } from "@/lib/auth/require-mfa";
 
 const submissionSchema = z.object({
   jobId: z.string().uuid(),
@@ -14,6 +15,8 @@ type SubmitResult =
       reason:
         | "invalid_input"
         | "signed_out"
+        | "mfa_required"
+        | "auth_unavailable"
         | "job_unavailable"
         | "resume_unavailable"
         | "already_applied"
@@ -30,6 +33,9 @@ export async function submitApplication(input: unknown): Promise<SubmitResult> {
   if (authError || !authData.user) {
     return { ok: false, reason: "signed_out" };
   }
+
+  const mfaError = await checkMfaForClient(supabase);
+  if (mfaError) return { ok: false, reason: mfaError === "MFA_REQUIRED" ? "mfa_required" : "auth_unavailable" };
 
   const { jobId, resumeId } = parsed.data;
 

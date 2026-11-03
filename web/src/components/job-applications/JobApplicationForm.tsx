@@ -103,6 +103,10 @@ function submissionError(reason: string): string {
       return "You have already applied for this job.";
     case "signed_out":
       return "Your session expired. Please sign in again.";
+    case "mfa_required":
+      return "Complete two-factor authentication at /auth/mfa, then retry.";
+    case "auth_unavailable":
+      return "Unable to verify your session. Please retry later.";
     case "job_unavailable":
       return "This job is no longer accepting applications.";
     case "resume_unavailable":

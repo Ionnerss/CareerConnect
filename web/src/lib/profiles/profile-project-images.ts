@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { profileProjectImageSchema } from "@/lib/validations/profile-project-image";
+import { checkMfaForClient } from "@/lib/auth/require-mfa";
 
 const BUCKET = "project-images";
 
@@ -35,6 +36,10 @@ export async function uploadProjectImage(input: unknown) {
             error: "Unable to authenticate. Please sign in again.",
         };
     }
+
+    const mfaError = await checkMfaForClient(supabase);
+    if (mfaError) return { success: false, code: mfaError,
+        error: mfaError === "MFA_REQUIRED" ? "Complete two-factor authentication to continue." : "Unable to verify authentication security." };
 
     const { projectId, file, alt_text } = parsed.data;
 
@@ -244,6 +249,10 @@ export async function getCurrentProjectImages(projectId: string) {
         };
     }
 
+    const mfaError = await checkMfaForClient(supabase);
+    if (mfaError) return { success: false, code: mfaError,
+        error: mfaError === "MFA_REQUIRED" ? "Complete two-factor authentication to continue." : "Unable to verify authentication security." };
+
     const { data: project, error: projectError } = await supabase
         .from("profile_projects")
         .select("id")
@@ -306,6 +315,10 @@ export async function deleteProjectImage(imageId: string) {
             error: "Unable to authenticate. Please sign in again.",
         };
     }
+
+    const mfaError = await checkMfaForClient(supabase);
+    if (mfaError) return { success: false, code: mfaError,
+        error: mfaError === "MFA_REQUIRED" ? "Complete two-factor authentication to continue." : "Unable to verify authentication security." };
 
     const { data: existingImage, error: imageError } = await supabase
         .from("profile_project_images")
@@ -454,6 +467,10 @@ export async function getProjectImageUrl(imageId: string) {
             error: "Unable to authenticate. Please sign in again.",
         };
     }
+
+    const mfaError = await checkMfaForClient(supabase);
+    if (mfaError) return { success: false, code: mfaError,
+        error: mfaError === "MFA_REQUIRED" ? "Complete two-factor authentication to continue." : "Unable to verify authentication security." };
 
     // RLS determines whether this user can see the image row.
     const { data: image, error: imageError } = await supabase
