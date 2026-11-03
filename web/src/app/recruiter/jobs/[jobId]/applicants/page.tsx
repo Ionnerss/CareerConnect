@@ -9,6 +9,9 @@ import {
 } from "@/lib/recruiter/applicants";
 import { getJobRequirements } from "@/lib/recruiter/candidate-comparison-service";
 import { ApplicantDocuments } from "@/components/recruiter/applicant-documents";
+import ApplicantStatusSelect from "@/components/recruiter/select-applicant-status";
+import type { ApplicationStatus } from "./actions";
+
 
 type ApplicantsPageProps = {
   params: Promise<{ jobId: string }>;
@@ -114,9 +117,11 @@ export default async function JobApplicantsPage({
                           {dateFormatter.format(new Date(applicant.applied_at))}
                         </td>
                         <td className="px-4 py-3">
-                          <span className="rounded-full bg-[#E8EEFD] px-2.5 py-1 text-xs font-bold text-[#1D4ED8]">
-                            {formatApplicationStatus(applicant.status)}
-                          </span>
+                          <ApplicantStatusSelect
+                            applicationId={applicant.application_id}
+                            jobId={jobId}
+                            initialStatus={applicant.status as ApplicationStatus}
+                          />
                         </td>
                         <td className="px-4 py-3">
                           {applicant.skill_match ? (
