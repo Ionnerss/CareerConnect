@@ -1,4 +1,3 @@
-
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline/promises";
@@ -24,7 +23,7 @@ const OTHER = "mfa-unrelated-test";
 assert.ok(
   URL?.startsWith("https://") &&
     !URL.includes("supabase.com/dashboard"),
-  "Use your test project's API URL."
+  "Use your isolated test project's API URL."
 );
 
 assert.ok(
@@ -70,7 +69,7 @@ async function aal(supabase) {
     await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
   if (error || !data) {
-    throw error ?? new Error("No AAL data.");
+    throw error ?? new Error("Unable to determine MFA level.");
   }
 
   return data;
@@ -80,15 +79,17 @@ async function verifyTotp(supabase) {
   const { data, error } =
     await supabase.auth.mfa.listFactors();
 
-  if (error) throw error;
+  if (error || !data) {
+    throw error ?? new Error("Unable to list MFA factors.");
+  }
 
   const factor = data.totp.find(
-    (f) => f.status === "verified"
+    (item) => item.status === "verified"
   );
 
   assert.ok(
     factor,
-    "User A needs verified TOTP in the test project."
+    "User A needs a verified TOTP factor."
   );
 
   const rl = createInterface({
@@ -100,13 +101,13 @@ async function verifyTotp(supabase) {
 
   try {
     code = (
-      await rl.question("Enter test User A TOTP code: ")
+      await rl.question("Enter User A's current TOTP code: ")
     ).trim();
   } finally {
     rl.close();
   }
 
-  assert.match(code, /^\d{6}$/);
+  assert.match(code, /^\d{6}$/, "Enter a six-digit code.");
 
   const { error: verifyError } =
     await supabase.auth.mfa.challengeAndVerify({
@@ -116,15 +117,10 @@ async function verifyTotp(supabase) {
 
   if (verifyError) throw verifyError;
 
-  assert.equal(
-    (await aal(supabase)).currentLevel,
-    "aal2"
-  );
-
-  console.log("PASS: User A reached AAL2");
+  assert.equal((await aal(supabase)).currentLevel, "aal2");
+  pass("User A reached AAL2");
 }
 
-// Create disposable PDFs with distinct content.
 function pdf(marker) {
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
@@ -136,12 +132,12 @@ function pdf(marker) {
   let result = `%PDF-1.4\n% ${marker}\n`;
   const offsets = [0];
 
-  objects.forEach((obj, i) => {
+  objects.forEach((object, index) => {
     offsets.push(Buffer.byteLength(result));
-    result += `${i + 1} 0 obj\n${obj}\nendobj\n`;
+    result += `${index + 1} 0 obj\n${object}\nendobj\n`;
   });
 
-  const start = Buffer.byteLength(result);
+  const xrefStart = Buffer.byteLength(result);
 
   result += `xref\n0 ${objects.length + 1}\n`;
   result += "0000000000 65535 f \n";
@@ -153,46 +149,47 @@ function pdf(marker) {
 
   result +=
     `trailer\n<< /Size ${objects.length + 1} ` +
-    `/Root 1 0 R >>\nstartxref\n${start}\n%%EOF\n`;
+    `/Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
 
   return Buffer.from(result, "ascii");
 }
 
-async function upload(s, bucket, path, data) {
-  const result = await s.storage
+async function upload(supabase, bucket, path, content) {
+  const { error } = await supabase.storage
     .from(bucket)
-    .upload(path, data, {
+    .upload(path, content, {
       contentType: "application/pdf",
       cacheControl: "0",
       upsert: false,
     });
 
-  if (result.error) throw result.error;
+  if (error) throw error;
 }
 
-async function replace(s, path, data) {
-  return s.storage.from(RESUMES).update(path, data, {
-    contentType: "application/pdf",
-    cacheControl: "0",
-  });
+async function replace(supabase, path, content) {
+  return supabase.storage
+    .from(RESUMES)
+    .update(path, content, {
+      contentType: "application/pdf",
+      cacheControl: "0",
+    });
 }
 
-async function remove(s, path) {
-  return s.storage.from(RESUMES).remove([path]);
+async function remove(supabase, path) {
+  return supabase.storage.from(RESUMES).remove([path]);
 }
 
-async function bytes(s, bucket, path) {
-  const { data, error } = await s.storage
+async function bytes(supabase, bucket, path) {
+  const { data, error } = await supabase.storage
     .from(bucket)
     .download(path);
 
   if (error || !data) {
-    throw error ?? new Error(`Cannot download ${path}`);
+    throw error ?? new Error(`Cannot download ${path}.`);
   }
 
   return Buffer.from(await data.arrayBuffer());
 }
-
 
 async function freshSignedBytes(supabase, bucket, path) {
   const { data, error } = await supabase.storage
@@ -200,34 +197,29 @@ async function freshSignedBytes(supabase, bucket, path) {
     .createSignedUrl(path, 60);
 
   if (error) throw error;
-
   assert.ok(data?.signedUrl, "Signed URL was not generated.");
 
-  // Fetch through a newly generated signed URL.
-  // Never print the signed URL itself.
+  // Fetch the file through a newly issued URL.
+  // Do not print the URL or the file contents.
   const response = await fetch(data.signedUrl, {
     cache: "no-store",
   });
 
-  if (!response.ok) {
-    throw new Error(
-      `Fresh signed download failed: HTTP ${response.status}`
-    );
-  }
+  assert.equal(
+    response.ok,
+    true,
+    `Signed download failed: HTTP ${response.status}.`
+  );
 
-  return {
-    content: Buffer.from(await response.arrayBuffer()),
-    cacheStatus: response.headers.get("cf-cache-status"),
-  };
+  return Buffer.from(await response.arrayBuffer());
 }
 
-
-async function exists(s, bucket, path) {
+async function exists(supabase, bucket, path) {
   const lastSlash = path.lastIndexOf("/");
   const folder = path.slice(0, lastSlash);
   const filename = path.slice(lastSlash + 1);
 
-  const { data, error } = await s.storage
+  const { data, error } = await supabase.storage
     .from(bucket)
     .list(folder, {
       search: filename,
@@ -256,32 +248,22 @@ async function main() {
 
   assert.equal(aInitial.currentLevel, "aal1");
   assert.equal(aInitial.nextLevel, "aal2");
-
   assert.equal(bInitial.currentLevel, "aal1");
   assert.equal(bInitial.nextLevel, "aal1");
 
-  pass("Initial AAL states are correct");
+  pass("Initial MFA levels are correct");
 
-  const run = randomUUID();
+  const runId = randomUUID();
+  const aPath = `${a.id}/${runId}-a.pdf`;
+  const bPath = `${b.id}/${runId}-b.pdf`;
+  const otherPath = `${a.id}/${runId}-other.pdf`;
 
-  const aPath = `${a.id}/${run}-a.pdf`;
-  const bPath = `${b.id}/${run}-b.pdf`;
-  const otherPath = `${a.id}/${run}-other.pdf`;
+  const original = pdf(`original-${runId}`);
+  const updated = pdf(`updated-${runId}`);
+  const unauthorized = pdf(`unauthorized-${runId}`);
 
-  const original = pdf(`original-${run}`);
-  const updated = pdf(`updated-${run}`);
-  const unauthorized = pdf(`unauthorized-${run}`);
-
-  // TEST 1:
-  // AAL1 users must retain normal permissions
-  // outside the protected resumes bucket.
-
-  await upload(
-    a.supabase,
-    OTHER,
-    otherPath,
-    original
-  );
+  // AAL1 remains usable in a bucket unrelated to protected resumes.
+  await upload(a.supabase, OTHER, otherPath, original);
 
   assert.deepEqual(
     await bytes(a.supabase, OTHER, otherPath),
@@ -290,22 +272,10 @@ async function main() {
 
   pass("AAL1 access to unrelated bucket is unaffected");
 
-  // TEST 2:
-  // User B has no MFA and retains resume permissions.
+  // User B has no MFA and can manage B's own resume.
+  await upload(b.supabase, RESUMES, bPath, original);
 
-  await upload(
-    b.supabase,
-    RESUMES,
-    bPath,
-    original
-  );
-
-  let result = await replace(
-    b.supabase,
-    bPath,
-    updated
-  );
-
+  let result = await replace(b.supabase, bPath, updated);
   if (result.error) throw result.error;
 
   assert.deepEqual(
@@ -316,27 +286,19 @@ async function main() {
   pass("User B without MFA can replace own resume");
 
   result = await remove(b.supabase, bPath);
-
   if (result.error) throw result.error;
 
   assert.equal(
     await exists(b.supabase, RESUMES, bPath),
-    false
+    false,
+    "User B's file still exists after deletion."
   );
 
   pass("User B without MFA can delete own resume");
 
-  // TEST 3:
-  // User A completes MFA and uploads a protected file.
-
+  // A completes MFA and creates a protected test file.
   await verifyTotp(a.supabase);
-
-  await upload(
-    a.supabase,
-    RESUMES,
-    aPath,
-    original
-  );
+  await upload(a.supabase, RESUMES, aPath, original);
 
   assert.deepEqual(
     await bytes(a.supabase, RESUMES, aPath),
@@ -345,59 +307,55 @@ async function main() {
 
   pass("User A at AAL2 can upload own resume");
 
-  // TEST 4:
-  // Another password-only session of User A
-  // must not replace or delete that file.
-const freshA = await signIn(A);
-  
-const deniedReplaceA = await replace(
-  freshA.supabase,
-  aPath,
-  unauthorized
-);
+  // A new password-only session must not replace the file.
+  const freshA = await signIn(A);
 
-console.log("AAL1 replacement result:", {
-  data: deniedReplaceA.data,
-  error: deniedReplaceA.error?.message ?? null,
-});
+  assert.equal((await aal(freshA.supabase)).currentLevel, "aal1");
 
-// The Storage service must reject the unauthorized update.
-assert.ok(
-  deniedReplaceA.error,
-  "SECURITY FAILURE: AAL1 replacement was accepted."
-);
-
-// Independently verify that the original file remains.
-const afterDeniedReplace = await freshSignedBytes(
-  a.supabase,
-  RESUMES,
-  aPath
-);
-
-assert.deepEqual(
-  afterDeniedReplace.content,
-  original,
-  "AAL1 replacement unexpectedly modified the file."
-);
-
-pass("Fresh AAL1 cannot replace protected resume");
-
-
-  pass("Fresh AAL1 cannot delete protected resume");
-
-  // TEST 5:
-  // Different users must never modify another
-  // user's resume, regardless of MFA state.
-
-  await replace(
-    b.supabase,
+  const deniedReplace = await replace(
+    freshA.supabase,
     aPath,
     unauthorized
   );
 
+  assert.ok(
+    deniedReplace.error,
+    "SECURITY FAILURE: AAL1 replacement was accepted."
+  );
+
   assert.deepEqual(
-    await bytes(a.supabase, RESUMES, aPath),
-    original
+    await freshSignedBytes(a.supabase, RESUMES, aPath),
+    original,
+    "AAL1 replacement modified the file."
+  );
+
+  pass("Fresh AAL1 cannot replace protected resume");
+
+  // Perform the deletion attempt, then check the file itself.
+  // A denied Storage remove may report no error and delete zero files.
+  await remove(freshA.supabase, aPath);
+
+  assert.equal(
+    await exists(a.supabase, RESUMES, aPath),
+    true,
+    "SECURITY FAILURE: AAL1 deleted the protected resume."
+  );
+
+  assert.deepEqual(
+    await freshSignedBytes(a.supabase, RESUMES, aPath),
+    original,
+    "AAL1 deletion changed or removed the file."
+  );
+
+  pass("Fresh AAL1 cannot delete protected resume");
+
+  // User B cannot alter A's file, even though B can use B's own files.
+  await replace(b.supabase, aPath, unauthorized);
+
+  assert.deepEqual(
+    await freshSignedBytes(a.supabase, RESUMES, aPath),
+    original,
+    "User B replaced User A's file."
   );
 
   pass("User B cannot replace User A's resume");
@@ -406,80 +364,40 @@ pass("Fresh AAL1 cannot replace protected resume");
 
   assert.equal(
     await exists(a.supabase, RESUMES, aPath),
-    true
+    true,
+    "SECURITY FAILURE: User B deleted User A's file."
   );
 
   pass("User B cannot delete User A's resume");
 
-  // TEST 6:
-  // AAL2 restores authorized replacement and deletion.
+  // AAL2 restores A's ability to replace the file.
+  result = await replace(a.supabase, aPath, updated);
+  if (result.error) throw result.error;
 
-  
-result = await replace(
-  a.supabase,
-  aPath,
-  updated
-);
-
-// Inspect the Storage update response.
-console.log("AAL2 replacement result:", {
-  data: result.data,
-  error: result.error?.message ?? null,
-});
-
-if (result.error) {
-  throw result.error;
-}
-
-// Download through a newly generated signed URL.
-const fresh = await freshSignedBytes(
-  a.supabase,
-  RESUMES,
-  aPath
-);
-
-console.log("Fresh signed URL verification:", {
-  cacheStatus: fresh.cacheStatus,
-  actualBytes: fresh.content.length,
-  expectedBytes: updated.length,
-  matchesOriginal: fresh.content.equals(original),
-  matchesUpdated: fresh.content.equals(updated),
-});
-
-// Verify the updated bytes.
-assert.deepEqual(
-  fresh.content,
-  updated,
-  "Fresh signed URL did not return the updated PDF."
-);
-
-// Compare against the normal authenticated download.
-const normalDownload = await bytes(
-  a.supabase,
-  RESUMES,
-  aPath
-);
-
-if (!normalDownload.equals(updated)) {
-  console.warn(
-    "WARNING: Authenticated download returned stale content, " +
-    "but the fresh signed URL returned the updated PDF."
+  assert.deepEqual(
+    await freshSignedBytes(a.supabase, RESUMES, aPath),
+    updated,
+    "AAL2 replacement did not produce the updated PDF."
   );
-}
 
-pass("AAL2 can replace own resume");
+  pass("AAL2 can replace own resume");
 
+  // Actually delete the file and verify that it is gone.
+  result = await remove(a.supabase, aPath);
+  if (result.error) throw result.error;
+
+  assert.equal(
+    await exists(a.supabase, RESUMES, aPath),
+    false,
+    "AAL2 deletion returned success, but the file still exists."
+  );
 
   pass("AAL2 can delete own resume");
 
-  console.log(
-    "\nPASS: Storage replacement, deletion, " +
-    "and bucket isolation tests complete."
-  );
-
+  console.log("\nAll Storage MFA regression tests passed.");
   console.log(
     "One disposable file remains in mfa-unrelated-test. " +
-    "Remove it through the test project's Dashboard."
+    "Remove it from the isolated test project."
   );
 }
 

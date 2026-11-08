@@ -125,6 +125,17 @@ file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
 
+# Local buckets used by the resume and cover-letter tests.
+[storage.buckets.resumes]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["application/pdf"]
+
+[storage.buckets.cover_letters]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["application/pdf"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true

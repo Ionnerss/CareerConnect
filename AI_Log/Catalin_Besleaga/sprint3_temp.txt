@@ -261,3 +261,206 @@ When you've changed them, tell me done. We'll then check the hosted Supabase pro
 - CareerConnect `dev`: `supabase/config.toml`, `web/src/lib/supabase/client.ts`
 - [Supabase TOTP MFA documentation](https://supabase.com/docs/guides/auth/auth-mfa/totp?utm_source=chatgpt.com)
 - [Supabase MFA configuration reference](https://supabase.com/docs/guides/local-development/cli/config?utm_source=chatgpt.com)
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+PROMPT: Can you check the current CareerConnect repo stat on dev. In the project board, PR #240 has been closed yet the status
+ is still In Review. I want to make a yaml workflow such that if a PR is closed and not merged, then its status gets updated to Closed. 
+ Can you give me the necessary code for that.
+
+LINK: https://chatgpt.com/s/t_6aed0bf62de08191acf9775e3ff01522
+
+ANSWER:
+
+I checked `dev`: [PR #240](https://github.com/Ionnerss/CareerConnect/pull/240) is **closed and unmerged**. Your existing [pr-in-review.yml](https://github.com/Ionnerss/CareerConnect/blob/dev/.github/workflows/pr-in-review.yml) sets the board status on `opened` and `ready_for_review`, but has no close handler. It already uses `PROJECTS_TOKEN` and the board’s Project V2 ID.
+
+Create `.github/workflows/pr-closed.yml` with:
+
+```yaml
+name: Set unmerged PR status to Closed
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  set-pr-status:
+    if: ${{ github.event.pull_request.merged == false }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set existing project item to Closed
+        env:
+          GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+          PROJECT_ID: PVT_kwHODd7zAM4BkmiO
+          PR_ID: ${{ github.event.pull_request.node_id }}
+        run: |
+          set -euo pipefail
+
+          data="$(gh api graphql \
+            -f query='
+              query($project: ID!, $pr: ID!) {
+                project: node(id: $project) {
+                  ... on ProjectV2 {
+                    fields(first: 100) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options { id name }
+                        }
+                      }
+                    }
+                  }
+                }
+                pr: node(id: $pr) {
+                  ... on PullRequest {
+                    projectItems(first: 100) {
+                      nodes {
+                        id
+                        project { id }
+                      }
+                    }
+                  }
+                }
+              }' \
+            -f project="$PROJECT_ID" \
+            -f pr="$PR_ID")"
+
+          field_id="$(jq -r \
+            '.data.project.fields.nodes[]
+             | select(.name == "Status") | .id' <<< "$data")"
+
+          option_id="$(jq -r \
+            '.data.project.fields.nodes[]
+             | select(.name == "Status")
+             | .options[] | select(.name == "Closed") | .id' <<< "$data")"
+
+          item_id="$(jq -r --arg project "$PROJECT_ID" \
+            '.data.pr.projectItems.nodes[]
+             | select(.project.id == $project) | .id' <<< "$data")"
+
+          if [[ -z "$field_id" || -z "$option_id" ]]; then
+            echo "The project's Status field or Closed option was not found."
+            exit 1
+          fi
+
+          if [[ -z "$item_id" ]]; then
+            echo "This PR is not on the configured project board; nothing to update."
+            exit 0
+          fi
+
+          gh api graphql \
+            -f query='
+              mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $project
+                    itemId: $item
+                    fieldId: $field
+                    value: {singleSelectOptionId: $option}
+                  }
+                ) {
+                  projectV2Item { id }
+                }
+              }' \
+            -f project="$PROJECT_ID" \
+            -f item="$item_id" \
+            -f field="$field_id" \
+            -f option="$option_id"
+```
+
+This updates only PRs already on that board. **Confirm that `Closed` is an exact option in the board’s `Status` field**; I could verify the project ID from your workflow, but could not read the board’s current options. Your existing `PROJECTS_TOKEN` must still have project write access. GitHub documents the `closed` event and `merged` condition, and the Project V2 field mutation used here. [GitHub Docs](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows?utm_source=chatgpt.com)
+
+Putting this file on `dev` will handle future close events for PRs targeting that branch. **It will not replay PR #240’s past close event**: set #240’s board status to `Closed` manually once, then use a new unmerged PR closure to verify the workflow. One limitation: `pull_request` workflows do not receive repository secrets for PRs from forks, so this token based workflow will not update those PRs. [GitHub Docs](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows?utm_source=chatgpt.com)
+
+**Sources consulted:** CareerConnect `dev` workflow and PR #240; GitHub Actions event documentation; GitHub Projects API and GraphQL documentation.
+
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+PROMPT: Can you check my current CI pipeline. Can you give me any ways to make it better, any more things I should test, etc, based off of dev
+
+LINK: https://chatgpt.com/s/t_6aed0c38c4508191a782640cd6d897fe
+
+**Your CI has a solid foundation. Its biggest weakness is that a passing run does not verify your actual database permissions or complete user journeys.** That is where I would invest next.
+
+I reviewed `dev` at commit `c836219`. Its latest [CI run](https://github.com/Ionnerss/CareerConnect/actions/runs/41706964116) passed installation, lint, TypeScript, tests, and build in approximately **2 minutes 23 seconds**. I inspected the configuration and representative tests; I did not rerun them locally.
+
+Your [current workflow](https://github.com/Ionnerss/CareerConnect/blob/c836219/.github/workflows/ci.yml) already has several sensible choices: `npm ci`, dependency caching, read-only repository permissions, checkout credentials disabled, cancellation of superseded runs, a timeout, and placeholder Supabase credentials for builds. Keep those.
+
+**My recommended priorities:**
+
+| Priority | Improvement | Why it matters for CareerConnect |
+|---|---|---|
+| **1** | Test migrations and database policies against disposable Supabase | CI currently never starts Supabase or applies your migrations. |
+| **2** | Automate your existing MFA and Storage integration tests | These contain valuable checks that your current CI does not execute. |
+| **3** | Add a small browser test suite | Your current package and workflow have no Playwright browser test setup. |
+| **4** | Measure coverage, then set focused thresholds | Your Vitest configuration currently has no coverage configuration. |
+| **5** | Reduce duplicate workflow runs | CI triggers on every push and PRs targeting `dev`/`main`; the concurrency key separates those event types. |
+
+These findings come from [ci.yml](https://github.com/Ionnerss/CareerConnect/blob/c836219/.github/workflows/ci.yml), [package.json](https://github.com/Ionnerss/CareerConnect/blob/c836219/web/package.json), and [vitest.config.mts](https://github.com/Ionnerss/CareerConnect/blob/c836219/web/vitest.config.mts).
+
+**1. Make database correctness a CI requirement.**
+
+For example, your [application submission tests](https://github.com/Ionnerss/CareerConnect/blob/c836219/web/src/lib/jobs/submit-application.test.ts) simulate duplicate-application and closed-job errors through mocked Supabase responses. That checks how your application handles those errors. **It does not establish that the real database will produce them.**
+
+My recommendation is a separate database job that starts disposable local Supabase, applies all migrations from scratch, seeds test accounts, and runs database tests. Supabase documents migration resets and database testing in CI. [Supabase Docs](https://supabase.com/docs/guides/local-development/cli-workflows?utm_source=chatgpt.com)
+
+Start with these scenarios:
+
+| Proposed test | Expected outcome |
+|---|---|
+| Two concurrent applications from the same user to the same job | Exactly one application is stored. |
+| Direct application insert for a closed job | Rejected by the database. |
+| Application using somebody else’s resume | Rejected. |
+| Applicant changes a protected application column directly | Rejected. |
+| Recruiter accesses applications belonging to another recruiter’s job | Denied. |
+| Unauthenticated request reads private resume metadata | No private rows returned. |
+
+Those are recommended acceptance tests, not claims that I discovered corresponding bugs.
+
+**2. Adapt the security scripts before adding them to CI.**
+
+Your [resume RLS script](https://github.com/Ionnerss/CareerConnect/blob/c836219/web/scripts/test-resume-rls.mjs) and [Storage MFA script](https://github.com/Ionnerss/CareerConnect/blob/c836219/web/scripts/test-resume-storage-mfa.mjs) already check meaningful ownership and MFA behavior. However, they prompt for TOTP codes and depend on prepared accounts. The Storage script also requires an HTTPS URL and explicitly leaves test files behind.
+
+I would adapt them to create disposable users, enroll test MFA factors, generate codes automatically from test-only secrets, and clean up their fixtures. Run the authorization assertions using normal user sessions.
+
+Preserve these existing scenarios: enrolled users at AAL1 are blocked, AAL2 restores permitted access, non-MFA users retain access, and MFA never grants access to another user’s files. Add your two-session enrollment scenario so a session opened before MFA enrollment cannot retain protected access.
+
+**3. Add three browser journeys first.**
+
+I recommend Playwright with Chromium initially, running against the built application and disposable Supabase. Playwright documents running browser tests and retaining diagnostic artifacts in GitHub Actions. [Playwright](https://playwright.dev/docs/ci?utm_source=chatgpt.com)
+
+Start with:
+
+- **Applicant:** sign in → upload a PDF → apply to a job → see the application.
+- **Recruiter:** sign in → open their job’s applicants → access the submitted document → update application status.
+- **MFA:** sign in with an enrolled account → complete the challenge → reach a protected page → log out.
+
+Your component tests remain useful; these proposed journeys check whether the components, server actions, cookies, and backend work together.
+
+**4. Use coverage to find omissions.**
+
+Your existing tests already include useful failure cases: [MFA verification failures](https://github.com/Ionnerss/CareerConnect/blob/c836219/web/src/lib/auth/require-mfa.test.ts) and [uncertain resume-save recovery](https://github.com/Ionnerss/CareerConnect/blob/c836219/web/src/lib/resumes/recover-upload.test.ts). Avoid adding redundant tests simply to inflate a count.
+
+First collect a coverage baseline, explicitly including relevant source files that have no tests. Then set realistic branch-coverage thresholds for authentication, uploads, application submission, and recruiter permissions. Vitest supports coverage reporting and thresholds. [Vitest](https://main.vitest.dev/guide/coverage?utm_source=chatgpt.com)
+
+**5. Keep pipeline maintenance proportional.**
+
+I would restrict push-triggered CI to `dev` and `main`, while retaining PR checks targeting both. That avoids duplicate push/PR runs for feature branches. The tradeoff is that feature branches without an open PR would no longer run CI automatically.
+
+At roughly two minutes, your current application job does **not** need an elaborate parallel matrix. Keep it, add a separate database job, and introduce the small browser suite afterward. Also verify that `Web checks` is required before merging—I have not inspected your branch protection settings.
+
+**My first implementation step would be the disposable database job that successfully rebuilds the schema from your committed migrations.** Once that passes, add the ownership and application-constraint tests above.
+
+**Sources consulted:** Linked CareerConnect workflow, package/configuration files, representative tests, security scripts, repository file tree, and latest CI run; linked official Supabase, Playwright, and Vitest documentation.

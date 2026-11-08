@@ -111,7 +111,7 @@ export default function MfaEnrollment() {
 
             const { data, error } = await supabase.auth.mfa.enroll({
                 factorType: "totp",
-                friendlyName: "CareerConnect Authenticator",
+                friendlyName: `CareerConnect Authenticator ${crypto.randomUUID()}`,
             });
 
             if (error) {
@@ -161,27 +161,54 @@ export default function MfaEnrollment() {
         try {
             const supabase = createClient();
 
-            const { error } =
+            const { error: verifyError } =
                 await supabase.auth.mfa.challengeAndVerify({
                     factorId: enrollmentData.factorId,
                     code: verificationCode,
                 });
 
-            if (error) {
+            if (verifyError) {
                 setErrorMessage(
                     "Unable to verify the code. Please try again."
                 );
                 return;
             }
 
-            // Verification succeeded.
-            setIsVerified(true);
-            const factors = await supabase.auth.mfa.listFactors();
-            if (!factors.error && factors.data) {
-                setVerifiedFactors(factors.data.totp.filter((factor) => factor.status === "verified"));
+            const { data: refreshData, error: refreshError } =
+                await supabase.auth.refreshSession();
+
+            if (refreshError || !refreshData?.session) {
+                setErrorMessage(
+                    "Your authenticator was verified, but your session could not be refreshed. Please sign out and sign in again."
+                );
+                return;
             }
 
-            // Clear sensitive enrollment information from state.
+            const factors = await supabase.auth.mfa.listFactors();
+
+            if (factors.error || !factors.data) {
+                setErrorMessage(
+                    "Your authenticator was verified, but its status could not be confirmed. Please refresh this page."
+                );
+                return;
+            }
+
+            const verifiedTotp = factors.data.totp.filter(
+                (factor) => factor.status === "verified"
+            );
+
+            if (!verifiedTotp.some(
+                (factor) => factor.id === enrollmentData.factorId
+            )) {
+                setErrorMessage(
+                    "Your authenticator was verified, but its status could not be confirmed. Please refresh this page."
+                );
+                return;
+            }
+
+            // Close setup only after the newly enrolled factor is confirmed.
+            setVerifiedFactors(verifiedTotp);
+            setIsVerified(true);
             setEnrollmentData(null);
             setVerificationCode("");
         } catch {
@@ -233,7 +260,7 @@ export default function MfaEnrollment() {
             const removed = await supabase.auth.mfa.unenroll({ factorId: selectedFactorId });
             if (removed.error) throw removed.error;
             const refresh = await supabase.auth.refreshSession();
-            if (refresh.error) throw new Error("Factor removed. Sign out and in again to refresh your session.");
+            if (refresh.error || !refresh.data?.session) throw new Error("Factor removed. Sign out and in again to refresh your session.");
             const factors = await supabase.auth.mfa.listFactors();
             if (factors.error || !factors.data) throw new Error("Factor removed. Refresh this page to check status.");
             const remaining = factors.data.totp.filter((factor) => factor.status === "verified");

@@ -254,26 +254,140 @@ Detailed database/Storage acceptance evidence belongs to #90 and #94.
 Full successful MFA sign-in acceptance evidence belongs to #93.
 Link that evidence here instead of duplicating it.
 
+### Signed resume URL lifetime — #90
+
+These are user-reported manual tests with disposable PDFs. The signed URLs,
+tokens, credentials, and authenticator codes were not recorded.
+
+| Environment | Test date / commit | URL expiry | Check | Elapsed after issuance | HTTP | PDF bytes matched | Cache status |
+| --- | --- | ---: | --- | ---: | ---: | --- | --- |
+| Hosted isolated test project | [8/11/26] / [ee01a3a] | 30 s | Before logout | 0.6 s | 200 | Yes | MISS |
+| Hosted isolated test project | [8/11/26] / [ee01a3a] | 30 s | After logout, before expiry | 1.2 s | 200 | Yes | REVALIDATED |
+| Hosted isolated test project | [8/11/26] / [ee01a3a] | 30 s | After expiry | 35.2 s | 400 | No | DYNAMIC |
+| Local Supabase | [8/11/26] / [ee01a3a] | 600 s | Before adding backup factor | 0 s | 200 | Yes | No header |
+| Local Supabase | [8/11/26] / [ee01a3a] | 600 s | After verifying backup factor, original factor retained | 123.7 s | 200 | Yes | No header |
+
+The hosted test showed that logout did not stop use of an already issued URL
+before its expiry. Its request after expiry returned 400. In the local test,
+adding a verified backup factor did not stop use of the previously issued URL
+at 123.7 seconds. A fresh password-only session for the MFA-enrolled account
+could not issue a new signed URL.
+
+These observations do not prove that every URL becomes inaccessible exactly
+at expiry: CDN behavior and environments can differ. They also do not test
+removing the original factor. The 600-second local URL was used only to allow
+time for the manual factor-addition test; it is not the application's URL
+duration. Resume view and download actions currently request 60-second URLs.
+
+Treat an issued signed URL as a bearer link during its valid lifetime. Check
+MFA and ownership before issuing a new one, and avoid presenting logout or a
+factor change as immediate revocation of an already issued URL.
+
+### Privileged-path and private-file audit — #90
+
+This record separates code inspection from direct-request tests. The HTTP
+results below are from local Supabase with disposable accounts and files;
+they are not hosted-project verification.
+
+#### Privileged client search
+
+A case-insensitive recursive search of `web/src` for `service_role`,
+`sb_secret_`, `SUPABASE_SECRET`, `createAdminClient`, and `auth.admin.`
+returned no matches. This is evidence for that source directory and those
+search terms only. It does not establish that every privileged client path
+in the repository or deployed environment is safe.
+
+#### Security-definer functions
+
+The local database inventory found two security-definer helpers executable
+by `authenticated`:
+
+- `private.careerconnect_mfa_allowed()` applies the verified-factor and
+  session-AAL rule. The local API configuration does not expose the
+  `private` schema as a Data API schema.
+- `public.recruiter_can_view_profile(uuid)` is callable through the Data
+  API. The original function allowed an MFA-enrolled recruiter at AAL1
+  to infer an applicant relationship. The replacement requires
+  `private.careerconnect_mfa_allowed()` while retaining the application
+  and job-ownership check.
+
+The remaining inventoried security-definer functions were attached to
+table triggers or an event trigger: `create_public_profile()`,
+`handle_new_user()`, `rls_auto_enable()`, `sync_public_profile_name()`,
+`sync_recruiter_role()`, and `validate_application_resume()`. Their
+function EXECUTE grants alone are not evidence of a callable HTTP RPC.
+This inventory does not prove that every trigger path is safe.
+
+A local database regression first reproduced the recruiter-helper AAL1
+failure and passed after the function change. A direct local HTTP RPC test
+then observed:
+
+| Caller | Expected and observed result |
+| --- | --- |
+| Owning recruiter with a verified factor, AAL1 | Applicant relationship denied |
+| Same recruiter, AAL2 | Applicant relationship accessible |
+| Unrelated recruiter | Applicant relationship denied |
+
+#### Private Storage requests
+
+A local direct-request test used an applicant's real attached cover-letter
+PDF and recorded project PNG. The applicant and owning recruiter could
+access the files under their normal authorized conditions. After the
+recruiter enrolled MFA, a fresh AAL1 session was denied access to both
+private files; AAL2 restored the owning recruiter's access. An unrelated
+recruiter remained denied. The test checked direct downloads and fresh
+signed-URL requests, including downloaded file bytes.
+
+These HTTP results were obtained locally, not on the hosted CareerConnect
+project. The local `resumes` and `cover_letters` buckets used for live
+testing were created manually; a fresh database reset removes that setup.
+Document or automate their local creation before treating the live scripts
+as reproducible from a clean checkout.
+
 ## Rollback
 
-The former pending-mfa-policy.sql file is no longer the deployment source.
-Use the committed migrations to identify the exact changes.
+`supabase/pending-mfa-rollback.sql` is a policy-only rollback plan for:
 
-Prepare and review a forward rollback migration for the specific release.
-Do not remove ownership policies or unrelated function changes.
+- `20261101054516_require_mfa_for_resumes.sql`
+- `20261101074321_require_mfa_for_resume_storage.sql`
+- `20261101094954_require_mfa_for_account_data.sql`
 
-Removing MFA policies weakens protection. Coordinate application access
-restrictions during rollback. Verify the resulting schema and migration history.
+It lists the restrictive MFA policies created by those migrations.
+It does not revert application checks, database functions, or existing
+ownership policies. In particular, it is not a complete rollback of
+the MFA release.
+
+For an actual rollback, review the deployed schema and prepare a
+release-specific forward migration. Coordinate changes to application
+access checks and database policies, then verify the resulting access
+rules and migration history. Removing the restrictive policies weakens
+protection of account data and files.
+
+Do not execute the rollback plan during testing.
 
 ## Lost-device boundary
 
-Users should enroll a backup authenticator before losing their first device.
+For this release, users should enroll a second authenticator on an
+independent device before losing access to their first one.
 
-The application has no self-service all-factors-lost recovery procedure.
-Support identity verification, administrator actions, and ownership still
-require an operational decision under #91.
+If one authenticator is lost but another verified authenticator remains,
+the user can sign in with the remaining factor. After signing in, they
+can add a replacement, verify it, and then remove the lost factor.
 
-Do not promise account recovery or silently bypass MFA through email/password reset.
+If every authenticator is lost, this release provides no supported
+account-recovery or MFA-reset procedure. The user cannot complete MFA
+or access protected account data through the application. Password
+reset, email confirmation, and access to an email account do not serve
+as a replacement for an enrolled authenticator.
+
+Support must not promise or perform a factor reset under an
+undocumented process. Administrator-assisted recovery would require a
+separately approved identity-verification procedure, authorized
+operators, and an auditable process before it could be offered.
+
+This policy does not restore access to an existing account when all
+factors are lost. Review and approve this release policy with the team
+before marking #91 complete.
 
 ## Completion rule for #86
 
