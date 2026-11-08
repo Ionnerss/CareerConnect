@@ -73,6 +73,17 @@ export default async function RecruiterAccountPage() {
                 className="size-4 text-[#4B5563]"
               />
             </Link>
+
+            <Link
+              href="/account/security"
+              className="flex min-h-12 items-center justify-between gap-2 border-t border-[#EEF0F3] px-5 text-sm font-semibold text-[#1F2937] hover:bg-[#F5F6F8] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1D4ED8] sm:px-8"
+            >
+              Security and two-factor authentication
+              <ArrowRight
+                aria-hidden="true"
+                className="size-4 text-[#4B5563]"
+              />
+            </Link>
           </div>
         </section>
 
