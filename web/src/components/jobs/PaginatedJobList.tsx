@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
@@ -35,6 +36,7 @@ export default function PaginatedJobList({
   );
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const desktopPanelRef = useRef<HTMLDivElement>(null);
+  const firstJobRef = useRef<HTMLLIElement>(null);
 
   // The server has already fetched the six jobs for this page.
   const totalPages = Math.ceil(totalCount / JOBS_PER_PAGE);
@@ -54,7 +56,6 @@ export default function PaginatedJobList({
   function handlePageChange(nextPage: number) {
     if (nextPage < 1 || nextPage > totalPages || nextPage === page) return;
 
-    // Keep the current keyword and filters when navigating to a new page.
     const params = new URLSearchParams(searchParams.toString());
     if (nextPage === 1) {
       params.delete("page");
@@ -62,12 +63,36 @@ export default function PaginatedJobList({
       params.set("page", String(nextPage));
     }
 
+    // Mark this as a pagination click (not an initial page visit).
+    sessionStorage.setItem("careerconnect-scroll-to-page", String(nextPage));
     setMobilePanelOpen(false);
+
     const queryString = params.toString();
     router.push(queryString ? `/jobs?${queryString}` : "/jobs", {
       scroll: false,
     });
   }
+
+  // After Next.js renders the NEW page of jobs, show its first card.
+  useLayoutEffect(() => {
+    if (sessionStorage.getItem("careerconnect-scroll-to-page") !== String(page)) {
+      return;
+    }
+
+    const scrollToFirstCard = () => {
+      const card = firstJobRef.current;
+      if (!card) return;
+      const top = card.getBoundingClientRect().top + window.scrollY - 112;
+      window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+    };
+
+    scrollToFirstCard();
+    const frame = requestAnimationFrame(() => {
+      scrollToFirstCard();
+      sessionStorage.removeItem("careerconnect-scroll-to-page");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [page, jobs]);
 
   function handleSelectJob(job: JobSearchResult) {
     setSelectedJobId(job.id);
@@ -155,7 +180,7 @@ export default function PaginatedJobList({
               const initial = company.charAt(0).toUpperCase();
 
               return (
-                <li key={job.id}>
+                <li key={job.id} ref={job.id === jobs[0]?.id ? firstJobRef : undefined}>
                   <button
                     type="button"
                     onClick={() => handleSelectJob(job)}
