@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
@@ -19,8 +20,8 @@ import {
   getActiveApplicationResumes,
   submitJobApplication,
 } from "@/app/jobs/actions";
-import CoverLetterUpload from "./CoverLetterUpload";
 import { getApplicationProfileImport } from "@/app/jobs/[jobID]/apply/profile-import-actions";
+import { uploadApplicationCoverLetter } from "@/app/jobs/cover-letter-actions";
 
 type Props = {
   jobId: string;
@@ -103,10 +104,6 @@ function submissionError(reason: string): string {
       return "You have already applied for this job.";
     case "signed_out":
       return "Your session expired. Please sign in again.";
-    case "mfa_required":
-      return "Complete two-factor authentication at /auth/mfa, then retry.";
-    case "auth_unavailable":
-      return "Unable to verify your session. Please retry later.";
     case "job_unavailable":
       return "This job is no longer accepting applications.";
     case "resume_unavailable":
@@ -115,6 +112,23 @@ function submissionError(reason: string): string {
       return "Invalid application details.";
     default:
       return "Unable to submit your application. Please try again.";
+  }
+}
+
+function coverLetterUploadError(reason: string): string {
+  switch (reason) {
+    case "invalid_file":
+      return "Choose a valid PDF smaller than 5 MB.";
+    case "signed_out":
+      return "Please sign in again to attach your cover letter.";
+    case "mfa_required":
+      return "Complete two-factor authentication before retrying.";
+    case "auth_unavailable":
+      return "Authentication is unavailable. Please try again.";
+    case "application_unavailable":
+      return "The application could not be found.";
+    default:
+      return "Cover letter upload failed. Please try again.";
   }
 }
 
@@ -152,6 +166,12 @@ export default function JobApplicationForm({
     portfolio: "",
   });
 
+  const [coverLetterFile, setCoverLetterFile] = useState<File | null>(null);
+  const [coverLetterError, setCoverLetterError] = useState("");
+  const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [uploadingCoverLetter, setUploadingCoverLetter] = useState(false);
+  const [coverLetterAttached, setCoverLetterAttached] = useState(false);
+
   const [resumes, setResumes] = useState<ResumeOption[]>([]);
   const [selectedResumeId, setSelectedResumeId] = useState("");
   const [loadingResumes, setLoadingResumes] = useState(true);
@@ -159,8 +179,7 @@ export default function JobApplicationForm({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submittedApplicationId, setSubmittedApplicationId] =
-    useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [importingProfile, setImportingProfile] = useState(false);
   const [importMessage, setImportMessage] = useState("");
@@ -254,33 +273,18 @@ export default function JobApplicationForm({
   async function fillFromProfile() {
     if (importingProfile) return;
 
-    const hasExistingDetails =
-      Object.values(personal).some((value) => value.trim() !== "") ||
-      education.length > 0 ||
-      experience.length > 0 ||
-      skills.length > 0 ||
-      languages.length > 0;
-
-    if (
-      hasExistingDetails &&
-      !window.confirm(
-        "Replace your current personal details, education, experience, skills and languages with your saved profile?"
-      )
-    ) {
-      return;
-    }
-
     setImportingProfile(true);
     setImportMessage("");
 
     try {
       const result = await getApplicationProfileImport();
+
       if (!result.success) {
         setImportMessage(result.error);
         return;
       }
 
-      // The profile does not expose a phone number. Preserve any manual entry.
+      // Preserve any manually entered phone number.
       setPersonal((current) => ({
         ...current,
         ...result.personal,
@@ -290,11 +294,17 @@ export default function JobApplicationForm({
       setEducation(
         result.education.map((item, index) => {
           const listedDegree = degreeOptions.includes(item.degree);
+
           return {
             id: index + 1,
             school: item.school,
-            degree: !item.degree ? "" : listedDegree ? item.degree : "Other",
-            otherDegree: item.degree && !listedDegree ? item.degree : "",
+            degree: !item.degree
+              ? ""
+              : listedDegree
+                ? item.degree
+                : "Other",
+            otherDegree:
+              item.degree && !listedDegree ? item.degree : "",
             field: item.field,
             start: item.start,
             end: item.end,
@@ -308,13 +318,17 @@ export default function JobApplicationForm({
           ...item,
         }))
       );
+
       setSkills(result.skills);
       setLanguages(result.languages);
+
       setImportMessage(
         "Profile imported. Review and edit the information before continuing."
       );
     } catch {
-      setImportMessage("Unable to import your profile. Please try again.");
+      setImportMessage(
+        "Unable to import your profile. Please try again."
+      );
     } finally {
       setImportingProfile(false);
     }
@@ -329,8 +343,48 @@ export default function JobApplicationForm({
       return;
     }
 
+    if (coverLetterError) {
+      setError(
+        "Please choose a valid PDF cover letter or remove the file."
+      );
+      return;
+    }
+
     setAcknowledged(false);
     setConfirmOpen(true);
+  }
+
+  async function attachCoverLetter(
+    id: string,
+    file: File
+  ): Promise<boolean> {
+    const formData = new FormData();
+    formData.set("applicationId", id);
+    formData.set("file", file);
+
+    setUploadingCoverLetter(true);
+    setCoverLetterError("");
+
+    try {
+      const result = await uploadApplicationCoverLetter(formData);
+
+      if (result.ok || result.reason === "already_attached") {
+        setCoverLetterAttached(true);
+        return true;
+      }
+
+      setCoverLetterError(
+        coverLetterUploadError(result.reason)
+      );
+      return false;
+    } catch {
+      setCoverLetterError(
+        "Could not confirm the upload. Please try again."
+      );
+      return false;
+    } finally {
+      setUploadingCoverLetter(false);
+    }
   }
 
   async function handleConfirm() {
@@ -346,8 +400,16 @@ export default function JobApplicationForm({
       });
 
       if (result.ok) {
-        setSubmittedApplicationId(result.applicationId);
+        setApplicationId(result.applicationId);
         setConfirmOpen(false);
+        setSubmitted(true);
+
+        if (coverLetterFile) {
+          await attachCoverLetter(
+            result.applicationId,
+            coverLetterFile
+          );
+        }
       } else {
         setError(submissionError(result.reason));
         setConfirmOpen(false);
@@ -362,7 +424,20 @@ export default function JobApplicationForm({
     }
   }
 
-  if (submittedApplicationId) {
+  async function retryCoverLetterUpload() {
+    if (
+      !applicationId ||
+      !coverLetterFile ||
+      uploadingCoverLetter ||
+      coverLetterAttached
+    ) {
+      return;
+    }
+
+    await attachCoverLetter(applicationId, coverLetterFile);
+  }
+
+  if (submitted) {
     return (
       <section
         role="status"
@@ -371,17 +446,49 @@ export default function JobApplicationForm({
         <h2 className="text-2xl font-extrabold text-green-800">
           Application submitted successfully!
         </h2>
+
         <p className="mt-3 text-sm text-[#475569]">
           Your application for {jobTitle} at {company} was submitted
           with your selected saved resume.
         </p>
-        <CoverLetterUpload applicationId={submittedApplicationId} />
-        <Link
-          href="/application-status"
-          className={`${buttonClass} mt-6 inline-flex`}
-        >
-          View my applications
-        </Link>
+
+        {coverLetterFile && (
+          <div className="mt-4">
+            {uploadingCoverLetter ? (
+              <p className="text-sm text-[#475569]">
+                Attaching your cover letter...
+              </p>
+            ) : coverLetterAttached ? (
+              <p className="text-sm font-semibold text-green-800">
+                Cover letter attached successfully.
+              </p>
+            ) : coverLetterError ? (
+              <div className="space-y-3">
+                <p role="alert" className="text-sm text-red-700">
+                  {coverLetterError}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => void retryCoverLetterUpload()}
+                  disabled={uploadingCoverLetter}
+                  className={buttonClass}
+                >
+                  Retry cover letter upload
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        <div className="mt-6">
+          <Link
+            href="/application-status"
+            className={`${buttonClass} inline-flex`}
+          >
+            View my applications
+          </Link>
+        </div>
       </section>
     );
   }
@@ -392,14 +499,16 @@ export default function JobApplicationForm({
         <div className="rounded-2xl border border-[#C7D2FE] bg-[#F7F9FF] p-5">
           <div className="flex gap-3">
             <Sparkles className="h-5 w-5 shrink-0 text-[#3151D5]" />
+
             <div>
               <h2 className="font-bold text-[#0E1726]">
                 Speed up your application
               </h2>
+
               <p className="mt-1 text-sm text-[#64748B]">
                 Import your saved profile details or enter them manually.
-                Resume parsing is not connected yet.
               </p>
+
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -407,18 +516,17 @@ export default function JobApplicationForm({
                   disabled={importingProfile}
                   className="rounded-xl bg-[#3151D5] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1E40AF] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {importingProfile ? "Importing..." : "Fill from profile"}
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  className="rounded-xl border px-4 py-2 text-sm opacity-50"
-                >
-                  Fill from resume — coming soon
+                  {importingProfile
+                    ? "Importing..."
+                    : "Fill from profile"}
                 </button>
               </div>
+
               {importMessage && (
-                <p role="status" className="mt-3 text-sm text-[#475569]">
+                <p
+                  role="status"
+                  className="mt-3 text-sm text-[#475569]"
+                >
                   {importMessage}
                 </p>
               )}
@@ -515,6 +623,7 @@ export default function JobApplicationForm({
               >
                 <div className="mb-4 flex justify-between">
                   <strong>Education {index + 1}</strong>
+
                   <button
                     type="button"
                     aria-label={`Remove education ${index + 1}`}
@@ -538,7 +647,10 @@ export default function JobApplicationForm({
                         setEducation((items) =>
                           items.map((x) =>
                             x.id === item.id
-                              ? { ...x, school: e.target.value }
+                              ? {
+                                  ...x,
+                                  school: e.target.value,
+                                }
                               : x
                           )
                         )
@@ -555,13 +667,17 @@ export default function JobApplicationForm({
                         setEducation((items) =>
                           items.map((x) =>
                             x.id === item.id
-                              ? { ...x, degree: e.target.value }
+                              ? {
+                                  ...x,
+                                  degree: e.target.value,
+                                }
                               : x
                           )
                         )
                       }
                     >
                       <option value="">Select a degree</option>
+
                       {degreeOptions.map((degree) => (
                         <option key={degree} value={degree}>
                           {degree}
@@ -571,7 +687,9 @@ export default function JobApplicationForm({
                   </label>
 
                   {item.degree === "Other" && (
-                    <label className={`${labelClass} sm:col-span-2`}>
+                    <label
+                      className={`${labelClass} sm:col-span-2`}
+                    >
                       Specify degree
                       <input
                         className={inputClass}
@@ -580,7 +698,10 @@ export default function JobApplicationForm({
                           setEducation((items) =>
                             items.map((x) =>
                               x.id === item.id
-                                ? { ...x, otherDegree: e.target.value }
+                                ? {
+                                    ...x,
+                                    otherDegree: e.target.value,
+                                  }
                                 : x
                             )
                           )
@@ -598,7 +719,10 @@ export default function JobApplicationForm({
                         setEducation((items) =>
                           items.map((x) =>
                             x.id === item.id
-                              ? { ...x, field: e.target.value }
+                              ? {
+                                  ...x,
+                                  field: e.target.value,
+                                }
                               : x
                           )
                         )
@@ -608,7 +732,10 @@ export default function JobApplicationForm({
 
                   {(["start", "end"] as const).map((key) => (
                     <label key={key} className={labelClass}>
-                      {key === "start" ? "Start date" : "Graduation date"}
+                      {key === "start"
+                        ? "Start date"
+                        : "Graduation date"}
+
                       <input
                         type="month"
                         className={inputClass}
@@ -617,7 +744,10 @@ export default function JobApplicationForm({
                           setEducation((items) =>
                             items.map((x) =>
                               x.id === item.id
-                                ? { ...x, [key]: e.target.value }
+                                ? {
+                                    ...x,
+                                    [key]: e.target.value,
+                                  }
                                 : x
                             )
                           )
@@ -635,7 +765,8 @@ export default function JobApplicationForm({
             onClick={addEducation}
             className="mt-4 flex items-center gap-2 rounded-xl border border-[#C7D2FE] px-4 py-2 text-sm font-semibold text-[#3151D5]"
           >
-            <Plus className="h-4 w-4" /> Add education
+            <Plus className="h-4 w-4" />
+            Add education
           </button>
         </Section>
 
@@ -652,6 +783,7 @@ export default function JobApplicationForm({
               >
                 <div className="mb-4 flex justify-between">
                   <strong>Experience {index + 1}</strong>
+
                   <button
                     type="button"
                     aria-label={`Remove experience ${index + 1}`}
@@ -676,6 +808,7 @@ export default function JobApplicationForm({
                   ).map(([key, label]) => (
                     <label key={key} className={labelClass}>
                       {label}
+
                       <input
                         className={inputClass}
                         type={
@@ -688,7 +821,10 @@ export default function JobApplicationForm({
                           setExperience((items) =>
                             items.map((x) =>
                               x.id === item.id
-                                ? { ...x, [key]: e.target.value }
+                                ? {
+                                    ...x,
+                                    [key]: e.target.value,
+                                  }
                                 : x
                             )
                           )
@@ -697,8 +833,11 @@ export default function JobApplicationForm({
                     </label>
                   ))}
 
-                  <label className={`${labelClass} sm:col-span-2`}>
+                  <label
+                    className={`${labelClass} sm:col-span-2`}
+                  >
                     Responsibilities and achievements
+
                     <textarea
                       rows={3}
                       className={inputClass}
@@ -707,7 +846,10 @@ export default function JobApplicationForm({
                         setExperience((items) =>
                           items.map((x) =>
                             x.id === item.id
-                              ? { ...x, description: e.target.value }
+                              ? {
+                                  ...x,
+                                  description: e.target.value,
+                                }
                               : x
                           )
                         )
@@ -724,7 +866,8 @@ export default function JobApplicationForm({
             onClick={addExperience}
             className="mt-4 flex items-center gap-2 rounded-xl border border-[#C7D2FE] px-4 py-2 text-sm font-semibold text-[#3151D5]"
           >
-            <Plus className="h-4 w-4" /> Add experience
+            <Plus className="h-4 w-4" />
+            Add experience
           </button>
         </Section>
 
@@ -735,21 +878,29 @@ export default function JobApplicationForm({
         >
           <div className="grid gap-6 sm:grid-cols-2">
             {(["skills", "languages"] as const).map((kind) => {
-              const items = kind === "skills" ? skills : languages;
+              const items =
+                kind === "skills" ? skills : languages;
+
               const draft =
-                kind === "skills" ? skillDraft : languageDraft;
+                kind === "skills"
+                  ? skillDraft
+                  : languageDraft;
 
               return (
                 <div key={kind}>
                   <label className={labelClass}>
-                    {kind === "skills" ? "Relevant skills" : "Languages"}
+                    {kind === "skills"
+                      ? "Relevant skills"
+                      : "Languages"}
                   </label>
 
                   <div className="flex items-end gap-2">
                     <input
                       className={inputClass}
                       placeholder={
-                        kind === "skills" ? "e.g. Python" : "e.g. French"
+                        kind === "skills"
+                          ? "e.g. Python"
+                          : "e.g. French"
                       }
                       value={draft}
                       onChange={(e) =>
@@ -781,16 +932,21 @@ export default function JobApplicationForm({
                         className="flex items-center gap-2 rounded-full border border-[#C7D2FE] bg-[#F7F9FF] px-3 py-1.5 text-sm text-[#3151D5]"
                       >
                         {value}
+
                         <button
                           type="button"
                           aria-label={`Remove ${value}`}
                           onClick={() =>
                             kind === "skills"
                               ? setSkills((list) =>
-                                  list.filter((x) => x !== value)
+                                  list.filter(
+                                    (x) => x !== value
+                                  )
                                 )
                               : setLanguages((list) =>
-                                  list.filter((x) => x !== value)
+                                  list.filter(
+                                    (x) => x !== value
+                                  )
                                 )
                           }
                         >
@@ -819,6 +975,7 @@ export default function JobApplicationForm({
             ).map(([key, label]) => (
               <label key={key} className={labelClass}>
                 {label}
+
                 <input
                   type="url"
                   placeholder="https://"
@@ -844,12 +1001,15 @@ export default function JobApplicationForm({
           <div className="space-y-4">
             <label className={labelClass}>
               Saved resume / CV *
+
               <select
                 required
                 disabled={loadingResumes}
                 className={inputClass}
                 value={selectedResumeId}
-                onChange={(e) => setSelectedResumeId(e.target.value)}
+                onChange={(e) =>
+                  setSelectedResumeId(e.target.value)
+                }
               >
                 <option value="">
                   {loadingResumes
@@ -858,7 +1018,10 @@ export default function JobApplicationForm({
                 </option>
 
                 {resumes.map((resume) => (
-                  <option key={resume.id} value={resume.id}>
+                  <option
+                    key={resume.id}
+                    value={resume.id}
+                  >
                     {resume.file_name}
                   </option>
                 ))}
@@ -879,12 +1042,66 @@ export default function JobApplicationForm({
               </p>
             )}
 
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              <strong>Submission notice:</strong> The current backend
-              only saves the application record and selected resume.
-              The additional form fields above are not currently
-              saved or sent to recruiters.
-            </div>
+            <label className={labelClass}>
+              Cover letter (optional)
+
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                className="mt-2 block w-full text-sm text-transparent file:mr-0 file:cursor-pointer file:rounded-xl file:border-0 file:bg-[#EEF2FF] file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-[#3151D5] hover:file:bg-[#E0E7FF]"
+                onChange={(event) => {
+                  const file =
+                    event.target.files?.[0] ?? null;
+
+                  setCoverLetterError("");
+                  setCoverLetterFile(null);
+
+                  if (!file) return;
+
+                  if (
+                    (file.type !== "" &&
+                      file.type !== "application/pdf") ||
+                    !file.name
+                      .toLowerCase()
+                      .endsWith(".pdf")
+                  ) {
+                    setCoverLetterError(
+                      "Please select a PDF file."
+                    );
+                    event.target.value = "";
+                    return;
+                  }
+
+                  if (
+                    file.size === 0 ||
+                    file.size > 5 * 1024 * 1024
+                  ) {
+                    setCoverLetterError(
+                      "The PDF must be smaller than 5 MB."
+                    );
+                    event.target.value = "";
+                    return;
+                  }
+
+                  setCoverLetterFile(file);
+                }}
+              />
+            </label>
+
+            {coverLetterFile && (
+              <p className="text-sm text-[#475569]">
+                Selected: {coverLetterFile.name}
+              </p>
+            )}
+
+            {coverLetterError && (
+              <p
+                role="alert"
+                className="text-sm text-red-700"
+              >
+                {coverLetterError}
+              </p>
+            )}
           </div>
         </Section>
 
@@ -899,7 +1116,9 @@ export default function JobApplicationForm({
 
         <div className="flex flex-wrap justify-end gap-3 rounded-2xl border bg-white p-5">
           <Link
-            href={`/jobs?selectedJob=${encodeURIComponent(jobId)}`}
+            href={`/jobs?selectedJob=${encodeURIComponent(
+              jobId
+            )}`}
             className="rounded-xl border px-5 py-3 text-sm font-semibold"
           >
             Cancel
@@ -931,14 +1150,9 @@ export default function JobApplicationForm({
             </h2>
 
             <p className="mt-3 text-sm leading-6 text-[#475569]">
-              You are applying for <strong>{jobTitle}</strong> at{" "}
+              You are applying for{" "}
+              <strong>{jobTitle}</strong> at{" "}
               <strong>{company}</strong>.
-            </p>
-
-            <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-              Only your selected resume and application record
-              will be saved. The other form details are not
-              included in this submission.
             </p>
 
             <label className="mt-4 flex gap-2 text-sm">
@@ -946,16 +1160,21 @@ export default function JobApplicationForm({
                 type="checkbox"
                 checked={acknowledged}
                 disabled={submitting}
-                onChange={(e) => setAcknowledged(e.target.checked)}
+                onChange={(e) =>
+                  setAcknowledged(e.target.checked)
+                }
               />
-              I understand what will be submitted.
+
+              I confirm that I want to submit this application.
             </label>
 
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
                 disabled={submitting}
-                onClick={() => setConfirmOpen(false)}
+                onClick={() =>
+                  setConfirmOpen(false)
+                }
                 className="rounded-xl border px-4 py-2.5 text-sm font-semibold"
               >
                 Go back
@@ -963,11 +1182,17 @@ export default function JobApplicationForm({
 
               <button
                 type="button"
-                disabled={!acknowledged || submitting}
-                onClick={() => void handleConfirm()}
+                disabled={
+                  !acknowledged || submitting
+                }
+                onClick={() =>
+                  void handleConfirm()
+                }
                 className={buttonClass}
               >
-                {submitting ? "Submitting..." : "Confirm submission"}
+                {submitting
+                  ? "Submitting..."
+                  : "Confirm submission"}
               </button>
             </div>
           </div>
