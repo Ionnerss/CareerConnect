@@ -46,7 +46,7 @@ const jobIdSchema = z.uuid();
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
 /** Signs in the current user and confirms they have the recruiter role. */
-async function getSignedInRecruiter(
+export async function getSignedInRecruiter(
   supabase: SupabaseClient
 ): Promise<{ success: true; userId: string } | Failure> {
   const {

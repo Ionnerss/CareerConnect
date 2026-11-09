@@ -79,6 +79,16 @@ describe("AppHeader", () => {
     ).toBe("/recruiter/jobs");
   });
 
+  it("shows Notifications in the recruiter menu and highlights it on that page", () => {
+    mocks.pathname = "/recruiter/notifications";
+    render(<AppHeader initials="RR" role="recruiter" />);
+
+    expect(
+      screen.getByRole("link", { name: "Notifications" }).getAttribute("href"),
+    ).toBe("/recruiter/notifications");
+    expect(currentLink()?.textContent).toBe("Notifications");
+  });
+
   it("opens the recruiter account page from a recruiter's avatar", () => {
     mocks.pathname = "/recruiter/jobs";
     render(<AppHeader initials="YY" role="recruiter" />);
