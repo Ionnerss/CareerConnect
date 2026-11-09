@@ -4,7 +4,6 @@ import { PageBody, PageHero } from "@/components/app/page-hero";
 import CandidateComparison from "@/components/recruiter/candidate-comparison";
 import {
   AUTH_ERROR,
-  formatApplicationStatus,
   getJobApplicants,
 } from "@/lib/recruiter/applicants";
 import { getJobRequirements } from "@/lib/recruiter/candidate-comparison-service";
