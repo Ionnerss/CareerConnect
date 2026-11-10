@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createJob } from "@/app/recruiter/jobs/actions";
+import { createJob, updateJob } from "@/app/recruiter/jobs/actions";
 import {
   JOB_STATUS_OPTIONS,
   JOB_WORK_MODES,
@@ -43,8 +44,12 @@ const EMPTY_FORM: FormValues = {
   employment_type: "",
 };
 
-/** Where the recruiter lands after posting, and where Cancel goes. */
 export const RECRUITER_JOBS_PATH = "/recruiter/jobs";
+
+type JobPostingFormProps = {
+  jobId?: string;
+  initialValues?: Partial<FormValues>;
+};
 
 function Field({
   id,
@@ -79,9 +84,18 @@ function Field({
   );
 }
 
-export function JobPostingForm() {
+export function JobPostingForm({
+  jobId,
+  initialValues,
+}: JobPostingFormProps) {
   const router = useRouter();
-  const [values, setValues] = useState<FormValues>(EMPTY_FORM);
+  const isEditing = Boolean(jobId);
+
+  const [values, setValues] = useState<FormValues>(() => ({
+    ...EMPTY_FORM,
+    ...initialValues,
+  }));
+
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -90,15 +104,17 @@ export function JobPostingForm() {
 
   function updateField(field: FieldName, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: undefined }));
   }
 
-  /** Props shared by every input: id, value, change handler and error wiring. */
   function fieldProps(field: FieldName) {
     return {
       id: `job-${field}`,
       value: values[field],
       "aria-invalid": Boolean(errors[field]),
-      "aria-describedby": errors[field] ? `job-${field}-error` : undefined,
+      "aria-describedby": errors[field]
+        ? `job-${field}-error`
+        : undefined,
     };
   }
 
@@ -110,12 +126,15 @@ export function JobPostingForm() {
 
     if (!result.success) {
       const fieldErrors: FieldErrors = {};
+
       for (const issue of result.error.issues) {
         const key = issue.path[0] as FieldName;
+
         if (key in EMPTY_FORM && !fieldErrors[key]) {
           fieldErrors[key] = issue.message;
         }
       }
+
       setErrors(fieldErrors);
       return;
     }
@@ -124,7 +143,9 @@ export function JobPostingForm() {
     setIsSaving(true);
 
     try {
-      const response = await createJob(values);
+      const response = jobId
+        ? await updateJob(jobId, values)
+        : await createJob(values);
 
       if (!response.success) {
         setFormError(response.error);
@@ -132,6 +153,7 @@ export function JobPostingForm() {
       }
 
       router.push(RECRUITER_JOBS_PATH);
+      router.refresh();
     } catch {
       setFormError("An unexpected error occurred. Please try again.");
     } finally {
@@ -140,7 +162,12 @@ export function JobPostingForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate aria-label="Post a job" className="space-y-5">
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      aria-label={isEditing ? "Edit job" : "Post a job"}
+      className="space-y-5"
+    >
       {formError && (
         <p role="alert" className={ui.error}>
           {formError}
@@ -203,7 +230,6 @@ export function JobPostingForm() {
             }
           >
             <option value="">Select employment type</option>
-
             {JOB_EMPLOYMENT_TYPES.map((type) => (
               <option key={type} value={type}>
                 {type}
@@ -303,9 +329,20 @@ export function JobPostingForm() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <button type="submit" className={ui.primaryButton} disabled={isSaving}>
-          {isSaving ? "Posting..." : "Post job"}
+        <button
+          type="submit"
+          className={ui.primaryButton}
+          disabled={isSaving}
+        >
+          {isSaving
+            ? isEditing
+              ? "Saving..."
+              : "Posting..."
+            : isEditing
+              ? "Save changes"
+              : "Post job"}
         </button>
+
         <Link href={RECRUITER_JOBS_PATH} className={ui.secondaryButton}>
           Cancel
         </Link>
