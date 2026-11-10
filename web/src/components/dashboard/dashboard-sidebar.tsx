@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check, FileText, Search, UserRound } from "lucide-react";
+import { ArrowRight, BarChart3, Check, FileText, Search, UserRound } from "lucide-react";
 import type { NextStep } from "@/lib/dashboard/summary";
 
 type ProfileCardProps = {
@@ -121,6 +121,7 @@ export function DashboardShortcuts() {
   const links = [
     { href: "/jobs", label: "Browse all jobs", icon: Search },
     { href: "/application-status", label: "Track applications", icon: ArrowRight },
+    { href: "/application-status/analytics", label: "Application analytics", icon: BarChart3 },
     { href: "/upload-resume", label: "Upload a resume", icon: FileText },
   ];
 
