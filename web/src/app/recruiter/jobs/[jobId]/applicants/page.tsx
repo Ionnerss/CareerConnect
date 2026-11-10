@@ -1,26 +1,21 @@
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
+
 import { PageBody, PageHero } from "@/components/app/page-hero";
 import CandidateComparison from "@/components/recruiter/candidate-comparison";
+import FilteredApplicantsTable from "@/components/recruiter/filtered-applicants-table";
+
 import {
   AUTH_ERROR,
   getJobApplicants,
 } from "@/lib/recruiter/applicants";
-import { getJobRequirements } from "@/lib/recruiter/candidate-comparison-service";
-import { ApplicantDocuments } from "@/components/recruiter/applicant-documents";
-import ApplicantStatusSelect from "@/components/recruiter/select-applicant-status";
-import type { ApplicationStatus } from "./actions";
 
+import { getJobRequirements } from "@/lib/recruiter/candidate-comparison-service";
 
 type ApplicantsPageProps = {
   params: Promise<{ jobId: string }>;
 };
-
-const dateFormatter = new Intl.DateTimeFormat("en-CA", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
 
 export default async function JobApplicantsPage({
   params,
@@ -32,21 +27,22 @@ export default async function JobApplicantsPage({
     redirect("/auth/login");
   }
 
-  // Only a recruiter who owns the posting gets this far, so the requirements can be loaded.
-  const requirements = result.success ? await getJobRequirements(jobId) : null;
+  const requirements = result.success
+    ? await getJobRequirements(jobId)
+    : null;
 
   return (
     <main>
       <PageHero
         label="Recruiter"
         title={
-          result.success ? `Applicants for ${result.job.title}` : "Applicants"
-        }
-        description={
           result.success
-            ? `${result.job.location} · ${result.applicants.length} applicant${result.applicants.length === 1 ? "" : "s"}`
-            : undefined
+            ? `Applicants for ${result.job.title}`
+            : "Applicants"
         }
+     description={
+         result.success ? result.job.location : undefined
+                }
         action={
           <Link
             href="/recruiter/jobs"
@@ -67,99 +63,26 @@ export default async function JobApplicantsPage({
           </p>
         ) : (
           <>
+            {/* Required skills information */}
             <p className="mb-4 rounded-2xl border border-[#E3E6EB] bg-white px-5 py-3 text-sm text-[#4B5563]">
               {result.required_skills.length > 0
-                ? `Required skills: ${result.required_skills.join(", ")}. Applicants are listed best match first.`
+                ? `Required skills: ${result.required_skills.join(", ")}`
                 : "This posting lists no required skills, so skill match can't be calculated."}
             </p>
 
+            {/* Applicant filtering and table */}
             {result.applicants.length === 0 ? (
               <p className="rounded-2xl border border-[#E3E6EB] bg-white p-8 text-center text-sm text-[#4B5563]">
                 No one has applied to this posting yet.
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-[#E3E6EB] bg-white">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-[#F5F6F8] text-[#4B5563]">
-                    <tr>
-                      <th scope="col" className="px-4 py-3 font-semibold">
-                        Applicant
-                      </th>
-                      <th scope="col" className="px-4 py-3 font-semibold">
-                        Applied on
-                      </th>
-                      <th scope="col" className="px-4 py-3 font-semibold">
-                        Status
-                      </th>
-                      <th scope="col" className="px-4 py-3 font-semibold">
-                        Skill match
-                      </th>
-                      <th scope="col" className="px-4 py-3 font-semibold">
-                        Documents
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.applicants.map((applicant) => (
-                      <tr
-                        key={applicant.application_id}
-                        className="border-t border-[#EEF0F3]"
-                      >
-                        <td className="px-4 py-3 font-semibold text-[#0E1726]">
-                          {applicant.full_name ?? (
-                            <span className="font-normal text-[#4B5563]">
-                              Name not available
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {dateFormatter.format(new Date(applicant.applied_at))}
-                        </td>
-                        <td className="px-4 py-3">
-                          <ApplicantStatusSelect
-                            applicationId={applicant.application_id}
-                            jobId={jobId}
-                            initialStatus={applicant.status as ApplicationStatus}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          {applicant.skill_match ? (
-                            <>
-                              <span className="font-bold text-[#0E1726]">
-                                {applicant.skill_match.percent}%
-                              </span>
-                              <span className="text-[#4B5563]">
-                                {" "}
-                                ({applicant.skill_match.matched.length} of{" "}
-                                {applicant.skill_match.matched.length +
-                                  applicant.skill_match.missing.length}{" "}
-                                skills)
-                              </span>
-                              {applicant.skill_match.missing.length > 0 && (
-                                <p className="text-xs text-[#4B5563]">
-                                  Missing:{" "}
-                                  {applicant.skill_match.missing.join(", ")}
-                                </p>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-[#4B5563]">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 align-top">
-                          <ApplicantDocuments
-                            applicationId={applicant.application_id}
-                            hasResume={applicant.has_resume}
-                            hasCoverLetter={applicant.has_cover_letter}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <FilteredApplicantsTable
+                applicants={result.applicants}
+                jobId={jobId}
+              />
             )}
 
+            {/* Candidate comparison */}
             {requirements?.success ? (
               <CandidateComparison
                 jobId={result.job.id}
@@ -167,7 +90,10 @@ export default async function JobApplicantsPage({
                 applicantCount={result.applicants.length}
               />
             ) : (
-              <p role="alert" className="mt-10 text-sm text-destructive">
+              <p
+                role="alert"
+                className="mt-10 text-sm text-destructive"
+              >
                 {requirements?.error ??
                   "Unable to load the requirements. Please try again."}
               </p>
