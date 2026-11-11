@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Users } from "lucide-react";
+import { Bell, Users } from "lucide-react";
 import DashboardHeader, {
   NAV_ITEMS,
   type NavItem,
@@ -11,6 +11,7 @@ import { ROLE_HOME_PATH, type LoginRole } from "@/lib/auth/roles";
 /** Recruiter menu. Add entries here as recruiter pages are built. */
 export const RECRUITER_NAV_ITEMS: readonly NavItem[] = [
   { href: "/recruiter/jobs", label: "Job postings", icon: Users },
+  { href: "/recruiter/notifications", label: "Notifications", icon: Bell },
 ];
 
 /** Menu per kind of account. The role comes from `profiles.role`. */
