@@ -42,6 +42,15 @@ const SORT_OPTIONS = [
   { value: "match", label: "Best match" },
 ];
 
+function localDateKey(timestamp: string): string {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function ApplicantFilters<T extends FilterableApplicant>({
   applicants,
   children,
@@ -90,7 +99,7 @@ export default function ApplicantFilters<T extends FilterableApplicant>({
           return false;
         }
 
-        const appliedDate = applicant.applied_at.slice(0, 10);
+        const appliedDate = localDateKey(applicant.applied_at);
 
         if (dateFrom && appliedDate < dateFrom) {
           return false;

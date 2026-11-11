@@ -54,7 +54,11 @@ export default async function EditJobPage({
       <PageHero
         label="Recruiter"
         title="Edit job posting"
-        description={`Update the information for ${result.job.title}.`}
+        description={
+          result.job.title
+            ? `Update the information for ${result.job.title}.`
+            : "Update this job posting."
+        }
         action={backLink}
       />
 
@@ -64,7 +68,12 @@ export default async function EditJobPage({
           <JobPostingForm
             jobId={jobId}
             initialValues={{
-              ...result.job,
+              title: result.job.title ?? "",
+              firm_name: result.job.firm_name ?? "",
+              location: result.job.location ?? "",
+              work_mode: result.job.work_mode,
+              employment_type: result.job.employment_type ?? "",
+              required_skills: result.job.required_skills ?? "",
               salary:
                 result.job.salary != null
                   ? String(result.job.salary)
@@ -73,6 +82,8 @@ export default async function EditJobPage({
                 result.job.experience != null
                   ? String(result.job.experience)
                   : "",
+              description: result.job.description ?? "",
+              status: result.job.status ?? "",
             }}
           />
         </div>

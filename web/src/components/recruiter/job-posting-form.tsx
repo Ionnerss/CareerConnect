@@ -319,6 +319,8 @@ export function JobPostingForm({
             className={ui.input}
             onChange={(e) => updateField("status", e.target.value)}
           >
+            {isEditing && <option value="">Select a status</option>}
+            
             {JOB_STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
