@@ -5,16 +5,16 @@ import { checkMfaForClient } from "@/lib/auth/require-mfa";
 
 export type EditableJob = {
   id: string;
-  title: string;
-  firm_name: string;
-  location: string;
+  title: string | null;
+  firm_name: string | null;
+  location: string | null;
   work_mode: string;
-  employment_type: string;
-  required_skills: string;
+  employment_type: string | null;
+  required_skills: string | null;
   salary: number | null;
   experience: number | null;
-  description: string;
-  status: string;
+  description: string | null;
+  status: string | null;
 };
 
 export type GetJobResponse =
@@ -104,6 +104,6 @@ export async function getJobForEditing(
 
   return {
     success: true,
-    job: job as EditableJob,
+    job,
   };
 }

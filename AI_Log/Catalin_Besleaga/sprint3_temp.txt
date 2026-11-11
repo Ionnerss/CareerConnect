@@ -464,3 +464,159 @@ At roughly two minutes, your current application job does **not** need an elabor
 **My first implementation step would be the disposable database job that successfully rebuilds the schema from your committed migrations.** Once that passes, add the ownership and application-constraint tests above.
 
 **Sources consulted:** Linked CareerConnect workflow, package/configuration files, representative tests, security scripts, repository file tree, and latest CI run; linked official Supabase, Playwright, and Vitest documentation.
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+PROMPT: alright, the necessary PR's with migration files have been merged. Let's get to work on this issue. Can you give me a detailed plan of everything that needs to be completed to finish this specific task (Task #21.2 - Recruiters can edit their job postings Data management | Issue #267), and then we'll tackle it and complete it.
+LINK: https://chatgpt.com/s/t_6af358b277a88191ac4a21074f97639f
+
+
+**Yes. The plan has changed since the first review: we should finish and verify the implementation in PR #273, rather than rebuild it.**
+
+I rechecked `dev` at [`1cf5149`](https://github.com/Ionnerss/CareerConnect/tree/1cf5149dcc05a6cfb95f505bf7ea56bc28e69b86). The recruiter MFA migration is now present. However, [PR #273 — Recruiter Dashboard and Job Editing Interface](https://github.com/Ionnerss/CareerConnect/pull/273) is still open and contains substantial work for this feature, including backend functions. Its description explicitly says saving edits still needs integration/verification.
+
+Everything below is **proposed work**, not a claim that we have implemented or tested it.
+
+**1. Establish the branch and reuse PR #273**
+
+My recommendation is to create your issue branch from `feature/recruiter-dashboard-edit-jobs`, incorporating current `dev` first. Suggested name: `feature/recruiter-job-data-management-267`.
+
+That lets us build on these existing pieces:
+
+| Piece in PR #273 | How we’ll handle it |
+|---|---|
+| `getJobForEditing()` | Review, fix data normalization, and test |
+| `updateJobPosting()` | Verify permissions, validation, ownership and persistence |
+| Edit page and form | Keep and complete the integration |
+| Total/open/closed job counters | Verify against saved database changes |
+| Applicant status/date filters | Keep, fix boundary cases and test |
+
+These are present in [PR #273’s changed files](https://github.com/Ionnerss/CareerConnect/pull/273/files). We should keep the dependency explicit in your eventual PR, then retarget to `dev` once #273 merges.
+
+**2. Complete the database permissions**
+
+The existing grants cover title, company, location, skills, salary, description and status. They do not include the newer `work_mode`, `experience` and `employment_type` fields, although #273’s update operation sends all three. [Existing grants](https://github.com/Ionnerss/CareerConnect/blob/1cf5149/supabase/migrations/20261012203835_job_application_policies.sql) · [Proposed update service](https://github.com/Ionnerss/CareerConnect/blob/efc8ac2/web/src/lib/jobs/update-job.ts)
+
+Our work:
+
+- Add a **new migration** granting updates to those three editable columns.
+- Preserve ownership and MFA enforcement.
+- Keep `id`, `recruiter_id` and `created_at` outside the editable payload.
+- Apply the migrations to disposable local Supabase and test actual database behavior.
+
+**Completion condition:** an authorized recruiter can save every supported editable field, while another recruiter cannot modify that posting.
+
+Merged migration files are confirmed; their deployment to your hosted database remains unverified.
+
+**3. Finish loading existing postings correctly**
+
+The proposed loader already validates the ID, checks authentication/MFA and recruiter role, and queries by both posting ID and recruiter ID. Keep those checks. [Source: `getJobForEditing()`](https://github.com/Ionnerss/CareerConnect/blob/efc8ac2/web/src/lib/jobs/get-job.ts)
+
+We still need to:
+
+- Return every field the editing form needs.
+- Normalize nullable database values into safe form values.
+- Preserve legitimate zero values, such as zero years of experience.
+- Handle invalid IDs, missing postings, unauthorized access and database failures clearly.
+- Define how legacy postings with missing required fields behave.
+
+**Recommended legacy behavior:** show missing values as empty fields and require the recruiter to complete them before saving. Do not silently invent an employment type or required skills. The current form schema requires those fields. [Source: `jobPostingSchema`](https://github.com/Ionnerss/CareerConnect/blob/1cf5149/web/src/lib/validations/job-posting.ts)
+
+**Completion condition:** opening Edit displays the stored values accurately, including optional and legacy values.
+
+**4. Complete and verify saving edits**
+
+PR #273 already connects the form to `updateJob()`, which calls `updateJobPosting()`. The service validates input and explicitly lists editable fields. We should strengthen and test this implementation, not add a second update path. [Form](https://github.com/Ionnerss/CareerConnect/blob/efc8ac2/web/src/components/recruiter/job-posting-form.tsx) · [Service](https://github.com/Ionnerss/CareerConnect/blob/efc8ac2/web/src/lib/jobs/update-job.ts)
+
+Required behavior:
+
+- Save changes to the existing posting, preserving its ID and applications.
+- Reuse server-side validation, including trimming, skills normalization and optional numeric values.
+- Reject unauthorized requests even when called directly.
+- Treat a zero-row update as failure.
+- Preserve entered values when saving fails.
+- Prevent repeated submissions while saving.
+- Refresh the recruiter list, public jobs page, applicants page and edit page after success.
+
+**Completion condition:** save → reopen the edit page → see the persisted changes. A failed save must not appear successful.
+
+**5. Verify the job counters**
+
+PR #273 already derives total, open and closed counts from the recruiter’s loaded postings. Its statistics use all supplied jobs, independently of the visible search/filter results. [Source: `RecruiterJobsList`](https://github.com/Ionnerss/CareerConnect/blob/efc8ac2/web/src/components/recruiter/recruiter-jobs-list.tsx)
+
+Our acceptance rules should be:
+
+| Operation | Expected result |
+|---|---|
+| Create a posting | Total increases by one |
+| Edit title, salary or description | Total stays unchanged |
+| Change open → closed | Open decreases; closed increases; total stays unchanged |
+| Reopen a posting | Reverse of the above |
+| Search or filter the list | Overall counters stay unchanged |
+| Another recruiter creates a posting | Your counters stay unchanged |
+
+**Important scope decision:** interpret “jobs created” as the current total of owned postings, matching #273’s interface—not a historical lifetime counter.
+
+We’ll also verify that the query returns the complete dataset used for counting. If results are capped or later paginated, array length alone cannot be our acceptance basis for an exact total.
+
+**6. Finish applicant status and date filtering**
+
+PR #273 already filters real applicant data by status, name and date range, with recent/oldest/best-match sorting. There is no reason to rebuild this as a new API solely for this issue. [Source: `ApplicantFilters`](https://github.com/Ionnerss/CareerConnect/blob/efc8ac2/web/src/components/recruiter/applicant-filters.tsx)
+
+My recommended remaining work:
+
+- Keep status and date filters combinable.
+- Make both date boundaries inclusive.
+- Support a start date only, an end date only, or both.
+- Show a clear error for a reversed date range.
+- Use the **same timezone for displayed dates and filtering**.
+- Verify Reset and “No matching applicants.”
+- Ensure saved applicant status changes update the filtered rows and statistics.
+- Ensure failed status changes restore the previous value.
+
+There is a concrete date mismatch to address: filtering currently uses `applied_at.slice(0, 10)`, while the table formats a `Date` without an explicit timezone. **My recommendation is to use `America/Toronto` consistently** and test applications near midnight. [Filter implementation](https://github.com/Ionnerss/CareerConnect/blob/efc8ac2/web/src/components/recruiter/applicant-filters.tsx) · [Date display](https://github.com/Ionnerss/CareerConnect/blob/efc8ac2/web/src/components/recruiter/filtered-applicants-table.tsx)
+
+For status refresh, we’ll test the existing interaction first and fix only what fails; the current action already revalidates the applicants page. [Status action](https://github.com/Ionnerss/CareerConnect/blob/1cf5149/web/src/app/recruiter/jobs/%5BjobId%5D/applicants/actions.ts)
+
+**7. Add focused tests and perform final verification**
+
+We need three complementary layers:
+
+| Layer | Scenarios to verify |
+|---|---|
+| Service/action tests | Valid load/save; invalid ID/input; signed-out user; wrong role; another recruiter’s posting; incomplete MFA; database failure; zero-row update; refresh only after success |
+| Database tests | All editable columns persist; ownership enforced; MFA-enrolled AAL1 blocked and AAL2 permitted; non-MFA recruiter permitted; protected columns cannot be changed |
+| Component/integration checks | Prefilled form; update rather than create; failed-save preservation; correct counters; combined filters; date boundaries; status-change refresh |
+
+Use the existing service-test style and pgTAP fixture approach as starting points. [Service-test example](https://github.com/Ionnerss/CareerConnect/blob/1cf5149/web/src/lib/jobs/close-job.test.ts) · [Database MFA-test example](https://github.com/Ionnerss/CareerConnect/blob/1cf5149/supabase/tests/database/resume_mfa_test.sql)
+
+Then run:
+
+- Database tests against a fresh local migration reset.
+- `npm run ci` from `web`—currently lint, typecheck, Vitest and production build.
+- A manual recruiter journey using real local database records and two recruiter accounts.
+
+The CI command is defined in [web/package.json](https://github.com/Ionnerss/CareerConnect/blob/1cf5149/web/package.json). These checks have **not** been run in this review.
+
+**8. Close the issue with evidence**
+
+My proposed completion standard is:
+
+- All four checklist items work together.
+- Database authorization tests pass.
+- Editing survives reload and preserves existing applications.
+- Counts and filters reflect actual saved data.
+- CI passes.
+- The PR documents the migration, dependency on #273 and verification performed.
+- The required changes are merged before marking #267 complete.
+
+Keep AI description generation, notifications and a broader dashboard redesign outside this task.
+
+**Our first implementation step:** establish the branch containing current `dev` plus #273, then add the missing column-permission migration and its database tests. That gives us a verified foundation before debugging the UI.
+
+**Sources consulted:** [Issue #267](https://github.com/Ionnerss/CareerConnect/issues/267); current `dev` tree and open-PR list; [PR #273 and its diff](https://github.com/Ionnerss/CareerConnect/pull/273/files); the linked loader, update service, form, counters, applicant filters/table, validation, status action, tests and package file; current `applicants.ts`, status-select component, and [merged recruiter MFA migration](https://github.com/Ionnerss/CareerConnect/blob/1cf5149/supabase/migrations/20261107063734_require_mfa_for_recruiter_profile_helper.sql).
