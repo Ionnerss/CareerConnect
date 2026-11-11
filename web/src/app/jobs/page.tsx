@@ -1,5 +1,6 @@
 
 import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import JobSearchBar from "@/components/jobs/job-search-bar";
@@ -68,6 +69,14 @@ export default async function JobsPage({
         label="EXPLORE OPPORTUNITIES"
         title="Find your next opportunity"
         description="Explore open positions, discover new companies, and find the right role for you."
+        action={
+          <Link
+            href="/jobs/recommendations"
+            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#0E1726] transition-colors hover:bg-[#E8EEFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0E1726]"
+          >
+            Recommended for you
+          </Link>
+        }
       >
         <div className="w-full max-w-3xl rounded-2xl bg-white p-2 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)]">
           <Suspense
