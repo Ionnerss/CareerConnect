@@ -68,13 +68,22 @@ function ProfileShell({ initials, children }: { initials: string; children: Reac
                 Keep it up to date so recruiters see your best side.
               </p>
             </div>
-            <Link
-              href="/dashboard"
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-semibold text-[#A9C1FF] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6B93FF]"
-            >
-              <ArrowLeft aria-hidden="true" className="size-4" />
-              Back to dashboard
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/account/security"
+                className="inline-flex min-h-11 items-center rounded-lg border border-white/40 px-4 text-sm font-semibold text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6B93FF]"
+              >
+                Security and two-factor authentication
+              </Link>
+
+              <Link
+                href="/dashboard"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-semibold text-[#A9C1FF] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6B93FF]"
+              >
+                <ArrowLeft aria-hidden="true" className="size-4" />
+                Back to dashboard
+              </Link>
+          </div>
           </div>
         </section>
 
