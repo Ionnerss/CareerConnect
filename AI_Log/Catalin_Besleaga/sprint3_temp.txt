@@ -620,3 +620,125 @@ Keep AI description generation, notifications and a broader dashboard redesign o
 **Our first implementation step:** establish the branch containing current `dev` plus #273, then add the missing column-permission migration and its database tests. That gives us a verified foundation before debugging the UI.
 
 **Sources consulted:** [Issue #267](https://github.com/Ionnerss/CareerConnect/issues/267); current `dev` tree and open-PR list; [PR #273 and its diff](https://github.com/Ionnerss/CareerConnect/pull/273/files); the linked loader, update service, form, counters, applicant filters/table, validation, status action, tests and package file; current `applicants.ts`, status-select component, and [merged recruiter MFA migration](https://github.com/Ionnerss/CareerConnect/blob/1cf5149/supabase/migrations/20261107063734_require_mfa_for_recruiter_profile_helper.sql).
+
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+PROMPT: Can you check issue #264 in the CareerConnect repo (Task #22.2 - Application Analytics Data and Logic Management). Can you cross check with the current version of dev (including the PRs that are up) and let me know what is to be done in terms of work. Make a layout of everything that needs to be done in order to close out this task.
+LINK: https://chatgpt.com/s/t_6af5e4d6e2fc8191be401ed37abcbd1b 
+
+
+
+**#264 is partly implemented already. I would not close it yet, but rebuilding the analytics feature would duplicate existing work.** The remaining work is correcting range calculations, ensuring complete data retrieval, and proving database access and data integrity.
+
+I reviewed `dev` at [`20e5936`](https://github.com/Ionnerss/CareerConnect/tree/20e5936a8c226123a6a8f47bc6d635494541f44f), the issue, and the open PRs. This was a read-only source review; I did not run the application or database tests.
+
+**What already exists**
+
+| Requirement from [#264](https://github.com/Ionnerss/CareerConnect/issues/264) | Current implementation | Assessment |
+|---|---|---|
+| Retrieve status counts and connect them to the frontend | The analytics page calls `getUserApplications()`, which filters by the authenticated user. `AnalyticsDashboard` calculates counts from those database records. | Connected already; completeness needs attention. |
+| Calculate submissions over five time ranges | `analytics.ts` implements all five ranges, chart buckets, and filtered history. | Implemented, with boundary/definition problems below. |
+| Restrict access to users’ own history | Application SELECT policies enforce applicant/recruiter ownership; restrictive MFA policies also apply. | Policies exist; targeted verification remains. |
+| Handle users with no applications | Zero counts, a first-application message, an empty-range message, and a separate loading-error state exist. | Implemented; verify against real database results. |
+
+Sources: [analytics page](https://github.com/Ionnerss/CareerConnect/blob/20e5936/web/src/app/application-status/analytics/page.tsx), [application loader](https://github.com/Ionnerss/CareerConnect/blob/20e5936/web/src/lib/application_status/application_status_logic.ts), [dashboard component](https://github.com/Ionnerss/CareerConnect/blob/20e5936/web/src/components/application-analytics/analytics-dashboard.tsx), [range helpers](https://github.com/Ionnerss/CareerConnect/blob/20e5936/web/src/lib/application_status/analytics.ts), [ownership policies](https://github.com/Ionnerss/CareerConnect/blob/20e5936/supabase/migrations/20261012203835_job_application_policies.sql), [MFA policies](https://github.com/Ionnerss/CareerConnect/blob/20e5936/supabase/migrations/20261101094954_require_mfa_for_account_data.sql).
+
+**How the PRs affect your work**
+
+- **[PR #270](https://github.com/Ionnerss/CareerConnect/pull/270)** is already merged into `dev`. It introduced the analytics interface **and substantial calculation logic**, despite being associated with interface task #256.
+- **[PR #279](https://github.com/Ionnerss/CareerConnect/pull/279/files)** was the only open PR returned during this review. It changes recruiter posting edits, permissions, and applicant date filtering. It does **not** complete or fix the analytics implementation.
+
+**My recommendation:** branch from current `dev`. #279 is not a prerequisite for #264.
+
+**Remaining work, in implementation order**
+
+**1. Define the exact meaning of each time range, then correct the calculations.**
+
+The current behavior is:
+
+| Range | Current calculation | Work needed |
+|---|---|---|
+| 1 day | Current hour plus the preceding 23 hourly slots | Fix the mismatch with “last 24 hours.” |
+| 7 days | Today plus six previous calendar days | Document that this is a calendar-day window. |
+| 30 days | Today plus 29 previous calendar days | Same clarification. |
+| 3 months | Exactly 13 weeks—91 calendar days | Decide whether the requirement means calendar months or 13 weeks. |
+| 1 year | Current month plus 11 preceding months | Decide whether this means those calendar months or a trailing full year. |
+
+These are directly visible in `buildSlots()`. For example, at **November 9, 12:30**, the 1-day range begins **November 8, 13:00**. An application from November 8 at 12:45 is within the last 24 hours but is excluded. [Source: `buildSlots()` and `applicationsInRange()`](https://github.com/Ionnerss/CareerConnect/blob/20e5936/web/src/lib/application_status/analytics.ts).
+
+**My recommendation:** preserve the viewer’s local timezone, explicitly settle calendar versus rolling windows, and use identical boundaries for the chart, its total, and history.
+
+Also make hourly bucket keys unique across the repeated hour when daylight saving time ends. Currently, keys contain only the local date and hour. [Source: hourly slot keys](https://github.com/Ionnerss/CareerConnect/blob/20e5936/web/src/lib/application_status/analytics.ts).
+
+**2. Make application retrieval complete.**
+
+`getUserApplications()` performs one applications query without paging, while the repository config sets `max_rows = 1000`. Because the UI calculates every metric from the returned array, incomplete retrieval can undercount totals and omit older activity. I have not verified the hosted database’s configured limit. [Sources: loader](https://github.com/Ionnerss/CareerConnect/blob/20e5936/web/src/lib/application_status/application_status_logic.ts), [API configuration](https://github.com/Ionnerss/CareerConnect/blob/20e5936/supabase/config.toml).
+
+**My recommendation for this task:**
+
+- Retrieve every required application using deterministic pagination.
+- Keep aggregate calculations independent of the ten-row history display limit.
+- Handle related job/profile lookups in bounded batches if retaining the current loader.
+- Preserve errors as errors rather than returning an empty dataset.
+
+A new analytics table or RPC is **not automatically necessary**. Start with the smallest change that guarantees correct results.
+
+**3. Add application-specific authorization tests.**
+
+The existing policies deliberately allow both applicants to read their own applications and recruiters to read applications to their jobs. Do not remove legitimate recruiter access while interpreting “own history.” [Source: applications SELECT policy](https://github.com/Ionnerss/CareerConnect/blob/20e5936/supabase/migrations/20261012203835_job_application_policies.sql).
+
+My proposed database test matrix:
+
+| Scenario | Expected result |
+|---|---|
+| Applicant A reads applications | A’s records only |
+| Applicant A explicitly requests B’s records | No records |
+| Anonymous access | No application data |
+| No enrolled MFA, AAL1 | Own records accessible |
+| Verified MFA factor, AAL1 | Protected records inaccessible |
+| Same user, AAL2 | Own records accessible |
+| Recruiter with applications to their job | Authorized recruiter access preserved |
+| Unrelated recruiter | No access |
+
+The existing submission test checks a successful own-record read, while the MFA fixture tests resumes and profiles. Those do not establish the full application-history matrix above. [Sources: submission tests](https://github.com/Ionnerss/CareerConnect/blob/20e5936/supabase/tests/database/application_submission_test.sql), [MFA tests](https://github.com/Ionnerss/CareerConnect/blob/20e5936/supabase/tests/database/resume_mfa_test.sql).
+
+**4. Investigate and fix the timestamp-permission regression.**
+
+The latest notifications migration grants authenticated users **table-wide UPDATE** on applications. The cover-letter guard protects several fields but does **not** protect `created_at`, which supplies the analytics timeline. My source-based assessment is that unauthorized timestamp edits are possible; this needs a direct database regression test before claiming a reproduced exploit. [Sources: latest grants and guard](https://github.com/Ionnerss/CareerConnect/blob/20e5936/supabase/migrations/20261111024140_notifications_interview_tables_creation.sql), [applicant UPDATE policy](https://github.com/Ionnerss/CareerConnect/blob/20e5936/supabase/migrations/20261027000000_applicant_cover_letter_attachment.sql).
+
+**Recommended outcome:** restore narrowly scoped update permissions, prove application timestamps cannot be rewritten through ordinary user requests, and verify recruiter status changes and applicant cover-letter attachments still work. This can be a small prerequisite fix if you want to keep the analytics PR focused.
+
+**5. Extend the existing tests and verify the complete flow.**
+
+Reuse the existing suites rather than recreating them. They already cover status summaries, all range types, history ordering, empty states, and loading errors. [Sources: helper tests](https://github.com/Ionnerss/CareerConnect/blob/20e5936/web/src/lib/application_status/analytics.test.ts), [component tests](https://github.com/Ionnerss/CareerConnect/blob/20e5936/web/src/components/application-analytics/analytics-dashboard.test.tsx), [status-count tests](https://github.com/Ionnerss/CareerConnect/blob/20e5936/web/src/lib/dashboard/summary.test.ts).
+
+Add focused coverage for:
+
+- Exact start/end boundaries, month/year transitions, and daylight saving time.
+- Chart bucket sum matching the selected-range count.
+- Multiple retrieval pages, including identical timestamps across page boundaries.
+- Authentication failures and database failures.
+- Real users with zero applications and users with applications outside the selected range.
+- A saved recruiter status change appearing correctly after the applicant reloads.
+
+Then run the database suite and `npm run ci` in `web`; the latter includes lint, typecheck, tests, and build. [Source: package scripts](https://github.com/Ionnerss/CareerConnect/blob/20e5936/web/package.json).
+
+**Closure checklist**
+
+My proposed standard for closing #264:
+
+- [ ] Range definitions are explicit and calculations match them.
+- [ ] Counts and history include all required database records.
+- [ ] Application ownership and MFA tests pass.
+- [ ] Timestamp integrity is protected and regression-tested.
+- [ ] Empty data and failed loading remain distinct.
+- [ ] Real database records match the displayed counts and chart.
+- [ ] CI and database checks pass; changes are merged into `dev`.
+- [ ] Issue checklist is updated with verification evidence.
+
+Keep interview-page navigation under [#256](https://github.com/Ionnerss/CareerConnect/issues/256) and coordinate broader acceptance verification with [#265](https://github.com/Ionnerss/CareerConnect/issues/265). Neither needs to become an analytics redesign.
+
+**Sources consulted:** Linked issues #264, #254–256 and #265; PR #270 and open PR #279; the `dev` tree and linked implementation, migration, configuration, and test files; application layout, `app-shell.tsx`, `require-mfa.ts`, `summary.ts`, initial schema/default-status migrations, application-submission migration, and `web/AGENTS.md`.

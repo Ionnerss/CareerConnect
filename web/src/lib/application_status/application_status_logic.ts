@@ -26,35 +26,94 @@ export async function getUserApplications(): Promise<ApplicationCardData[]> {
     const { supabase, user } = await requireMfaForAction();
     if (!user) return [];
 
-    const { data: applications, error: applicationsError } = await supabase
-        .from("applications")
-        .select("id, job_id, status, created_at")
-        .eq("applicant_id", user.id)
-        .order("created_at", { ascending: false });
+    type ApplicationRow = {
+        id: string;
+        job_id: string | null;
+        status: string | null;
+        created_at: string;
+    };
 
-    if (applicationsError) throw applicationsError;
+    const pageSize = 1000;
+    const applications: ApplicationRow[] = [];
+
+    for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase
+            .from("applications")
+            .select("id, job_id, status, created_at")
+            .eq("applicant_id", user.id)
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
+            .range(offset, offset + pageSize - 1);
+
+        if (error) throw error;
+
+        applications.push(...(data ?? []));
+
+        if (!data || data.length < pageSize) break;
+    }
+
+    if (applications.length === 0) return [];
     if (!applications?.length) return [];
 
-    const jobIds = [...new Set(applications.map((application) => application.job_id))];
+    const lookupBatchSize = 100;
 
-    const { data: jobs, error: jobsError } = await supabase
-        .from("job")
-        .select("id, title, firm_name, location, recruiter_id")
-        .in("id", jobIds);
+    const jobIds = [
+        ...new Set(
+            applications
+                .map((application) => application.job_id)
+                .filter((id): id is string => id !== null),
+        ),
+    ];
 
-    if (jobsError) throw jobsError;
+    const jobBatches = await Promise.all(
+        Array.from(
+            { length: Math.ceil(jobIds.length / lookupBatchSize) },
+            (_, index) =>
+                jobIds.slice(
+                    index * lookupBatchSize,
+                    (index + 1) * lookupBatchSize,
+                ),
+        ).map(async (ids) => {
+            const { data, error } = await supabase
+                .from("job")
+                .select("id, title, firm_name, location, recruiter_id")
+                .in("id", ids);
 
-    const recruiterIds = [...new Set((jobs ?? []).map((job) => job.recruiter_id))];
+            if (error) throw error;
+            return data ?? [];
+        }),
+    );
 
-    const { data: profilesPublic, error: profilesPublicError } =
-        recruiterIds.length
-            ? await supabase
+    const jobs = jobBatches.flat();
+
+    const recruiterIds = [
+        ...new Set(
+            jobs
+                .map((job) => job.recruiter_id)
+                .filter((id): id is string => id !== null),
+        ),
+    ];
+
+    const profileBatches = await Promise.all(
+        Array.from(
+            { length: Math.ceil(recruiterIds.length / lookupBatchSize) },
+            (_, index) =>
+                recruiterIds.slice(
+                    index * lookupBatchSize,
+                    (index + 1) * lookupBatchSize,
+                ),
+        ).map(async (ids) => {
+            const { data, error } = await supabase
                 .from("profiles_public")
                 .select("id, full_name")
-                .in("id", recruiterIds)
-            : { data: [], error: null };
+                .in("id", ids);
 
-    if (profilesPublicError) throw profilesPublicError;
+            if (error) throw error;
+            return data ?? [];
+        }),
+    );
+
+    const profilesPublic = profileBatches.flat();
 
     const jobsById = new Map((jobs ?? []).map((job) => [job.id, job]));
 

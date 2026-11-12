@@ -36,10 +36,9 @@ describe("bucketApplications", () => {
       NOW,
     );
 
-    expect(buckets).toHaveLength(24);
     expect(buckets.at(-1)?.label).toBe("12 PM");
-    expect(buckets[21]).toMatchObject({ label: "10 AM", count: 2 });
-    expect(buckets.reduce((sum, bucket) => sum + bucket.count, 0)).toBe(2);
+    expect(buckets).toHaveLength(25);
+    expect(buckets[22]).toMatchObject({ label: "10 AM", count: 2 });
   });
 
   it("7 days: one bar per day, ending today", () => {
@@ -68,10 +67,10 @@ describe("bucketApplications", () => {
     expect(buckets[0]).toMatchObject({ label: "Oct 11", count: 1 });
   });
 
-  it("3 months: one bar per week, the last week ending today", () => {
+  it("3 months: weekly bars reach the exact calendar-month cutoff", () => {
     const buckets = bucketApplications([app(at(2026, 9, 30)), app(at(2026, 10, 5))], "3m", NOW);
 
-    expect(buckets).toHaveLength(13);
+    expect(buckets).toHaveLength(14);
     expect(buckets.at(-1)).toMatchObject({ fullLabel: "Nov 3 – Nov 9", count: 1 });
     expect(buckets.at(-2)).toMatchObject({ fullLabel: "Oct 27 – Nov 2", count: 1 });
   });
@@ -83,9 +82,13 @@ describe("bucketApplications", () => {
       NOW,
     );
 
-    expect(buckets).toHaveLength(12);
-    expect(buckets[0]).toMatchObject({ label: "Dec", fullLabel: "Dec 2025", count: 0 });
-    expect(buckets[1]).toMatchObject({ label: "Jan", count: 1 });
+    expect(buckets).toHaveLength(13);
+    expect(buckets[0]).toMatchObject({
+      label: "Nov",
+      fullLabel: "Nov 2025",
+      count: 0,
+    });
+    expect(buckets[2]).toMatchObject({ label: "Jan", count: 1 });
     expect(buckets.at(-1)).toMatchObject({ label: "Nov", count: 1 });
   });
 
@@ -97,6 +100,121 @@ describe("bucketApplications", () => {
     );
 
     expect(buckets.every((bucket) => bucket.count === 0)).toBe(true);
+  });
+
+  it("uses the exact last 24 hours for both the chart and history", () => {
+    const atCutoff = {
+      id: "at-cutoff",
+      created_at: new Date(2026, 10, 8, 12, 30, 0).toISOString(),
+    };
+    const beforeCutoff = {
+      id: "before-cutoff",
+      created_at: new Date(2026, 10, 8, 12, 29, 59).toISOString(),
+    };
+    const atNow = {
+      id: "at-now",
+      created_at: NOW.toISOString(),
+    };
+    const afterNow = {
+      id: "after-now",
+      created_at: new Date(2026, 10, 9, 12, 30, 1).toISOString(),
+    };
+
+    const applications = [beforeCutoff, atCutoff, atNow, afterNow];
+    const history = applicationsInRange(applications, "1d", NOW);
+    const buckets = bucketApplications(applications, "1d", NOW);
+
+    expect(history.map((application) => application.id)).toEqual([
+      "at-now",
+      "at-cutoff",
+    ]);
+    expect(buckets).toHaveLength(25);
+    expect(buckets[0].count).toBe(1);
+    expect(buckets.at(-1)?.count).toBe(1);
+    expect(buckets.reduce((total, bucket) => total + bucket.count, 0)).toBe(
+      history.length,
+    );
+    expect(new Set(buckets.map((bucket) => bucket.key)).size).toBe(
+      buckets.length,
+    );
+  });
+
+  it("3 months starts on the same local date three months earlier", () => {
+    // NOW is November 9, 2026 at 12:30 PM.
+    // Three calendar months earlier is August 9 at 12:30 PM.
+    const beforeCutoff = {
+      id: "before-cutoff",
+      created_at: new Date(2026, 7, 9, 12, 29, 59).toISOString(),
+    };
+    const atCutoff = {
+      id: "at-cutoff",
+      created_at: new Date(2026, 7, 9, 12, 30).toISOString(),
+    };
+
+    const applications = [beforeCutoff, atCutoff];
+    const history = applicationsInRange(applications, "3m", NOW);
+    const buckets = bucketApplications(applications, "3m", NOW);
+
+    expect(history.map((application) => application.id)).toEqual(["at-cutoff"]);
+    expect(buckets.reduce((total, bucket) => total + bucket.count, 0)).toBe(1);
+  });
+
+  it("3 months clamps the cutoff to the last day of a shorter month", () => {
+    const now = new Date(2026, 4, 31, 12, 30); // May 31
+    const applications = [
+      {
+        id: "before",
+        created_at: new Date(2026, 1, 28, 12, 29, 59).toISOString(),
+      },
+      {
+        id: "at-cutoff",
+        created_at: new Date(2026, 1, 28, 12, 30).toISOString(),
+      },
+    ];
+
+    const history = applicationsInRange(applications, "3m", now);
+    const buckets = bucketApplications(applications, "3m", now);
+
+    expect(history.map((application) => application.id)).toEqual(["at-cutoff"]);
+    expect(buckets.reduce((total, bucket) => total + bucket.count, 0)).toBe(
+      history.length,
+    );
+  });
+
+  it("1 year starts at the exact calendar-year cutoff", () => {
+    // NOW is November 9, 2026 at 12:30 PM.
+    const applications = [
+      {
+        id: "before-cutoff",
+        created_at: new Date(2025, 10, 9, 12, 29, 59).toISOString(),
+      },
+      {
+        id: "at-cutoff",
+        created_at: new Date(2025, 10, 9, 12, 30).toISOString(),
+      },
+      {
+        id: "at-now",
+        created_at: NOW.toISOString(),
+      },
+    ];
+
+    const history = applicationsInRange(applications, "1y", NOW);
+    const buckets = bucketApplications(applications, "1y", NOW);
+
+    expect(history.map((application) => application.id)).toEqual([
+      "at-now",
+      "at-cutoff",
+    ]);
+    expect(buckets).toHaveLength(13);
+    expect(buckets[0]).toMatchObject({
+      label: "Nov",
+      fullLabel: "Nov 2025",
+      count: 1,
+    });
+    expect(buckets.at(-1)?.count).toBe(1);
+    expect(buckets.reduce((total, bucket) => total + bucket.count, 0)).toBe(
+      history.length,
+    );
   });
 });
 

@@ -62,19 +62,34 @@ function buildSlots(range: AnalyticsRange, now: Date): Slot[] {
   const slots: Slot[] = [];
 
   if (range === "1d") {
-    const currentHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours());
-    for (let i = 23; i >= 0; i -= 1) {
-      const start = new Date(currentHour.getTime() - i * 60 * 60 * 1000);
-      const end = new Date(start.getTime() + 60 * 60 * 1000);
+    const hourMs = 60 * 60 * 1000;
+    const cutoff = now.getTime() - 24 * hourMs;
+
+    // Round down to the start of the current local clock hour.
+    // Subtracting elapsed minutes preserves the correct hour during
+    // the repeated hour when daylight saving time ends.
+    const currentHourStart =
+      now.getTime() -
+      (now.getMinutes() * 60 + now.getSeconds()) * 1000 -
+      now.getMilliseconds();
+
+    for (
+      let hourStart = currentHourStart;
+      hourStart + hourMs > cutoff;
+      hourStart -= hourMs
+    ) {
+      const hour = new Date(hourStart);
+
       slots.push({
-        start,
-        end,
-        key: `${dayKey(start)}T${pad(start.getHours())}`,
-        label: hourLabel(start.getHours()),
-        fullLabel: `${shortDay(start)}, ${hourLabel(start.getHours())}`,
+        start: new Date(Math.max(hourStart, cutoff)),
+        end: new Date(hourStart + hourMs),
+        key: hour.toISOString(),
+        label: hourLabel(hour.getHours()),
+        fullLabel: `${shortDay(hour)}, ${hourLabel(hour.getHours())}`,
       });
     }
-    return slots;
+
+    return slots.reverse();
   }
 
   if (range === "7d" || range === "30d") {
@@ -94,35 +109,94 @@ function buildSlots(range: AnalyticsRange, now: Date): Slot[] {
   }
 
   if (range === "3m") {
-    // 13 weeks; the last week ends today (inclusive).
-    const tomorrow = addDays(startOfDay(now), 1);
-    for (let i = 12; i >= 0; i -= 1) {
-      const end = addDays(tomorrow, -7 * i);
-      const start = addDays(end, -7);
+    // Find the target month first, then clamp the day. For example,
+    // May 31 minus three months becomes February 28 in 2026.
+    const targetMonth = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+    const lastDayOfTargetMonth = new Date(
+      targetMonth.getFullYear(),
+      targetMonth.getMonth() + 1,
+      0,
+    ).getDate();
+
+    const cutoff = new Date(
+      targetMonth.getFullYear(),
+      targetMonth.getMonth(),
+      Math.min(now.getDate(), lastDayOfTargetMonth),
+      now.getHours(),
+      now.getMinutes(),
+      now.getSeconds(),
+      now.getMilliseconds(),
+    );
+
+    // Retain the existing weekly alignment: the final bar ends
+    // tomorrow, and each preceding bar covers seven local days.
+    let end = addDays(startOfDay(now), 1);
+
+    while (true) {
+      const weekStart = addDays(end, -7);
+      const start =
+        weekStart.getTime() < cutoff.getTime() ? cutoff : weekStart;
       const lastDay = addDays(end, -1);
-      slots.push({
+
+      slots.unshift({
         start,
         end,
-        key: dayKey(start),
+        key: dayKey(weekStart),
         label: shortDay(start),
         fullLabel: `${shortDay(start)} – ${shortDay(lastDay)}`,
       });
+
+      if (weekStart.getTime() <= cutoff.getTime()) break;
+      end = weekStart;
     }
+
     return slots;
   }
 
-  // 1 year: the current month and the 11 before it.
-  for (let i = 11; i >= 0; i -= 1) {
-    const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
-    slots.push({
-      start,
+  // 1 year: monthly bars from the exact calendar-year cutoff through now.
+  // Clamp February 29 to February 28 when the previous year is not a leap year.
+  const lastDayOfTargetMonth = new Date(
+    now.getFullYear() - 1,
+    now.getMonth() + 1,
+    0,
+  ).getDate();
+
+  const cutoff = new Date(
+    now.getFullYear() - 1,
+    now.getMonth(),
+    Math.min(now.getDate(), lastDayOfTargetMonth),
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
+    now.getMilliseconds(),
+  );
+
+  let monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  while (true) {
+    const end = new Date(
+      monthStart.getFullYear(),
+      monthStart.getMonth() + 1,
+      1,
+    );
+
+    slots.unshift({
+      start: monthStart.getTime() < cutoff.getTime() ? cutoff : monthStart,
       end,
-      key: `${start.getFullYear()}-${pad(start.getMonth() + 1)}`,
-      label: MONTHS[start.getMonth()],
-      fullLabel: `${MONTHS[start.getMonth()]} ${start.getFullYear()}`,
+      key: `${monthStart.getFullYear()}-${pad(monthStart.getMonth() + 1)}`,
+      label: MONTHS[monthStart.getMonth()],
+      fullLabel: `${MONTHS[monthStart.getMonth()]} ${monthStart.getFullYear()}`,
     });
+
+    if (monthStart.getTime() <= cutoff.getTime()) break;
+
+    monthStart = new Date(
+      monthStart.getFullYear(),
+      monthStart.getMonth() - 1,
+      1,
+    );
   }
+
   return slots;
 }
 

@@ -7,6 +7,7 @@ import Link from "next/link";
 import {
   Bell,
   Briefcase,
+  CalendarDays,
   FileText,
   Home,
   ListChecks,
@@ -41,6 +42,11 @@ export const NAV_ITEMS: readonly NavItem[] = [
     href: "/application-status",
     label: "Applications",
     icon: ListChecks,
+  },
+  {
+    href: "/interviews",
+    label: "Interviews",
+    icon: CalendarDays,
   },
   {
     href: "/upload-resume",
