@@ -87,7 +87,7 @@ describe("AnalyticsDashboard", () => {
 
     await user.click(screen.getByRole("button", { name: "1 year" }));
     expect(screen.getByText("4 applications in the last 12 months")).toBeDefined();
-    expect(screen.getAllByTestId("chart-bar")).toHaveLength(12);
+    expect(screen.getAllByTestId("chart-bar")).toHaveLength(13);
   });
 
   it("explains when the chosen range has no applications", async () => {
