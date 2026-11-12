@@ -28,13 +28,19 @@ function currentLink() {
 }
 
 describe("AppHeader", () => {
-  it("shows the logo, the four sections, log out and the initials", () => {
+  it("shows the logo, the five sections, log out and the initials", () => {
     mocks.pathname = "/jobs";
     render(<AppHeader initials="YY" />);
 
     expect(screen.getByText("CareerConnect")).toBeTruthy();
 
-    for (const name of ["Home", "Jobs", "Applications", "Resume"]) {
+    for (const name of [
+      "Home",
+      "Jobs",
+      "Applications",
+      "Interviews",
+      "Resume",
+    ]) {
       expect(screen.getByRole("link", { name })).toBeTruthy();
     }
 
@@ -49,6 +55,7 @@ describe("AppHeader", () => {
     ["/dashboard", "Home"],
     ["/jobs", "Jobs"],
     ["/application-status", "Applications"],
+    ["/interviews", "Interviews"],
     ["/upload-resume", "Resume"],
   ])("highlights the current section on %s", (path, label) => {
     mocks.pathname = path;
@@ -81,6 +88,10 @@ describe("AppHeader", () => {
 
     expect(
       screen.queryByRole("link", { name: "Resume" })
+    ).toBeNull();
+
+    expect(
+      screen.queryByRole("link", { name: "Interviews" })
     ).toBeNull();
 
     expect(currentLink()?.textContent).toBe("Job postings");
