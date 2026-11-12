@@ -90,9 +90,10 @@ describe("AppHeader", () => {
       screen.queryByRole("link", { name: "Resume" })
     ).toBeNull();
 
+    // Recruiters get their own Interviews page, not the job seeker one.
     expect(
-      screen.queryByRole("link", { name: "Interviews" })
-    ).toBeNull();
+      screen.getByRole("link", { name: "Interviews" }).getAttribute("href")
+    ).toBe("/recruiter/interviews");
 
     expect(currentLink()?.textContent).toBe("Job postings");
 
@@ -119,6 +120,16 @@ describe("AppHeader", () => {
 
     // The active link should be the notification bell.
     expect(currentLink()).toBe(notificationLink);
+  });
+
+  it("lets recruiters open their interviews from the menu", () => {
+    mocks.pathname = "/recruiter/interviews/abc/edit";
+    render(<AppHeader initials="RR" role="recruiter" />);
+
+    const interviewsLink = screen.getByRole("link", { name: "Interviews" });
+
+    expect(interviewsLink.getAttribute("href")).toBe("/recruiter/interviews");
+    expect(currentLink()).toBe(interviewsLink);
   });
 
   it("opens the recruiter account page from a recruiter's avatar", () => {

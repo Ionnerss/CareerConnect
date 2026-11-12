@@ -1,6 +1,8 @@
 
 "use client";
 
+import Link from "next/link";
+import { CalendarPlus } from "lucide-react";
 import { ApplicantDocuments } from "@/components/recruiter/applicant-documents";
 import ApplicantFilters from "@/components/recruiter/applicant-filters";
 import ApplicantStatusSelect from "@/components/recruiter/select-applicant-status";
@@ -56,7 +58,7 @@ export default function FilteredApplicantsTable({
           </div>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-[#E3E6EB] bg-white">
-            <table className="w-full min-w-[850px] text-left text-sm">
+            <table className="w-full min-w-[960px] text-left text-sm">
               <thead className="bg-[#F5F6F8] text-[#4B5563]">
                 <tr>
                   <th
@@ -92,6 +94,13 @@ export default function FilteredApplicantsTable({
                     className="px-4 py-3 font-semibold"
                   >
                     Documents
+                  </th>
+
+                  <th
+                    scope="col"
+                    className="px-4 py-3 font-semibold"
+                  >
+                    Interview
                   </th>
                 </tr>
               </thead>
@@ -217,6 +226,20 @@ export default function FilteredApplicantsTable({
                             applicant.has_cover_letter
                           }
                         />
+                      </td>
+
+                      {/* Schedule an interview */}
+                      <td className="px-4 py-3 align-middle">
+                        <Link
+                          href={`/recruiter/interviews/new?applicationId=${applicant.application_id}`}
+                          aria-label={`Schedule an interview with ${
+                            applicant.full_name ?? "this applicant"
+                          }`}
+                          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-[#C7D5FA] bg-[#F3F6FE] px-3 py-1.5 text-xs font-semibold text-[#1D4ED8] transition-colors hover:bg-[#E8EEFD] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]"
+                        >
+                          <CalendarPlus aria-hidden="true" className="size-3.5" />
+                          Schedule
+                        </Link>
                       </td>
                     </tr>
                   );
