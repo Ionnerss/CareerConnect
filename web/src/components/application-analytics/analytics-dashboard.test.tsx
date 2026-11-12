@@ -117,13 +117,14 @@ describe("AnalyticsDashboard", () => {
     expect(screen.queryByText("You haven't applied to any jobs yet.")).toBeNull();
   });
 
-  it("links back to the dashboard and to the application status page", () => {
+  it("links back to the dashboard and to the application status and interviews pages", () => {
     render(<AnalyticsDashboard applications={sample} now={NOW} />);
 
     expect(screen.getByRole("link", { name: "Back to dashboard" }).getAttribute("href")).toBe("/dashboard");
     expect(screen.getByRole("link", { name: "View application status" }).getAttribute("href")).toBe(
       "/application-status",
     );
+    expect(screen.getByRole("link", { name: "View interviews" }).getAttribute("href")).toBe("/interviews");
   });
 
   it("shows at most 10 applications in the history and links to the rest", () => {
