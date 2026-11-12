@@ -117,6 +117,10 @@ export function AnalyticsDashboard({ applications, loadError = false, now }: Ana
               View application status
               <ArrowRight aria-hidden="true" className="size-4" />
             </Link>
+            <Link href="/interviews" className={linkButton}>
+              View interviews
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
           </div>
 
           {loadError ? (

@@ -1,6 +1,8 @@
 //This file is to display one application card information, Job title, company, application date, status, view details
 
 "use client";
+import Link from "next/link";
+import { CalendarDays } from "lucide-react";
 import type { ApplicationCardData } from "@/lib/application_status/application_status_logic";
 import {
     getCompanyTileIndex,
@@ -71,6 +73,16 @@ export function ApplicationCard({ application }: CardDataProps) {
                 <span className="font-mono text-[11px] text-[#4B5563]">
                     Applied: {created_at}
                 </span>
+                {application.status === "Interview" && (
+                    <Link
+                        href="/interviews"
+                        aria-label={`View interview for ${application.job?.title ?? "this application"}`}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#1D4ED8] hover:text-[#1E40AF] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]"
+                    >
+                        <CalendarDays aria-hidden="true" className="size-3.5" />
+                        View interview
+                    </Link>
+                )}
             </div>
         </div>
     );
