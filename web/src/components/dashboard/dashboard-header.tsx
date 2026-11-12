@@ -35,6 +35,9 @@ export type NavItem = {
   icon: LucideIcon;
 };
 
+/** Fired after notifications are marked read or unread so the bell badge updates right away. */
+export const NOTIFICATIONS_CHANGED_EVENT = "careerconnect:notifications-changed";
+
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/jobs", label: "Jobs", icon: Briefcase },
@@ -69,8 +72,10 @@ export default function DashboardHeader({
   const [liveUnreadCount, setLiveUnreadCount] =
     useState<number | null>(null);
 
+  // Both job seekers and recruiters get a live unread badge on the bell.
   const isJobSeekerNotifications =
-    notificationsHref === "/notifications";
+    notificationsHref === "/notifications" ||
+    notificationsHref === "/recruiter/notifications";
 
   const refreshUnreadCount = useCallback(async () => {
     if (!isJobSeekerNotifications) return;
@@ -124,6 +129,7 @@ export default function DashboardHeader({
     }
 
     window.addEventListener("focus", handleFocus);
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, handleFocus);
 
     document.addEventListener(
       "visibilitychange",
@@ -135,6 +141,11 @@ export default function DashboardHeader({
 
       window.removeEventListener(
         "focus",
+        handleFocus
+      );
+
+      window.removeEventListener(
+        NOTIFICATIONS_CHANGED_EVENT,
         handleFocus
       );
 
