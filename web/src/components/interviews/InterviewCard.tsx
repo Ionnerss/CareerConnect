@@ -138,15 +138,14 @@ function InterviewPreparation({ interviewId }: { interviewId: string }) {
     };
   }, [storageKey]);
 
-  useEffect(() => {
-    if (!loaded) return;
+useEffect(() => {
+  if (!loaded) return;
 
-    try {
-      window.localStorage.setItem(storageKey, JSON.stringify(tasks));
-    } catch {
-      setStorageError(true);
-    }
-  }, [tasks, storageKey, loaded]);
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(tasks));
+  } catch {
+  }
+}, [tasks, storageKey, loaded]);
 
   const completedCount = tasks.filter((task) => task.completed).length;
 
