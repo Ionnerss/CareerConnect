@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import type {
@@ -10,7 +10,8 @@ import type {
   NotificationFilter,
 } from "@/components/notifications/notification-types";
 
-import { initialNotifications } from "@/lib/notifications/mock-notifications";
+import { createClient } from "@/lib/supabase/client";
+import { notificationService } from "@/lib/notifications/notification-service";
 
 import {
   ArrowLeft,
@@ -549,46 +550,108 @@ function NotificationSection({
 }
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(
-    initialNotifications
-  );
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadNotifications() {
+      try {
+        const supabase = createClient();
+
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError) throw authError;
+        if (!user) throw new Error("You must be logged in.");
+
+        const data = await notificationService.getNotifications(user.id);
+
+        if (!cancelled) {
+          setNotifications(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Failed to load notifications."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadNotifications();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const unreadCount = notifications.filter(
     (notification) => !notification.read
   ).length;
 
   const interviewCount = notifications.filter(
-    (notification) =>
-      notification.category === "interviews"
+    (notification) => notification.category === "interviews"
   ).length;
 
   const deadlineCount = notifications.filter(
-    (notification) =>
-      notification.category === "deadlines"
+    (notification) => notification.category === "deadlines"
   ).length;
 
-  function toggleRead(id: string) {
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === id
-          ? { ...notification, read: !notification.read }
-          : notification
-      )
-    );
+  async function toggleRead(id: string) {
+    const notification = notifications.find((item) => item.id === id);
+
+    if (!notification) return;
+
+    const nextRead = !notification.read;
+
+    try {
+      await notificationService.setReadStatus(id, nextRead);
+
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === id ? { ...item, read: nextRead } : item
+        )
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to update notification."
+      );
+    }
   }
 
-  function markAllRead() {
-    setNotifications((current) =>
-      current.map((notification) => ({
-        ...notification,
-        read: true,
-      }))
-    );
+  async function markAllRead() {
+    const unread = notifications.filter((item) => !item.read);
+
+    try {
+      await Promise.all(
+        unread.map((item) =>
+          notificationService.setReadStatus(item.id, true)
+        )
+      );
+
+      setNotifications((current) =>
+        current.map((item) => ({ ...item, read: true }))
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to update notifications."
+      );
+    }
   }
 
   return (
     <main className="min-h-screen bg-[#F5F6F8] pb-16">
-      {/* Compact hero */}
       <section className="relative overflow-hidden bg-[#0E1726] text-white">
         <div
           aria-hidden="true"
@@ -610,10 +673,7 @@ export default function NotificationsPage() {
             href="/dashboard"
             className="inline-flex items-center gap-2 text-sm font-semibold text-[#ADBBD0] transition-colors hover:text-white"
           >
-            <ArrowLeft
-              className="h-4 w-4"
-              aria-hidden="true"
-            />
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to dashboard
           </Link>
 
@@ -662,7 +722,6 @@ export default function NotificationsPage() {
         </div>
       </section>
 
-      {/* Notification overview */}
       <div className="relative z-10 mx-auto -mt-11 max-w-[1200px] px-4 sm:px-6">
         <div className="rounded-[24px] border border-[#E5EAF1] bg-white px-5 py-4 shadow-[0_10px_35px_rgba(14,23,38,0.07)] sm:px-7">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -678,14 +737,11 @@ export default function NotificationsPage() {
 
             <button
               type="button"
-              onClick={markAllRead}
+              onClick={() => void markAllRead()}
               disabled={unreadCount === 0}
               className="inline-flex items-center gap-2 rounded-xl border border-[#DCE4F0] bg-white px-4 py-2.5 text-xs font-bold text-[#3151D5] transition-colors hover:bg-[#F3F6FF] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <CheckCheck
-                className="h-4 w-4"
-                aria-hidden="true"
-              />
+              <CheckCheck className="h-4 w-4" aria-hidden="true" />
               Mark all as read
             </button>
           </div>
@@ -696,8 +752,7 @@ export default function NotificationsPage() {
 
               const count = notifications.filter(
                 (item) =>
-                  item.category === section.category &&
-                  !item.read
+                  item.category === section.category && !item.read
               ).length;
 
               return (
@@ -725,9 +780,7 @@ export default function NotificationsPage() {
                         : "bg-[#EDF5F0] text-[#387A55]"
                     }`}
                   >
-                    {count > 0
-                      ? `${count} unread`
-                      : "All read"}
+                    {count > 0 ? `${count} unread` : "All read"}
                   </span>
                 </a>
               );
@@ -735,20 +788,29 @@ export default function NotificationsPage() {
           </div>
         </div>
 
-        {/* Independent notification sections */}
-        <div className="mt-6 space-y-5">
-          {sections.map((config) => (
-            <NotificationSection
-              key={config.category}
-              config={config}
-              notifications={notifications.filter(
-                (notification) =>
-                  notification.category === config.category
-              )}
-              onToggleRead={toggleRead}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <p className="py-12 text-center text-sm text-[#718096]">
+            Loading notifications...
+          </p>
+        ) : error ? (
+          <p role="alert" className="py-12 text-center text-sm text-red-600">
+            {error}
+          </p>
+        ) : (
+          <div className="mt-6 space-y-5">
+            {sections.map((config) => (
+              <NotificationSection
+                key={config.category}
+                config={config}
+                notifications={notifications.filter(
+                  (notification) =>
+                    notification.category === config.category
+                )}
+                onToggleRead={(id) => void toggleRead(id)}
+              />
+            ))}
+          </div>
+        )}
 
         <div className="mt-8 flex items-center justify-center gap-2 text-center text-xs text-[#94A0B1]">
           <Check className="h-3.5 w-3.5" />
