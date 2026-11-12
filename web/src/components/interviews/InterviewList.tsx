@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   CalendarCheck2,
   CalendarClock,
@@ -11,13 +12,12 @@ import {
   Clock3,
   Timer,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import InterviewCard from "./InterviewCard";
 import type { Interview, InterviewStatus } from "./interview-types";
 
 type InterviewListProps = {
   interviews: Interview[];
-  onAccept?: (id: string) => void;
-  onReject?: (id: string) => void;
   actionsEnabled?: boolean;
 };
 
@@ -27,6 +27,7 @@ const filters = [
   "Accepted",
   "Rejected",
   "Cancelled",
+  "Expired",
 ] as const;
 
 type InterviewFilter = "All" | InterviewStatus;
@@ -45,21 +46,19 @@ function getCountdown(targetDate: string, currentTime: number) {
 
 export default function InterviewList({
   interviews,
-  onAccept,
-  onReject,
-  actionsEnabled = false,
+  actionsEnabled = true,
 }: InterviewListProps) {
+  const router = useRouter();
+
   const [selectedFilter, setSelectedFilter] =
     useState<InterviewFilter>("All");
 
-  const [currentTime, setCurrentTime] = useState<number | null>(
-    null
-  );
+  const [currentTime, setCurrentTime] = useState<number | null>(null);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [responseError, setResponseError] = useState<string | null>(null);
 
   useEffect(() => {
-    const updateTime = () => {
-      setCurrentTime(Date.now());
-    };
+    const updateTime = () => setCurrentTime(Date.now());
 
     updateTime();
 
@@ -67,6 +66,39 @@ export default function InterviewList({
 
     return () => window.clearInterval(interval);
   }, []);
+
+  const handleResponse = async (
+    interviewId: string,
+    response: "accepted" | "declined"
+  ) => {
+    if (respondingId || !actionsEnabled) return;
+
+    setRespondingId(interviewId);
+    setResponseError(null);
+
+    try {
+      const supabase = createClient();
+
+      const { error } = await supabase.rpc("respond_to_interview", {
+        p_interview_id: interviewId,
+        p_response: response,
+      });
+
+      if (error) throw error;
+
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to respond to interview:", error);
+
+      setResponseError(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit your response."
+      );
+    } finally {
+      setRespondingId(null);
+    }
+  };
 
   const counts = useMemo(() => {
     const pending = interviews.filter(
@@ -85,12 +117,17 @@ export default function InterviewList({
       (item) => item.status === "Cancelled"
     ).length;
 
+    const expired = interviews.filter(
+      (item) => item.status === "Expired"
+    ).length;
+
     return {
       All: interviews.length,
       Pending: pending,
       Accepted: accepted,
       Rejected: rejected,
       Cancelled: cancelled,
+      Expired: expired,
     };
   }, [interviews]);
 
@@ -100,20 +137,15 @@ export default function InterviewList({
       Accepted: 1,
       Rejected: 2,
       Cancelled: 3,
+      Expired: 4,
     };
 
     return [...interviews].sort((a, b) => {
-      const statusDifference =
-        priority[a.status] - priority[b.status];
+      const statusDifference = priority[a.status] - priority[b.status];
 
-      if (statusDifference !== 0) {
-        return statusDifference;
-      }
+      if (statusDifference !== 0) return statusDifference;
 
-      return (
-        new Date(a.date).getTime() -
-        new Date(b.date).getTime()
-      );
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
   }, [interviews]);
 
@@ -136,8 +168,7 @@ export default function InterviewList({
       )
       .sort(
         (a, b) =>
-          new Date(a.date).getTime() -
-          new Date(b.date).getTime()
+          new Date(a.date).getTime() - new Date(b.date).getTime()
       )[0];
   }, [interviews, currentTime]);
 
@@ -167,7 +198,7 @@ export default function InterviewList({
     },
     {
       label: "Closed",
-      value: counts.Rejected + counts.Cancelled,
+      value: counts.Rejected + counts.Cancelled + counts.Expired,
       icon: CheckCircle2,
       color: "bg-[#F1F2F4] text-[#4B5563]",
     },
@@ -175,7 +206,6 @@ export default function InterviewList({
 
   return (
     <div className="flex flex-col gap-7">
-      {/* Overview statistics */}
       <section aria-label="Interview overview">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {overview.map((item) => {
@@ -190,10 +220,7 @@ export default function InterviewList({
                   <span
                     className={`inline-flex size-10 items-center justify-center rounded-xl ${item.color}`}
                   >
-                    <Icon
-                      aria-hidden="true"
-                      className="size-5"
-                    />
+                    <Icon aria-hidden="true" className="size-5" />
                   </span>
                 </div>
 
@@ -210,7 +237,6 @@ export default function InterviewList({
         </div>
       </section>
 
-      {/* Upcoming accepted interview */}
       {nextInterview && (
         <section aria-labelledby="next-interview-heading">
           <div className="relative overflow-hidden rounded-2xl bg-[#111827] p-6 text-white sm:p-7">
@@ -237,12 +263,9 @@ export default function InterviewList({
                 </p>
 
                 <p className="mt-4 flex items-center gap-2 text-sm text-[#E5E7EB]">
-                  <Clock3
-                    aria-hidden="true"
-                    className="size-4"
-                  />
-                  {nextInterview.durationMinutes}-minute interview
-                  with {nextInterview.employerName}
+                  <Clock3 aria-hidden="true" className="size-4" />
+                  {nextInterview.durationMinutes}-minute interview with{" "}
+                  {nextInterview.employerName}
                 </p>
               </div>
 
@@ -252,27 +275,28 @@ export default function InterviewList({
                 </p>
 
                 <p className="mt-1 text-lg font-bold">
-                  {new Date(
-                    nextInterview.date
-                  ).toLocaleDateString("en-CA", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                  {new Date(nextInterview.date).toLocaleDateString(
+                    "en-CA",
+                    {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }
+                  )}
                 </p>
 
                 <p className="mt-1 text-sm text-[#CBD5E1]">
-                  {new Date(
-                    nextInterview.date
-                  ).toLocaleTimeString("en-CA", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
+                  {new Date(nextInterview.date).toLocaleTimeString(
+                    "en-CA",
+                    {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    }
+                  )}
                 </p>
               </div>
             </div>
 
-            {/* Live countdown */}
             {countdown && (
               <div className="relative mt-6 border-t border-white/15 pt-5">
                 <div className="mb-3 flex items-center gap-2">
@@ -280,6 +304,7 @@ export default function InterviewList({
                     aria-hidden="true"
                     className="size-4 text-[#A9C1FF]"
                   />
+
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#A9C1FF]">
                     Time until your interview
                   </p>
@@ -291,18 +316,9 @@ export default function InterviewList({
                   className="grid max-w-sm grid-cols-3 gap-3"
                 >
                   {[
-                    {
-                      label: "Days",
-                      value: countdown.days,
-                    },
-                    {
-                      label: "Hours",
-                      value: countdown.hours,
-                    },
-                    {
-                      label: "Minutes",
-                      value: countdown.minutes,
-                    },
+                    { label: "Days", value: countdown.days },
+                    { label: "Hours", value: countdown.hours },
+                    { label: "Minutes", value: countdown.minutes },
                   ].map((unit) => (
                     <div
                       key={unit.label}
@@ -324,7 +340,6 @@ export default function InterviewList({
         </section>
       )}
 
-      {/* Interview cards and filters */}
       <section aria-labelledby="interview-list-heading">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -342,10 +357,7 @@ export default function InterviewList({
 
           <span className="inline-flex items-center gap-2 rounded-full bg-[#E8EEFD] px-3 py-1.5 text-xs font-bold text-[#3151D5]">
             {counts.All} total
-            <ArrowRight
-              aria-hidden="true"
-              className="size-3.5"
-            />
+            <ArrowRight aria-hidden="true" className="size-3.5" />
           </span>
         </div>
 
@@ -381,6 +393,15 @@ export default function InterviewList({
           ))}
         </div>
 
+        {responseError && (
+          <p
+            role="alert"
+            className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            {responseError}
+          </p>
+        )}
+
         {filteredInterviews.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#D9DEE5] bg-white px-6 py-12 text-center">
             <Inbox
@@ -404,9 +425,11 @@ export default function InterviewList({
               <InterviewCard
                 key={interview.id}
                 interview={interview}
-                onAccept={onAccept}
-                onReject={onReject}
-                actionsEnabled={actionsEnabled}
+                onAccept={(id) => handleResponse(id, "accepted")}
+                onReject={(id) => handleResponse(id, "declined")}
+                actionsEnabled={
+                  actionsEnabled && respondingId === null
+                }
               />
             ))}
           </div>
