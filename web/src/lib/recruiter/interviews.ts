@@ -48,6 +48,7 @@ export const INTERVIEW_NOT_FOUND_ERROR = "This interview was not found.";
 export const INTERVIEW_CANCELLED_ERROR = "This interview was cancelled and can no longer be changed.";
 export const INTERVIEW_SAVE_ERROR = "Unable to save the interview. Please try again.";
 export const INTERVIEW_FORM_ERROR = "Please fix the highlighted fields.";
+export const NOTHING_TO_RESCHEDULE_ERROR = "Change the date, time or reply deadline to reschedule.";
 
 const idSchema = z.uuid();
 const JOB_TITLE_FALLBACK = "your job posting";
@@ -110,7 +111,7 @@ function toRecruiterInterview(row: InterviewRow): RecruiterInterview {
   };
 }
 
-/** Columns a recruiter may change directly. The time and deadline go through reschedule_interview. */
+/** Details saved with a new invitation. Later changes to the time go through reschedule_interview. */
 function toDetailColumns(details: InterviewDetails) {
   return {
     duration_minutes: details.durationMinutes,
@@ -296,9 +297,9 @@ export async function createInterview(
 }
 
 /**
- * Changes an interview. A new date, time or reply deadline goes through the database's
- * reschedule_interview function, which sends the applicant a new invitation to accept.
- * Changing only the duration, place or notes keeps the applicant's answer.
+ * Reschedules an interview through the database's reschedule_interview function, which sends
+ * the applicant a new invitation to accept. Recruiters cannot update the interviews table
+ * directly, so the duration, place and notes stay as they were sent.
  */
 export async function updateInterview(
   interviewId: unknown,
@@ -337,28 +338,19 @@ export async function updateInterview(
 
   const sameTime = (stored: string | null, next: string) =>
     stored !== null && new Date(stored).getTime() === new Date(next).getTime();
-  const rescheduled =
-    !sameTime(current.scheduled_at, details.data.scheduledAt) ||
-    !sameTime(current.response_deadline, details.data.responseDeadline);
-
-  if (rescheduled) {
-    const { error } = await supabase.rpc("reschedule_interview", {
-      p_interview_id: parsedId.data,
-      p_scheduled_at: details.data.scheduledAt,
-      p_response_deadline: details.data.responseDeadline,
-    });
-    if (error) return { success: false, error: databaseMessage(error, INTERVIEW_SAVE_ERROR) };
+  if (
+    sameTime(current.scheduled_at, details.data.scheduledAt) &&
+    sameTime(current.response_deadline, details.data.responseDeadline)
+  ) {
+    return { success: false, error: NOTHING_TO_RESCHEDULE_ERROR };
   }
 
-  const { data, error } = await supabase
-    .from("interviews")
-    .update({ ...toDetailColumns(details.data), updated_at: now.toISOString() })
-    .eq("id", parsedId.data)
-    .eq("recruiter_id", recruiter.userId)
-    .select("id")
-    .maybeSingle();
-
-  if (error || !data) return { success: false, error: INTERVIEW_SAVE_ERROR };
+  const { error } = await supabase.rpc("reschedule_interview", {
+    p_interview_id: parsedId.data,
+    p_scheduled_at: details.data.scheduledAt,
+    p_response_deadline: details.data.responseDeadline,
+  });
+  if (error) return { success: false, error: databaseMessage(error, INTERVIEW_SAVE_ERROR) };
 
   return { success: true, interviewId: parsedId.data, jobId: one(current.application)?.job_id ?? null };
 }

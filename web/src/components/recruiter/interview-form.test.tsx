@@ -117,7 +117,7 @@ describe("InterviewForm", () => {
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
-  it("starts from the saved values when editing and saves the changes", async () => {
+  it("only lets the time and reply deadline change when rescheduling", async () => {
     mocks.updateInterviewAction.mockResolvedValue({ success: true, interviewId: "int-1", jobId: "job-1" });
     const user = userEvent.setup();
     render(
@@ -136,17 +136,20 @@ describe("InterviewForm", () => {
       />,
     );
 
-    expect((screen.getByLabelText("Location") as HTMLInputElement).value).toBe("Room 2.101");
+    const location = screen.getByLabelText("Location") as HTMLInputElement;
+    expect(location.value).toBe("Room 2.101");
+    expect(location.disabled).toBe(true);
+    expect((screen.getByLabelText("Duration") as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Date and time") as HTMLInputElement).disabled).toBe(false);
     expect(screen.getByText(/sends the applicant a new invitation/)).toBeDefined();
 
-    await user.clear(screen.getByLabelText("Location"));
-    await user.type(screen.getByLabelText("Location"), "Room 3.200");
-    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    fireEvent.change(screen.getByLabelText("Date and time"), { target: { value: "2099-11-20T10:00" } });
+    await user.click(screen.getByRole("button", { name: "Reschedule" }));
 
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/recruiter/interviews"));
     expect(mocks.updateInterviewAction).toHaveBeenCalledWith(
       "int-1",
-      expect.objectContaining({ location: "Room 3.200", durationMinutes: "60" }),
+      expect.objectContaining({ scheduledAt: "2099-11-20T10:00", location: "Room 2.101" }),
     );
     expect(mocks.createInterviewAction).not.toHaveBeenCalled();
   });

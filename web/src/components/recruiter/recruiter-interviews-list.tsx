@@ -52,8 +52,7 @@ function InterviewCard({
   const applicant = interview.applicantName ?? "A candidate";
   const canEdit = upcoming && canModifyInterview(interview.status);
   const canCancel = upcoming && canCancelInterview(interview.status);
-  // A declined or expired invitation needs a new time, so call the button what it does.
-  const editLabel = canCancelInterview(interview.status) ? "Edit" : "Reschedule";
+  const editLabel = "Reschedule";
 
   function cancel() {
     setError("");

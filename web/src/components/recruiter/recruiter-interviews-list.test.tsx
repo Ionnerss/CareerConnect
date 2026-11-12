@@ -104,13 +104,13 @@ describe("RecruiterInterviewsList", () => {
     );
   });
 
-  it("only offers edit and cancel on upcoming interviews that are not cancelled", () => {
+  it("only offers reschedule and cancel on upcoming interviews that are not cancelled", () => {
     render(<RecruiterInterviewsList interviews={interviews} now={NOW} />);
 
     expect(
-      screen.getByRole("link", { name: "Edit interview with Catalin B" }).getAttribute("href"),
+      screen.getByRole("link", { name: "Reschedule interview with Catalin B" }).getAttribute("href"),
     ).toBe("/recruiter/interviews/int-1/edit");
-    expect(screen.queryByRole("link", { name: "Edit interview with Ray N" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Reschedule interview with Ray N" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Cancel interview with A candidate" })).toBeNull();
   });
 

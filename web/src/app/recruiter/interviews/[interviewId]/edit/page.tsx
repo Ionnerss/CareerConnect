@@ -9,7 +9,7 @@ import { RECRUITER_INTERVIEWS_PATH, toMontrealInputValue } from "@/lib/recruiter
 import { getInterviewForEditing } from "@/lib/recruiter/interviews";
 
 export const metadata: Metadata = {
-  title: "Edit interview · CareerConnect",
+  title: "Reschedule interview · CareerConnect",
 };
 
 type EditInterviewPageProps = {
@@ -28,7 +28,7 @@ export default async function EditInterviewPage({ params }: EditInterviewPagePro
     <main>
       <PageHero
         label="Recruiter"
-        title="Edit interview"
+        title="Reschedule interview"
         description={
           result.success
             ? `Interview with ${result.context.applicantName ?? "this applicant"} for ${result.context.jobTitle}.`

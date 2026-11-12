@@ -6,6 +6,7 @@ import {
   INTERVIEW_NOT_FOUND_ERROR,
   INTERVIEW_SAVE_ERROR,
   INTERVIEWS_LOAD_ERROR,
+  NOTHING_TO_RESCHEDULE_ERROR,
   cancelInterview,
   createInterview,
   getInterviewSchedulingContext,
@@ -288,11 +289,11 @@ describe("updateInterview", () => {
       success: false,
       error: INTERVIEW_CANCELLED_ERROR,
     });
-    expect(callsTo("interviews", "update")).toHaveLength(0);
+    expect(callsTo("rpc:reschedule_interview", "rpc")).toHaveLength(0);
   });
 
   it("reschedules through the database when the time changes", async () => {
-    queue("interviews", { data: existing, error: null }, { data: { id: INTERVIEW_ID }, error: null });
+    queue("interviews", { data: existing, error: null });
 
     const result = await updateInterview(INTERVIEW_ID, { ...form, scheduledAt: "2026-11-20T10:00" }, NOW);
 
@@ -306,20 +307,19 @@ describe("updateInterview", () => {
         },
       ],
     ]);
-    // The status and time are only ever changed by the database function.
-    const changes = callsTo("interviews", "update")[0][0] as Record<string, unknown>;
-    expect(changes).not.toHaveProperty("status");
-    expect(changes).not.toHaveProperty("scheduled_at");
+    // Recruiters cannot update the table directly; only the database function changes it.
+    expect(callsTo("interviews", "update")).toHaveLength(0);
+    expect(callsTo("interviews", "eq")).toContainEqual(["recruiter_id", RECRUITER_ID]);
   });
 
-  it("keeps the applicant's answer when only the place or notes change", async () => {
-    queue("interviews", { data: existing, error: null }, { data: { id: INTERVIEW_ID }, error: null });
+  it("asks for a new time when nothing would change", async () => {
+    queue("interviews", { data: existing, error: null });
 
-    await updateInterview(INTERVIEW_ID, { ...form, notes: "New notes" }, NOW);
-
+    expect(await updateInterview(INTERVIEW_ID, form, NOW)).toEqual({
+      success: false,
+      error: NOTHING_TO_RESCHEDULE_ERROR,
+    });
     expect(callsTo("rpc:reschedule_interview", "rpc")).toHaveLength(0);
-    expect((callsTo("interviews", "update")[0][0] as Record<string, unknown>).notes).toBe("New notes");
-    expect(callsTo("interviews", "eq")).toContainEqual(["recruiter_id", RECRUITER_ID]);
   });
 
   it("shows the database's reason when rescheduling is refused", async () => {
@@ -333,7 +333,6 @@ describe("updateInterview", () => {
       success: false,
       error: "This interview cannot be rescheduled.",
     });
-    expect(callsTo("interviews", "update")).toHaveLength(0);
   });
 });
 

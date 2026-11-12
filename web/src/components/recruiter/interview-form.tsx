@@ -29,6 +29,11 @@ type InterviewFormProps = {
   cancelHref: string;
 } & ({ applicationId: string; interviewId?: never } | { interviewId: string; applicationId?: never });
 
+// Locked fields look greyed out when rescheduling.
+const LOCKED = "disabled:cursor-not-allowed disabled:bg-[#F3F4F6] disabled:text-[#6B7280]";
+const inputClass = `${ui.input} ${LOCKED}`;
+const textareaClass = `${ui.textarea} ${LOCKED}`;
+
 const EMPTY_VALUES: InterviewFormValues = {
   scheduledAt: "",
   responseDeadline: "",
@@ -88,6 +93,8 @@ export function InterviewForm(props: InterviewFormProps) {
 
   /** Props that connect an input to its label, hint and error for screen readers. */
   function fieldProps(field: InterviewField, hasHint = false) {
+    // Once sent, only the time and reply deadline can be changed (through rescheduling).
+    const locked = isEditing && field !== "scheduledAt" && field !== "responseDeadline";
     const describedBy = errors[field]
       ? `interview-${field}-error`
       : hasHint
@@ -98,6 +105,7 @@ export function InterviewForm(props: InterviewFormProps) {
       name: field,
       "aria-invalid": errors[field] ? true : undefined,
       "aria-describedby": describedBy,
+      disabled: locked || undefined,
     };
   }
 
@@ -161,7 +169,7 @@ export function InterviewForm(props: InterviewFormProps) {
         >
           <input
             type="datetime-local"
-            className={ui.input}
+            className={inputClass}
             value={values.scheduledAt}
             onChange={(event) => update("scheduledAt", event.target.value)}
             {...fieldProps("scheduledAt", true)}
@@ -176,7 +184,7 @@ export function InterviewForm(props: InterviewFormProps) {
         >
           <input
             type="datetime-local"
-            className={ui.input}
+            className={inputClass}
             value={values.responseDeadline}
             onChange={(event) => update("responseDeadline", event.target.value)}
             {...fieldProps("responseDeadline", true)}
@@ -185,7 +193,7 @@ export function InterviewForm(props: InterviewFormProps) {
 
         <Field id="durationMinutes" label="Duration" error={errors.durationMinutes}>
           <select
-            className={ui.input}
+            className={inputClass}
             value={values.durationMinutes}
             onChange={(event) => update("durationMinutes", event.target.value)}
             {...fieldProps("durationMinutes")}
@@ -207,7 +215,7 @@ export function InterviewForm(props: InterviewFormProps) {
         >
           <input
             type="text"
-            className={ui.input}
+            className={inputClass}
             value={values.location}
             placeholder="1455 De Maisonneuve Blvd W, Room 2.101"
             onChange={(event) => update("location", event.target.value)}
@@ -223,7 +231,7 @@ export function InterviewForm(props: InterviewFormProps) {
         >
           <input
             type="url"
-            className={ui.input}
+            className={inputClass}
             value={values.meetingUrl}
             placeholder="https://"
             onChange={(event) => update("meetingUrl", event.target.value)}
@@ -241,7 +249,7 @@ export function InterviewForm(props: InterviewFormProps) {
         <textarea
           rows={4}
           maxLength={MAX_INTERVIEW_NOTES_LENGTH}
-          className={ui.textarea}
+          className={textareaClass}
           value={values.notes}
           placeholder="What to bring, who they will meet, how to prepare…"
           onChange={(event) => update("notes", event.target.value)}
@@ -251,13 +259,14 @@ export function InterviewForm(props: InterviewFormProps) {
 
       {isEditing && (
         <p className="text-sm text-[#4B5563]">
-          Changing the date, time or reply deadline sends the applicant a new invitation to accept.
+          Rescheduling sends the applicant a new invitation to accept. To change the place, link or
+          notes, cancel this interview and send a new one.
         </p>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={isPending} className={ui.primaryButton}>
-          {isPending ? "Saving…" : isEditing ? "Save changes" : "Send interview"}
+          {isPending ? "Saving…" : isEditing ? "Reschedule" : "Send interview"}
         </button>
         <Link href={cancelHref} className={ui.secondaryButton}>
           Go back
