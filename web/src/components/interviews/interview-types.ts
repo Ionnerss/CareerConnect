@@ -3,6 +3,7 @@ export type InterviewStatus =
   | "Pending"
   | "Accepted"
   | "Rejected"
+  | "Expired"
   | "Cancelled";
 
 export type Interview = {

@@ -16,7 +16,7 @@ import {
   Trash2,
   Check,
 } from "lucide-react";
-import type { Interview } from "./interview-types";
+import type { Interview, InterviewStatus } from "./interview-types";
 
 type InterviewCardProps = {
   interview: Interview;
@@ -59,11 +59,12 @@ const defaultTasks: PreparationTask[] = [
   },
 ];
 
-const statusStyles = {
+const statusStyles: Record<InterviewStatus, string> = {
   Pending: "bg-[#FFF4E5] text-[#B45309]",
   Accepted: "bg-[#E3F6EE] text-[#047857]",
   Rejected: "bg-[#F1F2F4] text-[#4B5563]",
   Cancelled: "bg-[#FDE8E8] text-[#B91C1C]",
+  Expired: "bg-[#FDE8E8] text-[#B91C1C]",
 };
 
 const tileStyles = [
@@ -78,9 +79,7 @@ function createDefaultTasks(): PreparationTask[] {
 }
 
 function isPreparationTask(value: unknown): value is PreparationTask {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
+  if (typeof value !== "object" || value === null) return false;
 
   const task = value as Record<string, unknown>;
 
@@ -91,22 +90,15 @@ function isPreparationTask(value: unknown): value is PreparationTask {
   );
 }
 
-function InterviewPreparation({
-  interviewId,
-}: {
-  interviewId: string;
-}) {
+function InterviewPreparation({ interviewId }: { interviewId: string }) {
   const [expanded, setExpanded] = useState(false);
-  const [tasks, setTasks] = useState<PreparationTask[]>(
-    createDefaultTasks
-  );
+  const [tasks, setTasks] = useState<PreparationTask[]>(createDefaultTasks);
   const [newTask, setNewTask] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [storageError, setStorageError] = useState(false);
 
   const storageKey = `careerconnect-interview-prep-${interviewId}`;
 
-  // Load saved tasks after the component mounts.
   useEffect(() => {
     let active = true;
 
@@ -146,23 +138,17 @@ function InterviewPreparation({
     };
   }, [storageKey]);
 
-  // Save changes locally after the initial load.
   useEffect(() => {
     if (!loaded) return;
 
     try {
-      window.localStorage.setItem(
-        storageKey,
-        JSON.stringify(tasks)
-      );
+      window.localStorage.setItem(storageKey, JSON.stringify(tasks));
     } catch {
-      // The checklist remains usable for this session.
+      setStorageError(true);
     }
   }, [tasks, storageKey, loaded]);
 
-  const completedCount = tasks.filter(
-    (task) => task.completed
-  ).length;
+  const completedCount = tasks.filter((task) => task.completed).length;
 
   const progress =
     tasks.length === 0
@@ -180,9 +166,7 @@ function InterviewPreparation({
   };
 
   const removeTask = (taskId: string) => {
-    setTasks((current) =>
-      current.filter((task) => task.id !== taskId)
-    );
+    setTasks((current) => current.filter((task) => task.id !== taskId));
   };
 
   const addTask = () => {
@@ -190,13 +174,15 @@ function InterviewPreparation({
 
     if (!text || text.length > 200) return;
 
-    const task: PreparationTask = {
-      id: crypto.randomUUID(),
-      text,
-      completed: false,
-    };
+    setTasks((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        text,
+        completed: false,
+      },
+    ]);
 
-    setTasks((current) => [...current, task]);
     setNewTask("");
   };
 
@@ -211,17 +197,13 @@ function InterviewPreparation({
       >
         <div className="flex items-center gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#E8EEFD] text-[#3151D5]">
-            <ClipboardCheck
-              aria-hidden="true"
-              className="size-5"
-            />
+            <ClipboardCheck aria-hidden="true" className="size-5" />
           </span>
 
           <div>
             <p className="text-sm font-bold text-[#0E1726]">
               Interview preparation
             </p>
-
             <p className="mt-0.5 text-xs text-[#6B7280]">
               {completedCount} of {tasks.length} tasks completed
             </p>
@@ -229,19 +211,12 @@ function InterviewPreparation({
         </div>
 
         {expanded ? (
-          <ChevronUp
-            aria-hidden="true"
-            className="size-5 text-[#6B7280]"
-          />
+          <ChevronUp aria-hidden="true" className="size-5 text-[#6B7280]" />
         ) : (
-          <ChevronDown
-            aria-hidden="true"
-            className="size-5 text-[#6B7280]"
-          />
+          <ChevronDown aria-hidden="true" className="size-5 text-[#6B7280]" />
         )}
       </button>
 
-      {/* Completion progress */}
       <div className="mt-4 flex items-center gap-3">
         <div
           role="progressbar"
@@ -327,17 +302,13 @@ function InterviewPreparation({
                         title="Remove task"
                         className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-[#FDE8E8] hover:text-[#B91C1C] focus-visible:outline-2 focus-visible:outline-[#3151D5]"
                       >
-                        <Trash2
-                          aria-hidden="true"
-                          className="size-4"
-                        />
+                        <Trash2 aria-hidden="true" className="size-4" />
                       </button>
                     </li>
                   ))}
                 </ul>
               )}
 
-              {/* Add a custom task */}
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -348,9 +319,7 @@ function InterviewPreparation({
                 <input
                   type="text"
                   value={newTask}
-                  onChange={(event) =>
-                    setNewTask(event.target.value)
-                  }
+                  onChange={(event) => setNewTask(event.target.value)}
                   placeholder="Add your own preparation task..."
                   aria-label="New preparation task"
                   maxLength={200}
@@ -362,10 +331,7 @@ function InterviewPreparation({
                   disabled={!newTask.trim()}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#3151D5] px-5 text-sm font-bold text-white transition-colors hover:bg-[#1E40AF] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Plus
-                    aria-hidden="true"
-                    className="size-4"
-                  />
+                  <Plus aria-hidden="true" className="size-4" />
                   Add task
                 </button>
               </form>
@@ -376,7 +342,7 @@ function InterviewPreparation({
 
               {storageError && (
                 <p className="mt-2 text-xs text-[#B45309]">
-                  Saved tasks could not be loaded. You can still
+                  Saved tasks could not be loaded or saved. You can still
                   use the checklist.
                 </p>
               )}
@@ -409,20 +375,18 @@ export default function InterviewCard({
 
   const companyIndex =
     [...interview.companyName].reduce(
-      (total, character) =>
-        total + character.charCodeAt(0),
+      (total, character) => total + character.charCodeAt(0),
       0
     ) % tileStyles.length;
 
   const isPending = interview.status === "Pending";
   const isAccepted = interview.status === "Accepted";
+  const isExpired = interview.status === "Expired";
 
   return (
     <article
       className={`group relative overflow-hidden rounded-2xl border bg-white shadow-[0_3px_12px_-8px_rgba(14,23,38,0.3)] transition-all hover:-translate-y-0.5 hover:shadow-lg ${
-        isPending
-          ? "border-[#F5D9B3]"
-          : "border-[#E3E6EB]"
+        isPending ? "border-[#F5D9B3]" : "border-[#E3E6EB]"
       }`}
     >
       {isPending && (
@@ -445,20 +409,21 @@ export default function InterviewCard({
               </h3>
 
               <p className="mt-1 flex items-center gap-1.5 text-sm text-[#4B5563]">
-                <Building2
-                  aria-hidden="true"
-                  className="size-4"
-                />
+                <Building2 aria-hidden="true" className="size-4" />
                 {interview.companyName}
               </p>
 
               {isPending && (
                 <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#B45309]">
-                  <AlertCircle
-                    aria-hidden="true"
-                    className="size-3.5"
-                  />
+                  <AlertCircle aria-hidden="true" className="size-3.5" />
                   Response needed
+                </p>
+              )}
+
+              {isExpired && (
+                <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#B91C1C]">
+                  <AlertCircle aria-hidden="true" className="size-3.5" />
+                  Response deadline passed
                 </p>
               )}
             </div>
@@ -481,19 +446,14 @@ export default function InterviewCard({
               aria-hidden="true"
               className="mt-0.5 size-4 text-[#3151D5]"
             />
-
             <div>
               <p className="text-xs font-medium text-[#6B7280]">
                 Interview date
               </p>
-
               <p className="mt-1 text-sm font-bold text-[#0E1726]">
                 {formattedDate}
               </p>
-
-              <p className="text-xs text-[#4B5563]">
-                {formattedTime}
-              </p>
+              <p className="text-xs text-[#4B5563]">{formattedTime}</p>
             </div>
           </div>
 
@@ -502,12 +462,10 @@ export default function InterviewCard({
               aria-hidden="true"
               className="mt-0.5 size-4 text-[#3151D5]"
             />
-
             <div>
               <p className="text-xs font-medium text-[#6B7280]">
                 Duration
               </p>
-
               <p className="mt-1 text-sm font-bold text-[#0E1726]">
                 {interview.durationMinutes} minutes
               </p>
@@ -519,12 +477,10 @@ export default function InterviewCard({
               aria-hidden="true"
               className="mt-0.5 size-4 text-[#3151D5]"
             />
-
             <div>
               <p className="text-xs font-medium text-[#6B7280]">
                 Employer
               </p>
-
               <p className="mt-1 text-sm font-bold text-[#0E1726]">
                 {interview.employerName}
               </p>
@@ -532,12 +488,10 @@ export default function InterviewCard({
           </div>
         </div>
 
-        {/* Preparation checklist for accepted interviews */}
         {isAccepted && (
           <InterviewPreparation interviewId={interview.id} />
         )}
 
-        {/* Invitation response actions */}
         {isPending && (
           <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-[#EEF0F3] pt-5">
             <button
@@ -547,10 +501,7 @@ export default function InterviewCard({
               className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#3151D5] px-5 text-sm font-bold text-white transition-colors hover:bg-[#1E40AF] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Accept invitation
-              <ArrowUpRight
-                aria-hidden="true"
-                className="size-4"
-              />
+              <ArrowUpRight aria-hidden="true" className="size-4" />
             </button>
 
             <button
@@ -564,7 +515,7 @@ export default function InterviewCard({
 
             {!actionsEnabled && (
               <p className="text-xs text-[#6B7280]">
-                Responses will be available once connected.
+                Responses are temporarily unavailable.
               </p>
             )}
           </div>

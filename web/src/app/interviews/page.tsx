@@ -1,83 +1,140 @@
+import { redirect } from "next/navigation";
 
-import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft, BarChart3 } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 import { requireMfaForPage } from "@/lib/auth/require-mfa";
-import { PageBody, PageHero } from "@/components/app/page-hero";
+
 import InterviewList from "@/components/interviews/InterviewList";
 import type { Interview } from "@/components/interviews/interview-types";
-import { mockInterviews } from "@/components/interviews/mock-interviews";
+import type { InterviewStatus } from "@/components/interviews/interview-types";
 
-export const metadata: Metadata = {
-  title: "Interview management · CareerConnect",
-  description: "View and manage your job interview invitations.",
+type InterviewRow = {
+  id: string;
+  recruiter_id: string;
+  scheduled_at: string;
+  duration_minutes: number | null;
+  status: string;
+  application: {
+    job: {
+      title: string;
+      firm_name: string | null;
+    };
+  };
 };
 
-const navigationButton =
-  "inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#D9DEE5] bg-white px-4 text-sm font-semibold text-[#1F2937] transition-colors hover:bg-[#F5F6F8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]";
-
-type InterviewsPageProps = {
-  searchParams: Promise<{ preview?: string }>;
+type RecruiterProfile = {
+  id: string;
+  full_name: string | null;
 };
 
-export default async function InterviewsPage({
-  searchParams,
-}: InterviewsPageProps) {
+function mapInterviewStatus(status: string): InterviewStatus {
+  switch (status.toLowerCase()) {
+    case "pending":
+      return "Pending";
+    case "accepted":
+      return "Accepted";
+    case "declined":
+    case "rejected":
+      return "Rejected";
+    case "cancelled":
+      return "Cancelled";
+    case "expired":
+      return "Expired";
+    default:
+      return "Pending";
+  }
+}
+
+export default async function InterviewsPage() {
   await requireMfaForPage();
 
-  const params = await searchParams;
+  const supabase = await createClient();
 
-  const isPreview =
-    process.env.NODE_ENV === "development" &&
-    params.preview === "true";
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  // Real interview records will be supplied by Task #23.3.
-  const interviews: Interview[] = isPreview ? mockInterviews : [];
+  if (userError || !user) {
+    redirect("/login");
+  }
+
+  const { data, error } = await supabase
+    .from("interviews")
+    .select(`
+      id,
+      recruiter_id,
+      scheduled_at,
+      duration_minutes,
+      status,
+      application:applications!inner(
+        job:job!inner(
+          title,
+          firm_name
+        )
+      )
+    `)
+    .eq("applicant_id", user.id)
+    .order("scheduled_at", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching interviews:", error);
+    throw new Error("Unable to load interviews.");
+  }
+
+  const interviewRows = (data ?? []) as unknown as InterviewRow[];
+
+  const recruiterIds = [
+    ...new Set(interviewRows.map((interview) => interview.recruiter_id)),
+  ];
+
+  let recruiters: RecruiterProfile[] = [];
+
+  if (recruiterIds.length > 0) {
+    const { data: recruiterData, error: recruiterError } = await supabase
+      .from("profiles_public")
+      .select("id, full_name")
+      .in("id", recruiterIds);
+
+    if (recruiterError) {
+      console.error("Error fetching recruiter profiles:", recruiterError);
+    } else {
+      recruiters = recruiterData ?? [];
+    }
+  }
+
+  const recruiterMap = new Map(
+    recruiters.map((recruiter) => [
+      recruiter.id,
+      recruiter.full_name ?? "Recruiter",
+    ])
+  );
+
+  const interviews: Interview[] = interviewRows.map((row) => ({
+    id: row.id,
+    jobTitle: row.application.job.title,
+    companyName: row.application.job.firm_name ?? "Company",
+    employerName: recruiterMap.get(row.recruiter_id) ?? "Recruiter",
+    date: row.scheduled_at,
+    durationMinutes: row.duration_minutes ?? 30,
+    status: mapInterviewStatus(row.status),
+  }));
 
   return (
-    <main>
-      <PageHero
-        label="Interviews"
-        title="Interview management"
-        description="Your interview invitations, upcoming conversations, and responses — all in one place."
+    <main className="mx-auto w-full max-w-6xl px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">
+          My Interviews
+        </h1>
+
+        <p className="mt-2 text-sm text-gray-600">
+          View and manage your upcoming and past interviews.
+        </p>
+      </div>
+
+      <InterviewList
+        interviews={interviews}
+        actionsEnabled={true}
       />
-
-      <PageBody>
-        <div className="flex flex-col gap-7 pt-5">
-          <nav
-            aria-label="Interview page navigation"
-            className="flex flex-wrap gap-3"
-          >
-            <Link
-              href="/application-status/analytics"
-              className={navigationButton}
-            >
-              <BarChart3 aria-hidden="true" className="size-4" />
-              Back to application analytics
-            </Link>
-
-            <Link
-              href="/application-status"
-              className={navigationButton}
-            >
-              <ArrowLeft aria-hidden="true" className="size-4" />
-              Back to application status
-            </Link>
-          </nav>
-
-          {isPreview && (
-            <div
-              role="status"
-              className="rounded-xl border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3 text-sm font-medium text-[#1D4ED8]"
-            >
-              Preview mode — showing fictional interview invitations.
-              Responses are not connected to the database.
-            </div>
-          )}
-
-          <InterviewList interviews={interviews} />
-        </div>
-      </PageBody>
     </main>
   );
 }
