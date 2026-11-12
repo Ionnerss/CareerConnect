@@ -1,47 +1,105 @@
 
+import { createClient } from "@/lib/supabase/client";
+
 import type {
   CareerNotification,
   NotificationDataSource,
 } from "@/components/notifications/notification-types";
 
-import { initialNotifications } from "./mock-notifications";
+type NotificationRow = {
+  id: string;
+  recipient_id: string;
+  type: string;
+  title: string;
+  message: string;
+  application_id: string | null;
+  job_id: string | null;
+  is_read: boolean;
+  created_at: string;
+};
 
-/**
- * Frontend-only notification service.
- *
- * This implementation uses mock data until the backend
- * team provides the authenticated notification API.
- *
- * Read/unread changes are stored in memory and reset
- * when the page is refreshed.
- */
+function mapNotification(
+  row: NotificationRow
+): CareerNotification {
+  const category: CareerNotification["category"] =
+    row.type.includes("interview")
+      ? "interviews"
+      : row.type.includes("deadline")
+        ? "deadlines"
+        : "applications";
 
-let mockNotifications: CareerNotification[] =
-  initialNotifications.map((notification) => ({
-    ...notification,
-  }));
+  return {
+    id: row.id,
+    recipientId: row.recipient_id,
+    category,
+    title: row.title,
+    message: row.message,
+    organization: "CareerConnect",
+    timestamp: row.created_at,
+    read: row.is_read,
+    href: "/application-status",
+    actionLabel: "View application",
+    applicationId: row.application_id ?? undefined,
+    jobId: row.job_id ?? undefined,
+  };
+}
 
 export const notificationService: NotificationDataSource = {
   async getNotifications(
-    _recipientId: string
+    recipientId: string
   ): Promise<CareerNotification[]> {
-    // TODO: Replace with authenticated backend request.
-    void _recipientId;
+    const supabase = createClient();
 
-    return mockNotifications.map((notification) => ({
-      ...notification,
-    }));
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user || user.id !== recipientId) {
+      throw new Error("Unable to verify notification recipient.");
+    }
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .select(
+        "id, recipient_id, type, title, message, application_id, job_id, is_read, created_at"
+      )
+      .eq("recipient_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw new Error("Unable to load notifications.");
+    }
+
+    return (data as NotificationRow[]).map(mapNotification);
   },
 
   async setReadStatus(
     notificationId: string,
     read: boolean
   ): Promise<void> {
-    // TODO: Replace with backend read-status update.
-    mockNotifications = mockNotifications.map((notification) =>
-      notification.id === notificationId
-        ? { ...notification, read }
-        : notification
-    );
+    const supabase = createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      throw new Error("You must be signed in.");
+    }
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({
+        is_read: read,
+        read_at: read ? new Date().toISOString() : null,
+      })
+      .eq("id", notificationId)
+      .eq("recipient_id", user.id);
+
+    if (error) {
+      throw new Error("Unable to update notification status.");
+    }
   },
 };

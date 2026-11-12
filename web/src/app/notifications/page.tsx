@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import type {
@@ -10,7 +10,8 @@ import type {
   NotificationFilter,
 } from "@/components/notifications/notification-types";
 
-import { initialNotifications } from "@/lib/notifications/mock-notifications";
+import { createClient } from "@/lib/supabase/client";
+import { notificationService } from "@/lib/notifications/notification-service";
 
 import {
   ArrowLeft,
@@ -27,6 +28,9 @@ import {
   Clock3,
   Inbox,
   Sparkles,
+  Trash2,
+  X,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -44,6 +48,7 @@ type SectionConfig = {
 };
 
 const PAGE_SIZE = 3;
+const DISMISSED_KEY_PREFIX = "careerconnect:dismissed-notifications:";
 
 const sections: SectionConfig[] = [
   {
@@ -71,6 +76,32 @@ const sections: SectionConfig[] = [
     iconBackground: "#FFF4DF",
   },
 ];
+
+function storageKey(userId: string) {
+  return `${DISMISSED_KEY_PREFIX}${userId}`;
+}
+
+function getDismissedIds(userId: string): string[] {
+  try {
+    const stored = localStorage.getItem(storageKey(userId));
+    const parsed: unknown = stored ? JSON.parse(stored) : [];
+
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (value): value is string => typeof value === "string"
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDismissedIds(userId: string, ids: string[]) {
+  localStorage.setItem(
+    storageKey(userId),
+    JSON.stringify([...new Set(ids)])
+  );
+}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -176,9 +207,13 @@ function StatCard({
 function NotificationCard({
   notification,
   onToggleRead,
+  onDismiss,
+  disabled,
 }: {
   notification: Notification;
   onToggleRead: (id: string) => void;
+  onDismiss: (id: string) => void;
+  disabled: boolean;
 }) {
   const isInterview = notification.category === "interviews";
   const isDeadline = notification.category === "deadlines";
@@ -276,20 +311,30 @@ function NotificationCard({
           )}
         </div>
 
-        {!notification.read && (
-          <span
-            aria-label="Unread notification"
-            className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[#3151D5] ring-4 ring-[#E8EDFF]"
-          />
-        )}
+        <div className="flex shrink-0 items-start gap-2">
+          {!notification.read && (
+            <span
+              aria-label="Unread notification"
+              className="mt-3 h-2.5 w-2.5 rounded-full bg-[#3151D5] ring-4 ring-[#E8EDFF]"
+            />
+          )}
+
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onDismiss(notification.id)}
+            title="Dismiss notification"
+            aria-label={`Dismiss ${notification.title}`}
+            className="flex size-9 items-center justify-center rounded-lg border border-transparent text-[#94A3B8] transition-all hover:border-[#FECACA] hover:bg-[#FEF2F2] hover:text-[#DC2626] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#DC2626] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#E9EDF4] pt-3">
         <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#8290A4]">
-          <Clock3
-            className="h-3.5 w-3.5"
-            aria-hidden="true"
-          />
+          <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
 
           <time dateTime={notification.timestamp}>
             Posted {formatDate(notification.timestamp)}
@@ -299,13 +344,14 @@ function NotificationCard({
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
+            disabled={disabled}
             onClick={() => onToggleRead(notification.id)}
             aria-label={
               notification.read
                 ? `Mark ${notification.title} as unread`
                 : `Mark ${notification.title} as read`
             }
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-[#64748B] transition-colors hover:bg-[#EEF2F8] hover:text-[#0E1726] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3151D5]"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-[#64748B] transition-colors hover:bg-[#EEF2F8] hover:text-[#0E1726] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3151D5] disabled:opacity-40"
           >
             {notification.read ? (
               <Circle className="h-3.5 w-3.5" />
@@ -337,10 +383,18 @@ function NotificationSection({
   config,
   notifications,
   onToggleRead,
+  onDismiss,
+  onMarkAllRead,
+  onClearAll,
+  disabled,
 }: {
   config: SectionConfig;
   notifications: Notification[];
   onToggleRead: (id: string) => void;
+  onDismiss: (id: string) => void;
+  onMarkAllRead: (category: Category) => void;
+  onClearAll: (category: Category) => void;
+  disabled: boolean;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState(1);
@@ -409,7 +463,7 @@ function NotificationSection({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-[#F2F4F8] px-3 py-1.5 text-xs font-bold text-[#475569]">
             {notifications.length} total
           </span>
@@ -422,7 +476,37 @@ function NotificationSection({
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-b border-[#EDF0F5] pb-4">
+      {/* Section-specific actions */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onMarkAllRead(config.category)}
+            disabled={unreadCount === 0 || disabled}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#DCE4F0] bg-white px-3.5 py-2 text-xs font-bold text-[#3151D5] transition-colors hover:bg-[#F3F6FF] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            Mark all as read
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onClearAll(config.category)}
+            disabled={notifications.length === 0 || disabled}
+            className="inline-flex items-center gap-2 rounded-xl border border-[#FECACA] bg-white px-3.5 py-2 text-xs font-bold text-[#DC2626] transition-all hover:border-[#FCA5A5] hover:bg-[#FEF2F2] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+            Clear all
+          </button>
+        </div>
+
+        <span className="text-xs font-medium text-[#8A96A7]">
+          Manage {config.title.toLowerCase()}
+        </span>
+      </div>
+
+      {/* Filters */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-[#EDF0F5] pb-4">
         <div
           role="group"
           aria-label={`${config.title} filter`}
@@ -482,6 +566,8 @@ function NotificationSection({
               key={notification.id}
               notification={notification}
               onToggleRead={onToggleRead}
+              onDismiss={onDismiss}
+              disabled={disabled}
             />
           ))}
         </div>
@@ -548,46 +634,322 @@ function NotificationSection({
   );
 }
 
-export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(
-    initialNotifications
+function ClearConfirmation({
+  categoryTitle,
+  onCancel,
+  onConfirm,
+  saving,
+}: {
+  categoryTitle: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  saving: boolean;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#0E1726]/60 px-4 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !saving) {
+          onCancel();
+        }
+      }}
+    >
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="clear-title"
+        aria-describedby="clear-description"
+        className="w-full max-w-[430px] rounded-[24px] border border-[#E5EAF1] bg-white p-6 shadow-2xl sm:p-7"
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-[#FEF2F2] text-[#DC2626]">
+            <AlertTriangle className="size-6" />
+          </div>
+
+          <button
+            type="button"
+            disabled={saving}
+            onClick={onCancel}
+            aria-label="Close confirmation"
+            className="flex size-9 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-[#334155]"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <h2
+          id="clear-title"
+          className="mt-5 text-xl font-extrabold tracking-tight text-[#0E1726]"
+        >
+          Clear {categoryTitle.toLowerCase()}?
+        </h2>
+
+        <p
+          id="clear-description"
+          className="mt-2 text-sm leading-6 text-[#64748B]"
+        >
+          All notifications in this section will be cleared.
+          This action cannot be undone.
+        </p>
+
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={onCancel}
+            className="rounded-xl border border-[#E2E8F0] px-5 py-2.5 text-sm font-bold text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            disabled={saving}
+            onClick={onConfirm}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#DC2626] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#B91C1C] disabled:opacity-50"
+          >
+            <Trash2 className="size-4" />
+            {saving ? "Clearing..." : "Clear all"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
+}
+
+export default function NotificationsPage() {
+  const [notifications, setNotifications] =
+    useState<CareerNotification[]>([]);
+
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [clearCategory, setClearCategory] =
+    useState<Category | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadNotifications() {
+      try {
+        const supabase = createClient();
+
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          throw new Error("Please sign in to view notifications.");
+        }
+
+        const data =
+          await notificationService.getNotifications(user.id);
+
+        const dismissed = new Set(getDismissedIds(user.id));
+
+        if (!cancelled) {
+          setUserId(user.id);
+          setNotifications(
+            data.filter(
+              (notification) => !dismissed.has(notification.id)
+            )
+          );
+          setError(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Unable to load notifications. Please try again.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadNotifications();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const unreadCount = notifications.filter(
     (notification) => !notification.read
   ).length;
 
   const interviewCount = notifications.filter(
-    (notification) =>
-      notification.category === "interviews"
+    (notification) => notification.category === "interviews"
   ).length;
 
   const deadlineCount = notifications.filter(
-    (notification) =>
-      notification.category === "deadlines"
+    (notification) => notification.category === "deadlines"
   ).length;
 
-  function toggleRead(id: string) {
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === id
-          ? { ...notification, read: !notification.read }
-          : notification
-      )
+  async function toggleRead(id: string) {
+    if (saving) return;
+
+    const notification = notifications.find(
+      (item) => item.id === id
     );
+
+    if (!notification) return;
+
+    setSaving(true);
+
+    try {
+      const nextRead = !notification.read;
+
+      await notificationService.setReadStatus(id, nextRead);
+
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === id
+            ? { ...item, read: nextRead }
+            : item
+        )
+      );
+
+      setError(null);
+    } catch {
+      setError(
+        "Unable to update notification status. Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function markAllRead() {
-    setNotifications((current) =>
-      current.map((notification) => ({
-        ...notification,
-        read: true,
-      }))
+  async function markSectionRead(category: Category) {
+    if (saving || !userId) return;
+
+    const unread = notifications.filter(
+      (notification) =>
+        notification.category === category && !notification.read
     );
+
+    if (unread.length === 0) return;
+
+    setSaving(true);
+
+    try {
+      const results = await Promise.allSettled(
+        unread.map((notification) =>
+          notificationService.setReadStatus(notification.id, true)
+        )
+      );
+
+      const refreshed =
+        await notificationService.getNotifications(userId);
+
+      const dismissed = new Set(getDismissedIds(userId));
+
+      setNotifications(
+        refreshed.filter(
+          (notification) => !dismissed.has(notification.id)
+        )
+      );
+
+      setError(
+        results.some((result) => result.status === "rejected")
+          ? "Some notifications could not be updated. Please try again."
+          : null
+      );
+    } catch {
+      setError(
+        "Unable to refresh notification status. Please reload the page."
+      );
+    } finally {
+      setSaving(false);
+    }
   }
+
+  async function dismissNotifications(ids: string[]) {
+    if (saving || !userId || ids.length === 0) return;
+
+    setSaving(true);
+
+    try {
+      const selected = notifications.filter((notification) =>
+        ids.includes(notification.id)
+      );
+
+      const unread = selected.filter(
+        (notification) => !notification.read
+      );
+
+      // Mark unread notifications as read in Supabase first,
+      // so dismissed notifications don't inflate the bell count.
+      const results = await Promise.allSettled(
+        unread.map((notification) =>
+          notificationService.setReadStatus(notification.id, true)
+        )
+      );
+
+      if (results.some((result) => result.status === "rejected")) {
+        throw new Error("Unable to mark dismissed notifications as read.");
+      }
+
+      const existing = getDismissedIds(userId);
+      saveDismissedIds(userId, [...existing, ...ids]);
+
+      const dismissed = new Set(ids);
+
+      setNotifications((current) =>
+        current.filter(
+          (notification) => !dismissed.has(notification.id)
+        )
+      );
+
+      setError(null);
+      setClearCategory(null);
+    } catch {
+      setError(
+        "Unable to dismiss notifications. Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function clearAll() {
+    if (!clearCategory) return;
+
+    const ids = notifications
+      .filter(
+        (notification) => notification.category === clearCategory
+      )
+      .map((notification) => notification.id);
+
+    void dismissNotifications(ids);
+  }
+
+  const selectedSection = sections.find(
+    (section) => section.category === clearCategory
+  );
 
   return (
     <main className="min-h-screen bg-[#F5F6F8] pb-16">
+      {loading && (
+        <div
+          role="status"
+          className="mx-auto max-w-[1200px] px-4 py-4 text-sm text-[#475569] sm:px-6"
+        >
+          Loading notifications...
+        </div>
+      )}
+
+      {error && (
+        <div
+          role="alert"
+          className="mx-auto max-w-[1200px] px-4 py-4 text-sm text-red-600 sm:px-6"
+        >
+          {error}
+        </div>
+      )}
+
       {/* Compact hero */}
       <section className="relative overflow-hidden bg-[#0E1726] text-white">
         <div
@@ -610,10 +972,7 @@ export default function NotificationsPage() {
             href="/dashboard"
             className="inline-flex items-center gap-2 text-sm font-semibold text-[#ADBBD0] transition-colors hover:text-white"
           >
-            <ArrowLeft
-              className="h-4 w-4"
-              aria-hidden="true"
-            />
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to dashboard
           </Link>
 
@@ -665,29 +1024,14 @@ export default function NotificationsPage() {
       {/* Notification overview */}
       <div className="relative z-10 mx-auto -mt-11 max-w-[1200px] px-4 sm:px-6">
         <div className="rounded-[24px] border border-[#E5EAF1] bg-white px-5 py-4 shadow-[0_10px_35px_rgba(14,23,38,0.07)] sm:px-7">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8290A4]">
-                Your activity
-              </p>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8290A4]">
+              Your activity
+            </p>
 
-              <h2 className="mt-1 text-lg font-extrabold text-[#0E1726]">
-                Notification overview
-              </h2>
-            </div>
-
-            <button
-              type="button"
-              onClick={markAllRead}
-              disabled={unreadCount === 0}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#DCE4F0] bg-white px-4 py-2.5 text-xs font-bold text-[#3151D5] transition-colors hover:bg-[#F3F6FF] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <CheckCheck
-                className="h-4 w-4"
-                aria-hidden="true"
-              />
-              Mark all as read
-            </button>
+            <h2 className="mt-1 text-lg font-extrabold text-[#0E1726]">
+              Notification overview
+            </h2>
           </div>
 
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -745,7 +1089,13 @@ export default function NotificationsPage() {
                 (notification) =>
                   notification.category === config.category
               )}
-              onToggleRead={toggleRead}
+              onToggleRead={(id) => void toggleRead(id)}
+              onDismiss={(id) => void dismissNotifications([id])}
+              onMarkAllRead={(category) =>
+                void markSectionRead(category)
+              }
+              onClearAll={setClearCategory}
+              disabled={saving}
             />
           ))}
         </div>
@@ -755,6 +1105,15 @@ export default function NotificationsPage() {
           You&apos;re in control of your next opportunity.
         </div>
       </div>
+
+      {clearCategory && selectedSection && (
+        <ClearConfirmation
+          categoryTitle={selectedSection.title}
+          saving={saving}
+          onCancel={() => setClearCategory(null)}
+          onConfirm={clearAll}
+        />
+      )}
     </main>
   );
 }
