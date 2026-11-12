@@ -2,7 +2,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Users } from "lucide-react";
+import { CalendarClock, Users } from "lucide-react";
 
 import DashboardHeader, {
   NAV_ITEMS,
@@ -16,6 +16,7 @@ import {
 
 export const RECRUITER_NAV_ITEMS: readonly NavItem[] = [
   { href: "/recruiter/jobs", label: "Job postings", icon: Users },
+  { href: "/recruiter/interviews", label: "Interviews", icon: CalendarClock },
 ];
 
 const MENUS: Record<LoginRole, readonly NavItem[]> = {

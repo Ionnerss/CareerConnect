@@ -110,6 +110,16 @@ describe("AppHeader", () => {
     expect(currentLink()).toBe(notificationLink);
   });
 
+  it("lets recruiters open their interviews from the menu", () => {
+    mocks.pathname = "/recruiter/interviews/abc/edit";
+    render(<AppHeader initials="RR" role="recruiter" />);
+
+    const interviewsLink = screen.getByRole("link", { name: "Interviews" });
+
+    expect(interviewsLink.getAttribute("href")).toBe("/recruiter/interviews");
+    expect(currentLink()).toBe(interviewsLink);
+  });
+
   it("opens the recruiter account page from a recruiter's avatar", () => {
     mocks.pathname = "/recruiter/jobs";
     render(<AppHeader initials="YY" role="recruiter" />);
