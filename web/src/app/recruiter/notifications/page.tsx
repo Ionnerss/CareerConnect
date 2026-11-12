@@ -3,13 +3,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PageBody, PageHero } from "@/components/app/page-hero";
-import { ApplicationNotifications } from "@/components/recruiter/application-notifications";
+import { RecruiterNotificationsList } from "@/components/recruiter/application-notifications";
 import { AUTH_ERROR } from "@/lib/recruiter/applicants";
 import { NOTIFICATION_LIMIT, getRecruiterNotifications } from "@/lib/recruiter/notifications";
 
 export const metadata: Metadata = {
   title: "Notifications · CareerConnect",
-  description: "New applications to your job postings.",
+  description: "New applications and interview replies for your job postings.",
 };
 
 // The recruiter layout already signs the user in and keeps job seekers out.
@@ -20,14 +20,12 @@ export default async function RecruiterNotificationsPage() {
     redirect("/auth/login");
   }
 
-  const total = result.success ? result.notifications.length : 0;
-
   return (
     <main>
       <PageHero
         label="Recruiter"
         title="Notifications"
-        description="New applications to your job postings, newest first."
+        description="New applications and interview replies, newest first."
         action={
           <Link
             href="/recruiter/jobs"
@@ -48,17 +46,11 @@ export default async function RecruiterNotificationsPage() {
             {result.error}
           </p>
         ) : (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm font-semibold text-[#4B5563]">
-              Total:{" "}
-              <span className="text-[#0E1726]">
-                {total} notification{total === 1 ? "" : "s"}
-              </span>
-              {total === NOTIFICATION_LIMIT && (
-                <span className="font-normal"> (showing the {NOTIFICATION_LIMIT} most recent)</span>
-              )}
-            </p>
-            <ApplicationNotifications notifications={result.notifications} now={new Date()} />
+          <div className="flex flex-col gap-3">
+            <RecruiterNotificationsList notifications={result.notifications} now={new Date().toISOString()} />
+            {result.notifications.length === NOTIFICATION_LIMIT && (
+              <p className="text-xs text-[#6B7280]">Showing your {NOTIFICATION_LIMIT} most recent notifications.</p>
+            )}
           </div>
         )}
       </PageBody>
