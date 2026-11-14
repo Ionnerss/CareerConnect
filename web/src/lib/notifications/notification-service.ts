@@ -5,6 +5,7 @@ import type {
   CareerNotification,
   NotificationDataSource,
 } from "@/components/notifications/notification-types";
+import { getSeekerNotificationLink } from "@/lib/notifications/notification-links";
 
 type NotificationRow = {
   id: string;
@@ -13,12 +14,13 @@ type NotificationRow = {
   title: string;
   message: string;
   application_id: string | null;
+  interview_id: string | null;
   job_id: string | null;
   is_read: boolean;
   created_at: string;
 };
 
-function mapNotification(
+export function mapNotification(
   row: NotificationRow
 ): CareerNotification {
   const category: CareerNotification["category"] =
@@ -27,6 +29,12 @@ function mapNotification(
       : row.type.includes("deadline")
         ? "deadlines"
         : "applications";
+
+  const link = getSeekerNotificationLink({
+    type: row.type,
+    applicationId: row.application_id,
+    interviewId: row.interview_id,
+  });
 
   return {
     id: row.id,
@@ -37,9 +45,10 @@ function mapNotification(
     organization: "CareerConnect",
     timestamp: row.created_at,
     read: row.is_read,
-    href: "/application-status",
-    actionLabel: "View application",
+    href: link.href,
+    actionLabel: link.label,
     applicationId: row.application_id ?? undefined,
+    interviewId: row.interview_id ?? undefined,
     jobId: row.job_id ?? undefined,
   };
 }
@@ -62,7 +71,7 @@ export const notificationService: NotificationDataSource = {
     const { data, error } = await supabase
       .from("notifications")
       .select(
-        "id, recipient_id, type, title, message, application_id, job_id, is_read, created_at"
+        "id, recipient_id, type, title, message, application_id, interview_id, job_id, is_read, created_at"
       )
       .eq("recipient_id", user.id)
       .order("created_at", { ascending: false });

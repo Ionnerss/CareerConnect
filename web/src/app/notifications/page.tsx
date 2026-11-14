@@ -12,6 +12,7 @@ import type {
 
 import { createClient } from "@/lib/supabase/client";
 import { notificationService } from "@/lib/notifications/notification-service";
+import { NOTIFICATIONS_CHANGED_EVENT } from "@/components/dashboard/dashboard-header";
 
 import {
   ArrowLeft,
@@ -208,11 +209,13 @@ function NotificationCard({
   notification,
   onToggleRead,
   onDismiss,
+  onOpen,
   disabled,
 }: {
   notification: Notification;
   onToggleRead: (id: string) => void;
   onDismiss: (id: string) => void;
+  onOpen: (id: string) => void;
   disabled: boolean;
 }) {
   const isInterview = notification.category === "interviews";
@@ -279,7 +282,13 @@ function NotificationCard({
           </div>
 
           <h3 className="mt-1 text-[15px] font-extrabold leading-snug text-[#0E1726]">
-            {notification.title}
+            <Link
+              href={notification.href}
+              onClick={() => onOpen(notification.id)}
+              className="rounded hover:text-[#3151D5] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3151D5]"
+            >
+              {notification.title}
+            </Link>
           </h3>
 
           <p className="mt-1.5 text-[13px] leading-[1.65] text-[#607086]">
@@ -364,6 +373,7 @@ function NotificationCard({
 
           <Link
             href={notification.href}
+            onClick={() => onOpen(notification.id)}
             className="inline-flex items-center gap-1 text-xs font-extrabold text-[#3151D5] transition-colors hover:text-[#1E40AF] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3151D5]"
           >
             {notification.actionLabel}
@@ -384,6 +394,7 @@ function NotificationSection({
   notifications,
   onToggleRead,
   onDismiss,
+  onOpen,
   onMarkAllRead,
   onClearAll,
   disabled,
@@ -392,6 +403,7 @@ function NotificationSection({
   notifications: Notification[];
   onToggleRead: (id: string) => void;
   onDismiss: (id: string) => void;
+  onOpen: (id: string) => void;
   onMarkAllRead: (category: Category) => void;
   onClearAll: (category: Category) => void;
   disabled: boolean;
@@ -567,6 +579,7 @@ function NotificationSection({
               notification={notification}
               onToggleRead={onToggleRead}
               onDismiss={onDismiss}
+              onOpen={onOpen}
               disabled={disabled}
             />
           ))}
@@ -820,6 +833,27 @@ export default function NotificationsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // Opening a notification counts as reading it. Navigation starts right away,
+  // so the save runs in the background and a failure is ignored (it stays unread).
+  function openNotification(id: string) {
+    const notification = notifications.find((item) => item.id === id);
+
+    if (!notification || notification.read) return;
+
+    setNotifications((current) =>
+      current.map((item) =>
+        item.id === id ? { ...item, read: true } : item
+      )
+    );
+
+    notificationService
+      .setReadStatus(id, true)
+      .then(() => {
+        window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT));
+      })
+      .catch(() => {});
   }
 
   async function markSectionRead(category: Category) {
@@ -1091,6 +1125,7 @@ export default function NotificationsPage() {
               )}
               onToggleRead={(id) => void toggleRead(id)}
               onDismiss={(id) => void dismissNotifications([id])}
+              onOpen={openNotification}
               onMarkAllRead={(category) =>
                 void markSectionRead(category)
               }

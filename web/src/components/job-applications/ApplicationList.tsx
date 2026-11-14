@@ -8,14 +8,30 @@ import type { ApplicationCardData } from "@/lib/application_status/application_s
 
 type ApplicationListProps = {
     applications: ApplicationCardData[];
+    /** Application opened from a notification: start on the page that shows it. */
+    highlightId?: string;
 };
+
+const applicationsPerPage = 6;
+
+export function getPageForApplication(
+    applications: ApplicationCardData[],
+    applicationId: string | undefined,
+): number {
+    if (!applicationId) return 1;
+
+    const index = applications.findIndex((application) => application.id === applicationId);
+
+    return index < 0 ? 1 : Math.floor(index / applicationsPerPage) + 1;
+}
 
 export default function ApplicationList({
     applications,
+    highlightId,
 }: ApplicationListProps) {
-    const [selectedPageNum, setSelectedPageNum] = useState(1);
-
-    const applicationsPerPage = 6;
+    const [selectedPageNum, setSelectedPageNum] = useState(() =>
+        getPageForApplication(applications, highlightId)
+    );
     const totalPages = Math.ceil(
         applications.length / applicationsPerPage
     );
