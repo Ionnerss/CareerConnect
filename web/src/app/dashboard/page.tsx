@@ -16,6 +16,7 @@ import DashboardHeader from "@/components/dashboard/dashboard-header";
 import DashboardHero from "@/components/dashboard/dashboard-hero";
 import DashboardStats from "@/components/dashboard/dashboard-stats";
 import DashboardApplications from "@/components/dashboard/dashboard-applications";
+import DashboardRecommendations from "@/components/dashboard/dashboard-recommendations";
 import {
   DashboardNextSteps,
   DashboardProfileCard,
@@ -100,6 +101,7 @@ export default async function DashboardPage() {
               loadError={applicationsLoadError}
               now={now}
             />
+            <DashboardRecommendations />
           </div>
 
           <aside className="flex w-full flex-col gap-4 lg:w-[280px] lg:shrink-0">
