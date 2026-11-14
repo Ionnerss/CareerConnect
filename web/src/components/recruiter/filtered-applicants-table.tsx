@@ -119,7 +119,8 @@ export default function FilteredApplicantsTable({
                   return (
                     <tr
                       key={applicant.application_id}
-                      className="border-t border-[#EEF0F3] transition-colors hover:bg-[#FAFBFF]"
+                      id={`applicant-${applicant.application_id}`}
+                      className="scroll-mt-24 border-t border-[#EEF0F3] transition-colors hover:bg-[#FAFBFF] target:bg-[#EEF2FF]"
                     >
                       {/* Applicant name and initials */}
                       <td className="px-4 py-3 align-middle">

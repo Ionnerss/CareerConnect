@@ -208,14 +208,30 @@ describe("markAllNotificationsRead", () => {
 });
 
 describe("getNotificationLink", () => {
-  it("sends interview replies to the interviews page", () => {
+  it("sends interview replies to that interview on the interviews page", () => {
     expect(getNotificationLink({ type: "interview_response", interviewId: "int-1", jobId: "job-1" })).toEqual({
-      href: "/recruiter/interviews",
-      label: "View interviews",
+      href: "/recruiter/interviews#interview-int-1",
+      label: "View interview",
     });
   });
 
-  it("sends new applications to that posting's applicants", () => {
+  it("sends an interview notification without an interview id to the interviews page", () => {
+    expect(getNotificationLink({ type: "interview_response", interviewId: null, jobId: "job-1" })).toEqual({
+      href: "/recruiter/interviews",
+      label: "View interview",
+    });
+  });
+
+  it("sends a new application to that applicant's row", () => {
+    expect(
+      getNotificationLink({ type: "application_update", interviewId: null, jobId: "job-1", applicationId: "app-1" }),
+    ).toEqual({
+      href: "/recruiter/jobs/job-1/applicants#applicant-app-1",
+      label: "View applicant",
+    });
+  });
+
+  it("sends new applications without an application id to that posting's applicants", () => {
     expect(getNotificationLink({ type: "application_update", interviewId: null, jobId: "job-1" })).toEqual({
       href: "/recruiter/jobs/job-1/applicants",
       label: "View applicants",

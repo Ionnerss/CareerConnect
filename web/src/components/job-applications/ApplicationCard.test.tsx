@@ -39,4 +39,10 @@ describe("ApplicationCard", () => {
 
     expect(screen.queryByRole("link", { name: /View interview/ })).toBeNull();
   });
+
+  it("has an anchor so a notification can open this application", () => {
+    const { container } = render(<ApplicationCard application={application("In Progress")} />);
+
+    expect(container.querySelector("#application-app-1")).not.toBeNull();
+  });
 });
