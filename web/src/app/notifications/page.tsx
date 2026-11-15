@@ -11,7 +11,10 @@ import type {
 } from "@/components/notifications/notification-types";
 
 import { createClient } from "@/lib/supabase/client";
-import { notificationService } from "@/lib/notifications/notification-service";
+import {
+  notificationService,
+  dismissNotifications as dismissNotificationsFromDatabase,
+} from "@/lib/notifications/notification-service";
 import { NOTIFICATIONS_CHANGED_EVENT } from "@/components/dashboard/dashboard-header";
 
 import {
@@ -97,12 +100,6 @@ function getDismissedIds(userId: string): string[] {
   }
 }
 
-function saveDismissedIds(userId: string, ids: string[]) {
-  localStorage.setItem(
-    storageKey(userId),
-    JSON.stringify([...new Set(ids)])
-  );
-}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -744,43 +741,45 @@ export default function NotificationsPage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadNotifications() {
-      try {
-        const supabase = createClient();
+   async function loadNotifications() {
+  try {
+    const supabase = createClient();
 
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-        if (authError || !user) {
-          throw new Error("Please sign in to view notifications.");
-        }
-
-        const data =
-          await notificationService.getNotifications(user.id);
-
-        const dismissed = new Set(getDismissedIds(user.id));
-
-        if (!cancelled) {
-          setUserId(user.id);
-          setNotifications(
-            data.filter(
-              (notification) => !dismissed.has(notification.id)
-            )
-          );
-          setError(null);
-        }
-      } catch {
-        if (!cancelled) {
-          setError("Unable to load notifications. Please try again.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+    if (authError || !user) {
+      throw new Error("Please sign in to view notifications.");
     }
+    const previouslyDismissed = getDismissedIds(user.id);
+
+    if (previouslyDismissed.length > 0) {
+      await dismissNotificationsFromDatabase(previouslyDismissed);
+      localStorage.removeItem(storageKey(user.id));
+    }
+
+    const data =
+      await notificationService.getNotifications(user.id);
+
+    if (!cancelled) {
+      setUserId(user.id);
+      setNotifications(data);
+      setError(null);
+    }
+  } catch (error) {
+    console.error("Unable to load notifications:", error);
+
+    if (!cancelled) {
+      setError("Unable to load notifications. Please try again.");
+    }
+  } finally {
+    if (!cancelled) {
+      setLoading(false);
+    }
+  }
+}
 
     void loadNotifications();
 
@@ -878,13 +877,11 @@ export default function NotificationsPage() {
       const refreshed =
         await notificationService.getNotifications(userId);
 
-      const dismissed = new Set(getDismissedIds(userId));
+      setNotifications(refreshed);
 
-      setNotifications(
-        refreshed.filter(
-          (notification) => !dismissed.has(notification.id)
-        )
-      );
+      window.dispatchEvent(
+      new Event(NOTIFICATIONS_CHANGED_EVENT)
+      );  
 
       setError(
         results.some((result) => result.status === "rejected")
@@ -900,53 +897,38 @@ export default function NotificationsPage() {
     }
   }
 
-  async function dismissNotifications(ids: string[]) {
-    if (saving || !userId || ids.length === 0) return;
+ async function dismissNotifications(ids: string[]) {
+  if (saving || !userId || ids.length === 0) return;
 
-    setSaving(true);
+  setSaving(true);
 
-    try {
-      const selected = notifications.filter((notification) =>
-        ids.includes(notification.id)
-      );
+  try {
+    await dismissNotificationsFromDatabase(ids);
 
-      const unread = selected.filter(
-        (notification) => !notification.read
-      );
+    const dismissed = new Set(ids);
 
-      // Mark unread notifications as read in Supabase first,
-      // so dismissed notifications don't inflate the bell count.
-      const results = await Promise.allSettled(
-        unread.map((notification) =>
-          notificationService.setReadStatus(notification.id, true)
-        )
-      );
+    setNotifications((current) =>
+      current.filter(
+        (notification) => !dismissed.has(notification.id)
+      )
+    );
 
-      if (results.some((result) => result.status === "rejected")) {
-        throw new Error("Unable to mark dismissed notifications as read.");
-      }
+    window.dispatchEvent(
+      new Event(NOTIFICATIONS_CHANGED_EVENT)
+    );
 
-      const existing = getDismissedIds(userId);
-      saveDismissedIds(userId, [...existing, ...ids]);
+    setError(null);
+    setClearCategory(null);
+  } catch (error) {
+    console.error("Unable to dismiss notifications:", error);
 
-      const dismissed = new Set(ids);
-
-      setNotifications((current) =>
-        current.filter(
-          (notification) => !dismissed.has(notification.id)
-        )
-      );
-
-      setError(null);
-      setClearCategory(null);
-    } catch {
-      setError(
-        "Unable to dismiss notifications. Please try again."
-      );
-    } finally {
-      setSaving(false);
-    }
+    setError(
+      "Unable to dismiss notifications. Please try again."
+    );
+  } finally {
+    setSaving(false);
   }
+}
 
   function clearAll() {
     if (!clearCategory) return;
