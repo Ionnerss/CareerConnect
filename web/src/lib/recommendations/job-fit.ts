@@ -94,6 +94,8 @@ export type RatedJob = ShortlistedJob & {
   /** Null when the model call for this posting failed; the code score is used instead. */
   fit: JobFit | null;
   fit_error: JevErrorCode | "unexpected" | null;
+  /** When this successful Jev rating was produced. */
+  fit_generated_at: string | null;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -175,13 +177,28 @@ export async function rateJobs(
     async (item): Promise<RatedJob> => {
       try {
         const fit = await rateJob(seeker, item.job, ask);
-        return { ...item, fit, fit_error: null };
+        return {
+          ...item,
+          fit,
+          fit_error: null,
+          fit_generated_at: new Date().toISOString(),
+        };
       } catch (error) {
         if (error instanceof JevError) {
           if (error.code === "missing_key") throw error;
-          return { ...item, fit: null, fit_error: error.code };
+          return {
+            ...item,
+            fit: null,
+            fit_error: error.code,
+            fit_generated_at: null,
+          };
         }
-        return { ...item, fit: null, fit_error: "unexpected" };
+        return {
+          ...item,
+          fit: null,
+          fit_error: "unexpected",
+          fit_generated_at: null,
+        };
       }
     },
   );

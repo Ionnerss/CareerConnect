@@ -165,10 +165,26 @@ describe("rateJobs", () => {
       ask,
       concurrency: 1,
     });
-
+    
     expect(rated[0].fit?.score).toBe(100);
-    expect(rated[1]).toMatchObject({ fit: null, fit_error: "http_error", score: 70 });
-    expect(rated[2]).toMatchObject({ fit: null, fit_error: "unexpected", score: 70 });
+    expect(rated[0].fit_error).toBeNull();
+    expect(rated[0].fit_generated_at).toMatch(
+      /^\d{4}-\d{2}-\d{2}T/,
+    );
+
+    expect(rated[1]).toMatchObject({
+      fit: null,
+      fit_error: "http_error",
+      fit_generated_at: null,
+      score: 70,
+    });
+
+    expect(rated[2]).toMatchObject({
+      fit: null,
+      fit_error: "unexpected",
+      fit_generated_at: null,
+      score: 70,
+    });
   });
 
   it("throws when the server has no Jev key, instead of hiding it posting by posting", async () => {

@@ -10,11 +10,17 @@
 //
 // SERVER ONLY.
 
-import { rateJobs, type AskJev, type JobFit } from "./job-fit";
+import { rateJobs, type AskJev, type JobFit, type RatedJob } from "./job-fit";
 import type { ShortlistedJob } from "./job-shortlist";
 import { getRecommendationInputs, type RecommendationInputsErrorCode } from "./recommendation-inputs";
 import type { SeekerState } from "./seeker-state";
 import { generateSummaries, SUMMARY_COUNT, type CompleteText, type SummaryResult } from "./summaries";
+import {
+  failRecommendationRun,
+  publishRecommendationRun,
+  reserveRecommendationRun,
+  type RecommendationFailureCode,
+} from "./persistence";
 
 /** Share of the final score that comes from the AI fit. The rest is the code match score. */
 export const AI_WEIGHT = 0.6;
@@ -32,6 +38,10 @@ export type Recommendation = {
   reasons: string[];
   /** AI-written note, only for the top few and only when the text model answered. */
   summary: string | null;
+  /** Safe error code when Jev failed for this posting. */
+  fit_error: RatedJob["fit_error"];
+  /** Null unless Jev successfully rated this posting. */
+  fit_generated_at: string | null;
 };
 
 export type RecommendationsResult = {
@@ -84,6 +94,8 @@ export async function buildRecommendations(
       score,
       match_score: item.score,
       fit: item.fit,
+      fit_error: item.fit_error,
+      fit_generated_at: item.fit_generated_at,
       skill_match: item.skill_match,
       reasons: item.reasons,
       summary: summary.summaries[item.job.id] ?? null,
@@ -106,25 +118,66 @@ export type GetRecommendationsResponse =
 export async function getRecommendations(
   options: BuildRecommendationsOptions & { limit?: number; now?: Date } = {},
 ): Promise<GetRecommendationsResponse> {
-  const inputs = await getRecommendationInputs({ limit: options.limit, now: options.now });
+  const inputs = await getRecommendationInputs({
+    limit: options.limit,
+    now: options.now,
+  });
   if (!inputs.success) return inputs;
 
-  if (inputs.empty_profile) {
+  // Capture when these inputs were loaded. The database function checks
+  // that each job is still open when the results are published.
+  const inputCheckedAt = new Date().toISOString();
+  const runId = await reserveRecommendationRun(inputs);
+  let failureCode: RecommendationFailureCode = "generation_failed";
+
+  try {
+    if (inputs.empty_profile) {
+      failureCode = "publication_failed";
+      await publishRecommendationRun(
+        runId,
+        inputs.seeker_state,
+        [],
+        inputCheckedAt,
+      );
+
+      return {
+        success: true,
+        empty_profile: true,
+        considered_jobs: 0,
+        recommendations: [],
+        ai_ranked: false,
+        summary_status: "skipped",
+      };
+    }
+
+    const built = await buildRecommendations(
+      inputs.seeker_state,
+      inputs.shortlist,
+      options,
+    );
+
+    failureCode = "publication_failed";
+    await publishRecommendationRun(
+      runId,
+      inputs.seeker_state,
+      built.recommendations,
+      inputCheckedAt,
+    );
+
     return {
       success: true,
-      empty_profile: true,
-      considered_jobs: 0,
-      recommendations: [],
-      ai_ranked: false,
-      summary_status: "skipped",
+      empty_profile: false,
+      considered_jobs: inputs.considered_jobs,
+      ...built,
     };
+  } catch (error) {
+    try {
+      await failRecommendationRun(runId, failureCode);
+    } catch {
+      // Preserve the original generation/publication error for the route.
+      // A separate cleanup process will be needed for stranded running runs.
+      console.error("Unable to mark a recommendation run failed");
+    }
+    throw error;
   }
-
-  const built = await buildRecommendations(inputs.seeker_state, inputs.shortlist, options);
-  return {
-    success: true,
-    empty_profile: false,
-    considered_jobs: inputs.considered_jobs,
-    ...built,
-  };
 }
