@@ -21,6 +21,7 @@ import {
   reserveRecommendationRun,
   type RecommendationFailureCode,
 } from "./persistence";
+import { filterEligibleResults } from "./eligible-results";
 
 /** Share of the final score that comes from the AI fit. The rest is the code match score. */
 export const AI_WEIGHT = 0.6;
@@ -156,11 +157,16 @@ export async function getRecommendations(
       options,
     );
 
+    const eligibleRecommendations = await filterEligibleResults(
+      inputs.user_id,
+      built.recommendations,
+    );
+
     failureCode = "publication_failed";
     await publishRecommendationRun(
       runId,
       inputs.seeker_state,
-      built.recommendations,
+      eligibleRecommendations,
       inputCheckedAt,
     );
 
@@ -169,6 +175,7 @@ export async function getRecommendations(
       empty_profile: false,
       considered_jobs: inputs.considered_jobs,
       ...built,
+      recommendations: eligibleRecommendations,
     };
   } catch (error) {
     try {

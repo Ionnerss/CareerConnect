@@ -160,6 +160,35 @@ describe("scoreJob", () => {
       "No specific match could be confirmed from your profile; review the posting details.",
     ]);
   });
+
+  it("treats missing experience history as unknown", () => {
+    const incompleteSeeker: SeekerSnapshot = {
+      ...seeker,
+      experience: [],
+    };
+    const posting = job({ experience: 2 });
+
+    const result = scoreJob(incompleteSeeker, posting, NOW);
+    const noExperienceRequirement = scoreJob(
+      incompleteSeeker,
+      job({ experience: null }),
+      NOW,
+    );
+
+    expect(result.reasons).toContain(
+      "Your experience is not listed on your profile",
+    );
+    expect(result.reasons).not.toContain(
+      "It asks for 2+ years; you have 0",
+    );
+    expect(result.score).toBe(noExperienceRequirement.score - 5);
+
+    expect(
+      shortlistJobs(incompleteSeeker, [posting], { now: NOW }).map(
+        ({ job: matchedJob }) => matchedJob.id,
+      ),
+    ).toEqual([posting.id]);
+  });
 });
 
 describe("shortlistJobs", () => {
@@ -198,12 +227,30 @@ describe("shortlistJobs", () => {
     expect(result).toHaveLength(1);
   });
 
-  it("keeps only the requested number, 10 by default", () => {
-    const jobs = Array.from({ length: 15 }, (_, i) => job({ id: `job-${i}` }));
+  it("caps the shortlist at 10 even when a larger limit is requested", () => {
+    const jobs = Array.from({ length: 15 }, (_, index) =>
+      job({
+        id: `job-${index}`,
+        created_at: `2026-11-${String(index + 1).padStart(2, "0")}T00:00:00Z`,
+      }),
+    );
 
-    expect(shortlistJobs(seeker, jobs, { now: NOW })).toHaveLength(DEFAULT_SHORTLIST_SIZE);
+    expect(shortlistJobs(seeker, jobs, { now: NOW })).toHaveLength(
+      DEFAULT_SHORTLIST_SIZE,
+    );
     expect(shortlistJobs(seeker, jobs, { limit: 3, now: NOW })).toHaveLength(3);
     expect(shortlistJobs(seeker, jobs, { limit: 0, now: NOW })).toEqual([]);
+
+    const oversized = shortlistJobs(seeker, jobs, {
+      limit: 100,
+      now: NOW,
+    });
+
+    expect(oversized.map(({ job: posting }) => posting.id)).toEqual(
+      Array.from({ length: DEFAULT_SHORTLIST_SIZE }, (_, index) =>
+        `job-${14 - index}`,
+      ),
+    );
   });
 
   it("breaks ties by newest posting, then id, so the order never changes", () => {

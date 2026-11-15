@@ -26,7 +26,7 @@ function fakeQuery(table: string) {
     then: (resolve: (r: Result) => unknown, reject: (e: unknown) => unknown) =>
       next().then(resolve, reject),
   };
-  for (const method of ["select", "eq", "order", "limit"]) {
+  for (const method of ["select", "eq", "in", "order", "limit"]) {
     builder[method] = (...args: unknown[]) => {
       calls.push({ table, method, args });
       return builder;
@@ -185,13 +185,31 @@ describe("getRecommendationInputs", () => {
     expect(calls.find((call) => call.table === "profiles" && call.method === "eq")?.args).toEqual(["id", USER_ID]);
   });
 
-  it("asks only for open postings and caps how many it looks at", async () => {
+  it("retrieves a bounded set of open jobs in a stable order", async () => {
     await getRecommendationInputs({ now: NOW });
 
-    expect(calls.find((call) => call.table === "job" && call.method === "eq")?.args).toEqual(["status", "open"]);
-    expect(calls.find((call) => call.table === "job" && call.method === "limit")?.args).toEqual([
-      MAX_JOBS_CONSIDERED,
+    expect(
+      calls.find(
+        (call) => call.table === "job" && call.method === "eq",
+      )?.args,
+    ).toEqual(["status", "open"]);
+
+    expect(
+      calls
+        .filter(
+          (call) => call.table === "job" && call.method === "order",
+        )
+        .map((call) => call.args),
+    ).toEqual([
+      ["created_at", { ascending: false }],
+      ["id", { ascending: true }],
     ]);
+
+    expect(
+      calls.find(
+        (call) => call.table === "job" && call.method === "limit",
+      )?.args,
+    ).toEqual([MAX_JOBS_CONSIDERED]);
   });
 
   it("returns the shortlist without postings the seeker already applied to", async () => {
@@ -232,5 +250,53 @@ describe("getRecommendationInputs", () => {
     if (!response.success) return;
     expect(JSON.stringify(response.seeker_state)).not.toMatch(/full_name|email|contact/);
     expect(calls.some((call) => call.table === "profiles" && call.method === "select" && String(call.args[0]).includes("email"))).toBe(false);
+  });
+
+  it("checks applications only for the retrieved jobs", async () => {
+    await getRecommendationInputs({ now: NOW });
+
+    expect(
+      calls.find(
+        (call) =>
+          call.table === "applications" &&
+          call.method === "eq" &&
+          call.args[0] === "applicant_id",
+      )?.args,
+    ).toEqual(["applicant_id", USER_ID]);
+
+    expect(
+      calls.find(
+        (call) =>
+          call.table === "applications" &&
+          call.method === "in" &&
+          call.args[0] === "job_id",
+      )?.args,
+    ).toEqual(["job_id", ["good", "already-applied"]]);
+  });
+
+  it("skips the application query when no open jobs were retrieved", async () => {
+    results.job = [{ data: [], error: null }];
+
+    const response = await getRecommendationInputs({ now: NOW });
+
+    expect(response).toMatchObject({
+      success: true,
+      empty_profile: false,
+      considered_jobs: 0,
+      shortlist: [],
+    });
+    expect(mockFrom).not.toHaveBeenCalledWith("applications");
+  });
+
+  it("fails when the bounded application query fails", async () => {
+    results.applications = [
+      { data: null, error: { message: "Application lookup failed" } },
+    ];
+
+    expect(await getRecommendationInputs({ now: NOW })).toEqual({
+      success: false,
+      code: "LOAD_FAILED",
+      error: LOAD_FAILED_ERROR,
+    });
   });
 });
