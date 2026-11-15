@@ -5,6 +5,7 @@ import type {
   CareerNotification,
   NotificationDataSource,
 } from "@/components/notifications/notification-types";
+
 import { getSeekerNotificationLink } from "@/lib/notifications/notification-links";
 
 type NotificationRow = {
@@ -85,32 +86,97 @@ export const notificationService: NotificationDataSource = {
     return (data as NotificationRow[]).map(mapNotification);
   },
 
-  async setReadStatus(
-    notificationId: string,
-    read: boolean
-  ): Promise<void> {
-    const supabase = createClient();
+ async setReadStatus(
+  notificationId: string,
+  read: boolean
+): Promise<void> {
+  const supabase = createClient();
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      throw new Error("You must be signed in.");
-    }
+  if (authError || !user) {
+    console.error("Notification auth error:", authError);
+    throw new Error("You must be signed in.");
+  }
 
-    const { error } = await supabase
-      .from("notifications")
-      .update({
-        is_read: read,
-        read_at: read ? new Date().toISOString() : null,
-      })
-      .eq("id", notificationId)
-      .eq("recipient_id", user.id);
+  const { data, error } = await supabase
+    .from("notifications")
+    .update({
+      is_read: read,
+      read_at: read ? new Date().toISOString() : null,
+    })
+    .eq("id", notificationId)
+    .eq("recipient_id", user.id)
+    .select("id, is_read, read_at");
 
-    if (error) {
-      throw new Error("Unable to update notification status.");
-    }
-  },
+  if (error) {
+  console.error("Notification update failed:", error);
+
+console.error(
+  "Full error:",
+  JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+);
+
+    throw new Error(error.message);
+  }
+
+  if (!data || data.length === 0) {
+    console.error("No notification was updated:", {
+      notificationId,
+      userId: user.id,
+    });
+
+    throw new Error("Notification was not updated. Check your permissions.");
+  }
+},
 };
+
+export function subscribeToNotifications(
+  recipientId: string,
+  onNotification: (notification: CareerNotification) => void
+) {
+  const supabase = createClient();
+
+  const channel = supabase
+    .channel(`notifications-${recipientId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "notifications",
+        filter: `recipient_id=eq.${recipientId}`,
+      },
+      (payload) => {
+        const row = payload.new as NotificationRow;
+
+        if (row.recipient_id !== recipientId) return;
+
+        onNotification(mapNotification(row));
+      }
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "notifications",
+        filter: `recipient_id=eq.${recipientId}`,
+      },
+      (payload) => {
+        const row = payload.new as NotificationRow;
+
+        if (row.recipient_id !== recipientId) return;
+
+        onNotification(mapNotification(row));
+      }
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
