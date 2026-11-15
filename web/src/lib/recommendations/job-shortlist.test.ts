@@ -135,6 +135,31 @@ describe("scoreJob", () => {
     expect(worst.score).toBeGreaterThanOrEqual(0);
     expect(worst.score).toBeLessThanOrEqual(100);
   });
+
+  it("gives a truthful reason when no specific match is confirmed", () => {
+    const result = scoreJob(
+      {
+        skills: [],
+        education: [],
+        experience: [],
+        preferences: null,
+        location: null,
+      },
+      job({
+        title: "Unrelated role",
+        required_skills: null,
+        experience: null,
+        work_mode: "On-site",
+        location: null,
+        employment_type: null,
+      }),
+      NOW,
+    );
+
+    expect(result.reasons).toEqual([
+      "No specific match could be confirmed from your profile; review the posting details.",
+    ]);
+  });
 });
 
 describe("shortlistJobs", () => {
@@ -205,3 +230,5 @@ describe("shortlistJobs", () => {
     expect(shortlistJobs(seeker, [], { now: NOW })).toEqual([]);
   });
 });
+
+

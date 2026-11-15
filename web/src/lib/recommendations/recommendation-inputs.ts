@@ -26,6 +26,7 @@ export type RecommendationInputsErrorCode =
 export type RecommendationInputsResponse =
   | {
       success: true;
+      user_id: string;
       /** True when the profile has nothing to match on yet. The shortlist is empty and no AI call is needed. */
       empty_profile: boolean;
       seeker_state: SeekerState;
@@ -132,6 +133,7 @@ export async function getRecommendationInputs(
   if (isProfileEmpty(snapshot)) {
     return {
       success: true,
+      user_id: user.id,
       empty_profile: true,
       seeker_state: seekerState,
       shortlist: [],
@@ -164,6 +166,7 @@ export async function getRecommendationInputs(
 
   return {
     success: true,
+    user_id: user.id,
     empty_profile: false,
     seeker_state: seekerState,
     shortlist,

@@ -177,7 +177,18 @@ export function scoreJob(
     reasons.push(`It is ${EMPLOYMENT_LABEL[preferredType]}, as you prefer`);
   }
 
-  return { job, score: Math.round(score), skill_match: skillMatch, reasons };
+  if (reasons.length === 0) {
+    reasons.push(
+      "No specific match could be confirmed from your profile; review the posting details.",
+    );
+  }
+
+  return {
+    job,
+    score: Math.round(score),
+    skill_match: skillMatch,
+    reasons,
+  };
 }
 
 export type ShortlistOptions = {
