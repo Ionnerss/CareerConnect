@@ -73,6 +73,7 @@ describe("mapNotification", () => {
     job_id: "job-1",
     is_read: false,
     created_at: "2026-11-13T12:00:00Z",
+    deadline_at: null,
   };
 
   it("links an interview invitation to that interview", () => {
