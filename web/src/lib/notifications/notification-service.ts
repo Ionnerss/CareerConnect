@@ -18,16 +18,17 @@ type NotificationRow = {
   job_id: string | null;
   is_read: boolean;
   created_at: string;
+  deadline_at: string | null;
 };
 
 export function mapNotification(
   row: NotificationRow
 ): CareerNotification {
   const category: CareerNotification["category"] =
-    row.type.includes("interview")
-      ? "interviews"
-      : row.type.includes("deadline")
-        ? "deadlines"
+    row.type.includes("deadline")
+      ? "deadlines"
+      : row.type.includes("interview")
+        ? "interviews"
         : "applications";
 
   const link = getSeekerNotificationLink({
@@ -50,6 +51,7 @@ export function mapNotification(
     applicationId: row.application_id ?? undefined,
     interviewId: row.interview_id ?? undefined,
     jobId: row.job_id ?? undefined,
+    deadline: row.deadline_at ?? undefined,
   };
 }
 
@@ -71,7 +73,7 @@ export const notificationService: NotificationDataSource = {
     const { data, error } = await supabase
       .from("notifications")
       .select(
-        "id, recipient_id, type, title, message, application_id, interview_id, job_id, is_read, created_at"
+        "id, recipient_id, type, title, message, application_id, interview_id, job_id, is_read, created_at, deadline_at"
       )
       .eq("recipient_id", user.id)
       .order("created_at", { ascending: false });
