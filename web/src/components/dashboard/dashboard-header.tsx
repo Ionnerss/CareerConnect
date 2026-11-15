@@ -35,8 +35,8 @@ export type NavItem = {
   icon: LucideIcon;
 };
 
-/** Fired after notifications are marked read or unread so the bell badge updates right away. */
-export const NOTIFICATIONS_CHANGED_EVENT = "careerconnect:notifications-changed";
+export const NOTIFICATIONS_CHANGED_EVENT =
+  "careerconnect:notifications-changed";
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Home", icon: Home },
@@ -72,7 +72,6 @@ export default function DashboardHeader({
   const [liveUnreadCount, setLiveUnreadCount] =
     useState<number | null>(null);
 
-  // Both job seekers and recruiters get a live unread badge on the bell.
   const isJobSeekerNotifications =
     notificationsHref === "/notifications" ||
     notificationsHref === "/recruiter/notifications";
@@ -112,11 +111,53 @@ export default function DashboardHeader({
   useEffect(() => {
     if (!isJobSeekerNotifications) return;
 
-    // Schedule the initial fetch after the effect setup.
-    // This avoids react-hooks/set-state-in-effect.
+    const supabase = createClient();
+
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
     const initialRefresh = window.setTimeout(() => {
       void refreshUnreadCount();
     }, 0);
+
+    async function setupRealtimeSubscription() {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (cancelled || error || !user) return;
+
+      channel = supabase
+        .channel(`notification-badge-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `recipient_id=eq.${user.id}`,
+          },
+          () => {
+            void refreshUnreadCount();
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "notifications",
+            filter: `recipient_id=eq.${user.id}`,
+          },
+          () => {
+            void refreshUnreadCount();
+          }
+        )
+        .subscribe();
+    }
+
+    void setupRealtimeSubscription();
 
     function handleFocus() {
       void refreshUnreadCount();
@@ -129,7 +170,11 @@ export default function DashboardHeader({
     }
 
     window.addEventListener("focus", handleFocus);
-    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, handleFocus);
+
+    window.addEventListener(
+      NOTIFICATIONS_CHANGED_EVENT,
+      handleFocus
+    );
 
     document.addEventListener(
       "visibilitychange",
@@ -137,12 +182,11 @@ export default function DashboardHeader({
     );
 
     return () => {
+      cancelled = true;
+
       window.clearTimeout(initialRefresh);
 
-      window.removeEventListener(
-        "focus",
-        handleFocus
-      );
+      window.removeEventListener("focus", handleFocus);
 
       window.removeEventListener(
         NOTIFICATIONS_CHANGED_EVENT,
@@ -153,6 +197,10 @@ export default function DashboardHeader({
         "visibilitychange",
         handleVisibilityChange
       );
+
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
     };
   }, [isJobSeekerNotifications, refreshUnreadCount]);
 
@@ -196,9 +244,7 @@ export default function DashboardHeader({
                 <li key={href}>
                   <Link
                     href={href}
-                    aria-current={
-                      current ? "page" : undefined
-                    }
+                    aria-current={current ? "page" : undefined}
                     className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] sm:min-w-20 ${
                       current
                         ? "text-[#0E1726] shadow-[inset_0_-2px_0_#0E1726]"
