@@ -43,6 +43,7 @@ function rated(id: string, overrides: Partial<RatedJob["job"]> = {}): RatedJob {
     reasons: ["You list 1 of 2 required skills"],
     fit: null,
     fit_error: null,
+    fit_generated_at: null
   };
 }
 
