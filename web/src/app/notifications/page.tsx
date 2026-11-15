@@ -100,12 +100,6 @@ function getDismissedIds(userId: string): string[] {
   }
 }
 
-function saveDismissedIds(userId: string, ids: string[]) {
-  localStorage.setItem(
-    storageKey(userId),
-    JSON.stringify([...new Set(ids)])
-  );
-}
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-CA", {

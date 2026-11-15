@@ -101,6 +101,7 @@ export const notificationService: NotificationDataSource = {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      console.error("Notification auth error:", authError);
       throw new Error("You must be signed in.");
     }
 
@@ -113,15 +114,23 @@ export const notificationService: NotificationDataSource = {
       .eq("id", notificationId)
       .eq("recipient_id", user.id)
       .is("dismissed_at", null)
-      .select("id, is_read");
+      .select("id, is_read, read_at");
 
     if (error) {
       console.error("Notification update failed:", error);
+      console.error(
+        "Full error:",
+        JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+      );
       throw new Error(error.message);
     }
 
     if (!data || data.length === 0) {
-      throw new Error("Notification was not updated.");
+      console.error("No notification was updated:", {
+        notificationId,
+        userId: user.id,
+      });
+      throw new Error("Notification was not updated. Check your permissions.");
     }
   },
 };
