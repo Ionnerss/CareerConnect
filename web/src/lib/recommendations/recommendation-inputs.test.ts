@@ -199,6 +199,7 @@ describe("getRecommendationInputs", () => {
 
     expect(response.success).toBe(true);
     if (!response.success) return;
+    expect(response.user_id).toBe(USER_ID);
     expect(response.empty_profile).toBe(false);
     expect(response.considered_jobs).toBe(2);
     expect(response.shortlist.map((item) => item.job.id)).toEqual(["good"]);
@@ -214,7 +215,13 @@ describe("getRecommendationInputs", () => {
 
     const response = await getRecommendationInputs({ now: NOW });
 
-    expect(response).toMatchObject({ success: true, empty_profile: true, shortlist: [], considered_jobs: 0 });
+    expect(response).toMatchObject({
+      success: true,
+      user_id: USER_ID,
+      empty_profile: true,
+      shortlist: [],
+      considered_jobs: 0,
+    });
     expect(calls.some((call) => call.table === "job" || call.table === "applications")).toBe(false);
   });
 
