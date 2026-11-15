@@ -7,6 +7,7 @@ import {
   Check,
   FileText,
   Search,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 
@@ -193,6 +194,11 @@ export function DashboardShortcuts() {
       href: "/jobs",
       label: "Browse all jobs",
       icon: Search,
+    },
+    {
+      href: "/jobs/recommendations",
+      label: "Recommended jobs",
+      icon: Sparkles,
     },
     {
       href: "/application-status",

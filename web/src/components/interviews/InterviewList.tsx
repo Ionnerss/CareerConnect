@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import InterviewCard from "./InterviewCard";
+import { interviewAnchorId } from "@/lib/notifications/notification-links";
 import type { Interview, InterviewStatus } from "./interview-types";
 
 type InterviewListProps = {
@@ -422,15 +423,21 @@ export default function InterviewList({
         ) : (
           <div className="flex flex-col gap-4">
             {filteredInterviews.map((interview) => (
-              <InterviewCard
+              // The id lets a notification link straight to this card (/interviews#interview-<id>).
+              <div
                 key={interview.id}
-                interview={interview}
-                onAccept={(id) => handleResponse(id, "accepted")}
-                onReject={(id) => handleResponse(id, "declined")}
-                actionsEnabled={
-                  actionsEnabled && respondingId === null
-                }
-              />
+                id={interviewAnchorId(interview.id)}
+                className="scroll-mt-24 rounded-2xl target:ring-2 target:ring-[#3151D5]/40 target:ring-offset-2"
+              >
+                <InterviewCard
+                  interview={interview}
+                  onAccept={(id) => handleResponse(id, "accepted")}
+                  onReject={(id) => handleResponse(id, "declined")}
+                  actionsEnabled={
+                    actionsEnabled && respondingId === null
+                  }
+                />
+              </div>
             ))}
           </div>
         )}

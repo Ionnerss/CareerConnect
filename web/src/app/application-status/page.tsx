@@ -2,9 +2,15 @@ import { getUserApplications } from "@/lib/application_status/application_status
 import ApplicationStatusClient from "./ApplicationStatusClient";
 import { requireMfaForPage } from "@/lib/auth/require-mfa";
 
-export default async function ApplicationStatusPage() {
+type ApplicationStatusPageProps = {
+    searchParams: Promise<{ application?: string | string[] }>;
+};
+
+export default async function ApplicationStatusPage({ searchParams }: ApplicationStatusPageProps) {
     await requireMfaForPage();
     const applications = await getUserApplications();
-    
-    return <ApplicationStatusClient applications={applications} />;
+    const { application } = await searchParams;
+    const highlightId = typeof application === "string" ? application : undefined;
+
+    return <ApplicationStatusClient applications={applications} highlightId={highlightId} />;
 }

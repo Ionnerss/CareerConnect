@@ -69,7 +69,10 @@ function InterviewCard({
   }
 
   return (
-    <li className={ui.card}>
+    <li
+      id={`interview-${interview.id}`}
+      className={`${ui.card} scroll-mt-24 target:border-[#1D4ED8] target:ring-2 target:ring-[#1D4ED8]/25`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className={ui.entryTitle}>{applicant}</p>

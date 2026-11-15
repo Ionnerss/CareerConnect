@@ -12,9 +12,11 @@ import ApplicationStatusRealtime from "@/lib/application_status/change-status-re
 
 type applicationProps = {
     applications: ApplicationCardData[];
+    /** Set when the page was opened from a notification (?application=<id>). */
+    highlightId?: string;
 };
 
-export default function ApplicationStatusClient({ applications }: applicationProps) {
+export default function ApplicationStatusClient({ applications, highlightId }: applicationProps) {
     const [selectedStatus, setSelectedStatus] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -94,7 +96,7 @@ export default function ApplicationStatusClient({ applications }: applicationPro
                         onSearchChange={setSearchQuery}
                     />
 
-                    <ApplicationList applications={filteredApplications} />
+                    <ApplicationList applications={filteredApplications} highlightId={highlightId} />
                 </div>
             </PageBody>
         </main>
