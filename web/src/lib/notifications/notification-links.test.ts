@@ -1,3 +1,4 @@
+
 /** Tests where a job seeker's notification takes them when clicked (#257). */
 
 import { describe, expect, it, vi } from "vitest";
@@ -74,6 +75,7 @@ describe("mapNotification", () => {
     is_read: false,
     created_at: "2026-11-13T12:00:00Z",
     deadline_at: null,
+    dismissed_at: null,
   };
 
   it("links an interview invitation to that interview", () => {
