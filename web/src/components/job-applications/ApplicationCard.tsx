@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { CalendarDays } from "lucide-react";
 import type { ApplicationCardData } from "@/lib/application_status/application_status_logic";
+import { applicationAnchorId } from "@/lib/notifications/notification-links";
 import {
     getCompanyTileIndex,
     getStatusLabel,
@@ -41,7 +42,10 @@ export function ApplicationCard({ application }: CardDataProps) {
     const tone = getStatusTone(application.status);
 
     return (
-        <div className="flex w-full flex-wrap items-center gap-4 rounded-2xl border border-[#E3E6EB] bg-white p-4 sm:flex-nowrap">
+        <div
+            id={applicationAnchorId(application.id)}
+            className="flex w-full scroll-mt-24 flex-wrap items-center gap-4 rounded-2xl border border-[#E3E6EB] bg-white p-4 sm:flex-nowrap target:border-[#3151D5] target:ring-2 target:ring-[#3151D5]/25"
+        >
             <span
                 aria-hidden="true"
                 className={`flex size-11 shrink-0 items-center justify-center rounded-xl text-lg font-extrabold ${tile}`}

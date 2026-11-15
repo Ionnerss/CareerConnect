@@ -161,4 +161,11 @@ describe("RecruiterInterviewsList", () => {
 
     expect((await screen.findByRole("alert")).textContent).toBe("This interview was not found.");
   });
+
+  it("gives each interview an anchor so a notification can open it", () => {
+    render(<RecruiterInterviewsList interviews={interviews} now={NOW} />);
+
+    expect(card("Catalin B").id).toBe("interview-int-1");
+    expect(card("Matthew L").id).toBe("interview-int-2");
+  });
 });

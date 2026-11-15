@@ -19,6 +19,7 @@ export type CareerNotification = {
   deadline?: string;
   status?: string;
   applicationId?: string;
+  interviewId?: string;
   jobId?: string;
 };
 

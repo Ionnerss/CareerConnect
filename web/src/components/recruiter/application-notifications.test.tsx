@@ -104,10 +104,10 @@ describe("RecruiterNotificationsList", () => {
     render(<RecruiterNotificationsList notifications={notifications} now={NOW} />);
 
     expect(within(item("Matthew L accepted the interview invitation for Software Dev.")).getByRole("link").getAttribute("href")).toBe(
-      "/recruiter/interviews",
+      "/recruiter/interviews#interview-int-1",
     );
     expect(within(item("Dak S applied for Data Analyst.")).getByRole("link").getAttribute("href")).toBe(
-      "/recruiter/jobs/job-2/applicants",
+      "/recruiter/jobs/job-2/applicants#applicant-app-3",
     );
   });
 
