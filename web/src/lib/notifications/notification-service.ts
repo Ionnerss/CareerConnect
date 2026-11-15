@@ -142,12 +142,14 @@ export async function dismissNotifications(
     throw new Error("You must be signed in.");
   }
 
+  const dismissedAt = new Date().toISOString();
+
   const { data, error } = await supabase
     .from("notifications")
     .update({
-      dismissed_at: new Date().toISOString(),
+      dismissed_at: dismissedAt,
       is_read: true,
-      read_at: new Date().toISOString(),
+      read_at: dismissedAt,
     })
     .in("id", notificationIds)
     .eq("recipient_id", user.id)
@@ -207,9 +209,12 @@ export function subscribeToNotifications(
       (payload) => {
         const row = payload.new as NotificationRow;
 
-        if (row.recipient_id !== recipientId) return;
-
-        if (row.dismissed_at !== null) return;
+        if (
+          row.recipient_id !== recipientId ||
+          row.dismissed_at !== null
+        ) {
+          return;
+        }
 
         onNotification(mapNotification(row));
       }
