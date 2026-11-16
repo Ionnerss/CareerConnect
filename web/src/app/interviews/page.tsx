@@ -1,11 +1,14 @@
+
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireMfaForPage } from "@/lib/auth/require-mfa";
 
 import InterviewList from "@/components/interviews/InterviewList";
-import type { Interview } from "@/components/interviews/interview-types";
-import type { InterviewStatus } from "@/components/interviews/interview-types";
+import type {
+  Interview,
+  InterviewStatus,
+} from "@/components/interviews/interview-types";
 
 type InterviewRow = {
   id: string;
@@ -13,6 +16,9 @@ type InterviewRow = {
   scheduled_at: string;
   duration_minutes: number | null;
   status: string;
+  location: string | null;
+  meeting_url: string | null;
+  notes: string | null;
   application: {
     job: {
       title: string;
@@ -66,6 +72,9 @@ export default async function InterviewsPage() {
       scheduled_at,
       duration_minutes,
       status,
+      location,
+      meeting_url,
+      notes,
       application:applications!inner(
         job:job!inner(
           title,
@@ -117,6 +126,11 @@ export default async function InterviewsPage() {
     date: row.scheduled_at,
     durationMinutes: row.duration_minutes ?? 30,
     status: mapInterviewStatus(row.status),
+
+    // Interview details supplied by the recruiter.
+    location: row.location,
+    meetingUrl: row.meeting_url,
+    notes: row.notes,
   }));
 
   return (
