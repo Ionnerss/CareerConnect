@@ -19,6 +19,17 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/app/auth/actions", () => ({ logout: vi.fn() }));
 
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    auth: {
+      getUser: async () => ({
+        data: { user: null },
+        error: null,
+      }),
+    },
+  }),
+}));
+
 afterEach(cleanup);
 
 function currentLink() {
