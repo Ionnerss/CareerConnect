@@ -45,11 +45,13 @@ export default async function JobsPage({
     Array.isArray(q) ? q[0] : q,
     Array.isArray(page) ? page[0] : page,
     {
-      location,
-      minSalary,
-      maxSalary,
-      experienceLevel,
-      jobType,
+      location: Array.isArray(location) ? location[0] : location,
+      minSalary: Array.isArray(minSalary) ? minSalary[0] : minSalary,
+      maxSalary: Array.isArray(maxSalary) ? maxSalary[0] : maxSalary,
+      experienceLevel: Array.isArray(experienceLevel)
+        ? experienceLevel[0]
+        : experienceLevel,
+      jobType: Array.isArray(jobType) ? jobType[0] : jobType,
     }
   );
 
