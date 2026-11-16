@@ -8,6 +8,8 @@ import JobFiltersUrl from "@/components/jobs/JobFiltersUrl";
 import PaginatedJobList from "@/components/jobs/PaginatedJobList";
 import { PageBody, PageHero } from "@/components/app/page-hero";
 import { searchJobs } from "@/lib/jobs/search";
+import { createClient } from "@/lib/supabase/server";
+import type { JobSearchResult } from "@/lib/jobs/search";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -24,6 +26,7 @@ type JobsPageProps = {
     maxSalary?: string | string[];
     experienceLevel?: string | string[];
     jobType?: string | string[];
+    selectedJob?: string | string[];
   }>;
 };
 
@@ -38,6 +41,7 @@ export default async function JobsPage({
     maxSalary,
     experienceLevel,
     jobType,
+    selectedJob,
   } = await searchParams;
 
   // Pass keyword, pagination, and filters to Supabase.
@@ -59,6 +63,29 @@ export default async function JobsPage({
     result.error.startsWith("Unable to authenticate")
   ) {
     redirect("/auth/login");
+  }
+
+  const requestedJobId = Array.isArray(selectedJob)
+    ? selectedJob[0]
+    : selectedJob;
+
+  let linkedJob: JobSearchResult | null = null;
+  let linkedJobError = false;
+
+  if (result.success && requestedJobId) {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("job")
+      .select(
+        "id, title, firm_name, location, description, required_skills, salary, status, created_at"
+      )
+      .eq("id", requestedJobId)
+      .eq("status", "open")
+      .maybeSingle();
+
+    linkedJob = (data as JobSearchResult | null) ?? null;
+    linkedJobError = Boolean(error);
   }
 
   return (
@@ -113,6 +140,28 @@ export default async function JobsPage({
             <p role="alert" className="text-sm text-destructive">
               {result.error}
             </p>
+          ) : requestedJobId && !linkedJob ? (
+            <div
+              role={linkedJobError ? "alert" : "status"}
+              className="rounded-2xl border border-[#E3E6EB] bg-white p-8 shadow-sm"
+            >
+              <h2 className="text-xl font-bold text-[#0E1726]">
+                {linkedJobError
+                  ? "Unable to load this posting"
+                  : "This posting is no longer available"}
+              </h2>
+              <p className="mt-2 text-sm text-[#64748B]">
+                {linkedJobError
+                  ? "Please try again."
+                  : "It may have closed or been removed."}
+              </p>
+              <Link
+                href="/jobs"
+                className="mt-5 inline-flex text-sm font-semibold text-[#3151D5] hover:underline"
+              >
+                Browse open jobs
+              </Link>
+            </div>
           ) : (
             <Suspense
               fallback={
@@ -130,8 +179,10 @@ export default async function JobsPage({
                   maxSalary,
                   experienceLevel,
                   jobType,
+                  requestedJobId,
                 ])}
                 jobs={result.jobs}
+                linkedJob={linkedJob}
                 query={result.query}
                 page={result.page}
                 totalCount={result.totalCount}
@@ -143,3 +194,4 @@ export default async function JobsPage({
     </main>
   );
 }
+

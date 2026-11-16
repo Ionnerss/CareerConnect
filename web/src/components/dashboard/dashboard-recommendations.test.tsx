@@ -92,13 +92,16 @@ describe("DashboardRecommendations", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/recommendations", expect.objectContaining({ method: "POST" }));
   });
 
-  it("shows at most 5 jobs, best first, each with its score and an apply link", async () => {
+  it("shows at most 5 jobs, best first, with posting and apply links for each job", async () => {
     fetchMock.mockResolvedValue(jsonResponse(success()));
 
     await openMatches();
 
-    const list = await screen.findByRole("list", { name: "Your top job matches" });
+    const list = await screen.findByRole("list", {
+      name: "Your top job matches",
+    });
     const items = within(list).getAllByRole("listitem");
+
     expect(items).toHaveLength(5);
     expect(items[0].textContent).toContain("Job 1");
     expect(items[0].textContent).toContain("Company 1 · Montreal");
@@ -107,10 +110,33 @@ describe("DashboardRecommendations", () => {
     expect(items[4].textContent).toContain("58% · Possible match");
     expect(screen.queryByText("Job 6")).toBeNull();
 
-    expect(within(items[0]).getByRole("link", { name: "View and apply for Job 1" }).getAttribute("href")).toBe(
-      "/jobs/job-1/apply",
-    );
-    expect(screen.getByText(/Picked from 17 open jobs/)).toBeDefined();
+    expect(
+      within(items[0])
+        .getByRole("link", { name: "View posting for Job 1" })
+        .getAttribute("href")
+    ).toBe("/jobs?selectedJob=job-1");
+
+    expect(
+      within(items[0])
+        .getByRole("link", { name: "Apply for Job 1" })
+        .getAttribute("href")
+    ).toBe("/jobs/job-1/apply");
+
+    expect(
+      within(items[1])
+        .getByRole("link", { name: "View posting for Job 2" })
+        .getAttribute("href")
+    ).toBe("/jobs?selectedJob=job-2");
+
+    expect(
+      within(items[1])
+        .getByRole("link", { name: "Apply for Job 2" })
+        .getAttribute("href")
+    ).toBe("/jobs/job-2/apply");
+
+    expect(
+      screen.getByText(/Picked from 17 open jobs/)
+    ).toBeDefined();
   });
 
   it("asks again when the seeker presses Refresh", async () => {

@@ -183,13 +183,40 @@ describe("RecommendationsPanel", () => {
     expect(screen.getAllByText(/less sure about this one/i)).toHaveLength(1);
   });
 
-  it("links each card to the normal apply page, encoding the id", async () => {
-    mockFetch(success([rec("a b/c")]));
+  it("links each recommendation to its own posting and application form", async () => {
+    mockFetch(success([rec("job-a"), rec("a b/c")]));
     render(<RecommendationsPanel />);
-    await screen.findByText("Job a b/c");
-    const link = screen.getByRole("link", { name: /view and apply/i });
-    expect(link.textContent).toContain("Job a b/c");
-    expect(link.getAttribute("href")).toBe("/jobs/a%20b%2Fc/apply");
+
+    const list = await screen.findByRole("list", {
+      name: /recommended jobs/i,
+    });
+    const cards = within(list).getAllByRole("listitem");
+
+    expect(cards).toHaveLength(2);
+
+    expect(
+      within(cards[0])
+        .getByRole("link", { name: "View posting for Job job-a" })
+        .getAttribute("href")
+    ).toBe("/jobs?selectedJob=job-a");
+
+    expect(
+      within(cards[0])
+        .getByRole("link", { name: "Apply for Job job-a" })
+        .getAttribute("href")
+    ).toBe("/jobs/job-a/apply");
+
+    expect(
+      within(cards[1])
+        .getByRole("link", { name: "View posting for Job a b/c" })
+        .getAttribute("href")
+    ).toBe("/jobs?selectedJob=a%20b%2Fc");
+
+    expect(
+      within(cards[1])
+        .getByRole("link", { name: "Apply for Job a b/c" })
+        .getAttribute("href")
+    ).toBe("/jobs/a%20b%2Fc/apply");
   });
 
   it("shows the AI-unavailable notice when ranking fell back to code scores", async () => {

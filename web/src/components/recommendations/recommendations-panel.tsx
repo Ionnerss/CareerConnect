@@ -217,14 +217,21 @@ function RecommendationCard({ item, rank }: { item: Recommendation; rank: number
             </div>
           )}
 
-          <div className="mt-5 border-t border-[#EEF1F6] pt-4">
+          <div className="mt-5 flex flex-wrap gap-3 border-t border-[#EEF1F6] pt-4">
+            <Link
+              href={`/jobs?selectedJob=${encodeURIComponent(job.id)}`}
+              aria-label={`View posting for ${title}`}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#3151D5] bg-white px-5 py-2.5 text-sm font-semibold text-[#3151D5] transition-colors hover:bg-[#F2F5FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
+            >
+              View posting
+            </Link>
+
             <Link
               href={`/jobs/${encodeURIComponent(job.id)}/apply`}
+              aria-label={`Apply for ${title}`}
               className="inline-flex items-center gap-2 rounded-xl bg-[#3151D5] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1E40AF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D4ED8] focus-visible:ring-offset-2"
             >
-              <span>
-                View and apply<span className="sr-only"> for {title}</span>
-              </span>
+              Apply
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </Link>
           </div>

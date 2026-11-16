@@ -221,12 +221,22 @@ function ReadyState({ data, onRefresh }: { data: RecommendationsSuccess; onRefre
                 <span className="rounded-full bg-[#F2F5FF] px-2.5 py-1 text-xs font-bold text-[#1D4ED8]">
                   {item.score}% · {matchLabel(item.score)}
                 </span>
+
                 <Link
-                  href={`/jobs/${encodeURIComponent(item.job.id)}/apply`}
-                  aria-label={`View and apply for ${title}`}
+                  href={`/jobs?selectedJob=${encodeURIComponent(item.job.id)}`}
+                  aria-label={`View posting for ${title}`}
                   className="inline-flex min-h-8 items-center gap-1 rounded text-xs font-semibold text-[#1D4ED8] hover:text-[#1E40AF] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]"
                 >
-                  View and apply
+                  View posting
+                  <ArrowRight aria-hidden="true" className="size-3.5" />
+                </Link>
+
+                <Link
+                  href={`/jobs/${encodeURIComponent(item.job.id)}/apply`}
+                  aria-label={`Apply for ${title}`}
+                  className="inline-flex min-h-8 items-center gap-1 rounded text-xs font-semibold text-[#1D4ED8] hover:text-[#1E40AF] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]"
+                >
+                  Apply
                   <ArrowRight aria-hidden="true" className="size-3.5" />
                 </Link>
               </div>
