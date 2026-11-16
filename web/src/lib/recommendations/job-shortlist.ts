@@ -53,6 +53,7 @@ const NEUTRAL_POINTS = {
   skills: 20,
   role: 8,
   workMode: 10,
+  experience: 5,
   location: 2,
   employmentType: 2,
 } as const;
@@ -146,6 +147,9 @@ export function scoreJob(
   // 4. Experience needed (10)
   if (job.experience === null || job.experience <= 0) {
     score += MAX_POINTS.experience;
+  } else if (seeker.experience.length === 0) {
+    score += NEUTRAL_POINTS.experience;
+    reasons.push("Your experience is not listed on your profile");
   } else {
     const years = totalYearsOfExperience(seeker.experience, now);
     score += Math.min(1, years / job.experience) * MAX_POINTS.experience;
@@ -209,7 +213,10 @@ export function shortlistJobs(
   jobs: JobForMatching[],
   options: ShortlistOptions = {},
 ): ShortlistedJob[] {
-  const limit = Math.max(0, options.limit ?? DEFAULT_SHORTLIST_SIZE);
+  const limit = Math.max(
+    0,
+    Math.min(options.limit ?? DEFAULT_SHORTLIST_SIZE, DEFAULT_SHORTLIST_SIZE),
+  );
   const applied = new Set(options.appliedJobIds ?? []);
   const seen = new Set<string>();
 

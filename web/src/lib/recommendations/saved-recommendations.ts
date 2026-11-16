@@ -151,6 +151,23 @@ export async function getSavedRecommendations(): Promise<SavedRecommendationsRes
     return failure("LOAD_FAILED", LOAD_FAILED_ERROR);
   }
 
+  const { data: applications, error: applicationsError } = await supabase
+    .from("applications")
+    .select("job_id")
+    .eq("applicant_id", user.id)
+    .in(
+      "job_id",
+      results.map((row) => row.job_id),
+    );
+
+  if (applicationsError) {
+    return failure("LOAD_FAILED", LOAD_FAILED_ERROR);
+  }
+
+  const appliedJobIds = new Set(
+    (applications ?? []).map((application) => application.job_id),
+  );
+
   const jobsById = new Map(
     (jobs ?? []).map((row) => [
       row.id,
@@ -160,7 +177,7 @@ export async function getSavedRecommendations(): Promise<SavedRecommendationsRes
 
   const recommendations: Recommendation[] = results.flatMap((row) => {
     const job = jobsById.get(row.job_id);
-    if (!job) return [];
+    if (!job || appliedJobIds.has(row.job_id)) return [];
 
     return [{
       job,

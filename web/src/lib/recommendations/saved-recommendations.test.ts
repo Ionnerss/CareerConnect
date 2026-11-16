@@ -263,4 +263,54 @@ describe("getSavedRecommendations", () => {
     });
     expect(mockFrom).not.toHaveBeenCalled();
   });
+
+  it("hides a job the seeker applied to after publication", async () => {
+    const otherJob = {
+      ...openJob,
+      id: "44444444-4444-4444-8444-444444444444",
+      title: "Backend Intern",
+    };
+
+    queue({
+      recommendation_runs: [
+        {
+          data: { ...run, result_count: 2 },
+          error: null,
+        },
+      ],
+      recommendation_results: [
+        {
+          data: [
+            savedResult,
+            { ...savedResult, job_id: otherJob.id, rank: 2 },
+          ],
+          error: null,
+        },
+      ],
+      job: [
+        { data: [openJob, otherJob], error: null },
+      ],
+      applications: [
+        { data: [{ job_id: openJob.id }], error: null },
+      ],
+    });
+
+    const response = await getSavedRecommendations();
+
+    expect(response.success).toBe(true);
+    if (!response.success) return;
+
+    expect(response.run?.result_count).toBe(2);
+    expect(response.recommendations.map(({ job }) => job.id)).toEqual([
+      otherJob.id,
+    ]);
+    expect(
+      calls.find(
+        (call) =>
+          call.table === "applications" &&
+          call.method === "eq" &&
+          call.args[0] === "applicant_id",
+      )?.args,
+    ).toEqual(["applicant_id", USER_ID]);
+  });
 });

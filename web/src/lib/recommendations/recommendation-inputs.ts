@@ -141,26 +141,40 @@ export async function getRecommendationInputs(
     };
   }
 
-  const [jobs, applications] = await Promise.all([
-    supabase
-      .from("job")
-      .select(JOB_COLUMNS)
-      .eq("status", "open")
-      .order("created_at", { ascending: false })
-      .limit(MAX_JOBS_CONSIDERED),
-    supabase.from("applications").select("job_id").eq("applicant_id", user.id),
-  ]);
+  const { data: jobs, error: jobsError } = await supabase
+    .from("job")
+    .select(JOB_COLUMNS)
+    .eq("status", "open")
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true })
+    .limit(MAX_JOBS_CONSIDERED);
 
-  if (jobs.error || applications.error) return failure("LOAD_FAILED", LOAD_FAILED_ERROR);
+  if (jobsError) return failure("LOAD_FAILED", LOAD_FAILED_ERROR);
 
-  const openJobs = (jobs.data ?? []).map((row) => ({
+  const openJobs = (jobs ?? []).map((row) => ({
     ...row,
     salary: toNumber(row.salary),
   })) as JobForMatching[];
 
+  const { data: applications, error: applicationsError } =
+    openJobs.length > 0
+      ? await supabase
+          .from("applications")
+          .select("job_id")
+          .eq("applicant_id", user.id)
+          .in(
+            "job_id",
+            openJobs.map((job) => job.id),
+          )
+      : { data: [], error: null };
+
+  if (applicationsError) {
+    return failure("LOAD_FAILED", LOAD_FAILED_ERROR);
+  }
+
   const shortlist = shortlistJobs(snapshot, openJobs, {
     limit: options.limit,
-    appliedJobIds: (applications.data ?? []).map((row) => row.job_id as string),
+    appliedJobIds: (applications ?? []).map((row) => row.job_id as string),
     now: options.now,
   });
 

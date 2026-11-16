@@ -8,6 +8,7 @@ import {
   blendScore,
   buildRecommendations,
   getRecommendations,
+  type Recommendation,
 } from "./recommend";
 
 const {
@@ -15,11 +16,13 @@ const {
   mockReserve,
   mockPublish,
   mockFail,
+  mockFilterEligible,
 } = vi.hoisted(() => ({
   mockGetInputs: vi.fn(),
   mockReserve: vi.fn(),
   mockPublish: vi.fn(),
   mockFail: vi.fn(),
+  mockFilterEligible: vi.fn(),
 }));
 
 vi.mock("./recommendation-inputs", () => ({
@@ -30,6 +33,10 @@ vi.mock("./persistence", () => ({
   reserveRecommendationRun: mockReserve,
   publishRecommendationRun: mockPublish,
   failRecommendationRun: mockFail,
+}));
+
+vi.mock("./eligible-results", () => ({
+  filterEligibleResults: mockFilterEligible,
 }));
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
@@ -307,6 +314,9 @@ describe("getRecommendations", () => {
     mockReserve.mockResolvedValue(RUN_ID);
     mockPublish.mockResolvedValue(undefined);
     mockFail.mockResolvedValue(undefined);
+    mockFilterEligible.mockImplementation(
+      async (_userId, recommendations) => recommendations,
+    );
   });
 
   it("passes sign-in, MFA and role failures straight through without any AI call", async () => {
@@ -515,5 +525,50 @@ describe("getRecommendations", () => {
     );
 
     expect(mockFail).toHaveBeenCalledWith(RUN_ID, "publication_failed");
+  });
+
+  it("excludes a job applied to during generation from publication and the response", async () => {
+    mockGetInputs.mockResolvedValue({
+      success: true,
+      user_id: USER_ID,
+      empty_profile: false,
+      seeker_state: seeker,
+      shortlist: [shortlisted("a", 80), shortlisted("b", 70)],
+      considered_jobs: 2,
+    });
+
+    // The recheck runs after generation. At that point, job a
+    // represents a posting the seeker has since applied to.
+    mockFilterEligible.mockImplementationOnce(
+      async (_userId, recommendations) =>
+        recommendations.filter(
+          (recommendation: Recommendation) => recommendation.job.id !== "a",
+        ),
+    );
+
+    const response = await getRecommendations({
+      ask: askByTitle({ "Job a": 3, "Job b": 2 }),
+      complete: vi.fn().mockResolvedValue(okSummary(["a", "b"])),
+    });
+
+    expect(mockFilterEligible).toHaveBeenCalledWith(
+      USER_ID,
+      expect.arrayContaining([
+        expect.objectContaining({ job: expect.objectContaining({ id: "a" }) }),
+        expect.objectContaining({ job: expect.objectContaining({ id: "b" }) }),
+      ]),
+    );
+
+    expect(mockPublish).toHaveBeenCalledTimes(1);
+    expect(
+      mockPublish.mock.calls[0][2].map(
+        (recommendation: { job: { id: string } }) => recommendation.job.id,
+      ),
+    ).toEqual(["b"]);
+
+    expect(response.success).toBe(true);
+    if (!response.success) return;
+
+    expect(response.recommendations.map(({ job }) => job.id)).toEqual(["b"]);
   });
 });
