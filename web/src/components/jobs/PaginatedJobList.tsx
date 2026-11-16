@@ -1,7 +1,7 @@
-
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
@@ -18,6 +18,7 @@ const JOBS_PER_PAGE = 6;
 
 type PaginatedJobListProps = {
   jobs: JobSearchResult[];
+  linkedJob: JobSearchResult | null;
   query: string;
   page: number;
   totalCount: number;
@@ -25,25 +26,28 @@ type PaginatedJobListProps = {
 
 export default function PaginatedJobList({
   jobs,
+  linkedJob,
   query,
   page,
   totalCount,
 }: PaginatedJobListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [selectedJobId, setSelectedJobId] = useState<string | null>(
-    jobs[0]?.id ?? null
+    linkedJob?.id ?? jobs[0]?.id ?? null
   );
-  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(Boolean(linkedJob));
+
   const desktopPanelRef = useRef<HTMLDivElement>(null);
   const firstJobRef = useRef<HTMLLIElement>(null);
 
-  // The server has already fetched the six jobs for this page.
   const totalPages = Math.ceil(totalCount / JOBS_PER_PAGE);
   const startIndex = (page - 1) * JOBS_PER_PAGE;
 
   const selectedJob = selectedJobId
-    ? jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null
+    ? jobs.find((job) => job.id === selectedJobId) ??
+      (linkedJob?.id === selectedJobId ? linkedJob : null)
     : null;
 
   function resetDetailsScroll() {
@@ -54,43 +58,60 @@ export default function PaginatedJobList({
   }
 
   function handlePageChange(nextPage: number) {
-    if (nextPage < 1 || nextPage > totalPages || nextPage === page) return;
+    if (nextPage < 1 || nextPage > totalPages || nextPage === page) {
+      return;
+    }
 
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("selectedJob");
+
     if (nextPage === 1) {
       params.delete("page");
     } else {
       params.set("page", String(nextPage));
     }
 
-    // Mark this as a pagination click (not an initial page visit).
-    sessionStorage.setItem("careerconnect-scroll-to-page", String(nextPage));
+    sessionStorage.setItem(
+      "careerconnect-scroll-to-page",
+      String(nextPage)
+    );
     setMobilePanelOpen(false);
 
     const queryString = params.toString();
+
     router.push(queryString ? `/jobs?${queryString}` : "/jobs", {
       scroll: false,
     });
   }
 
-  // After Next.js renders the NEW page of jobs, show its first card.
   useLayoutEffect(() => {
-    if (sessionStorage.getItem("careerconnect-scroll-to-page") !== String(page)) {
+    if (
+      sessionStorage.getItem("careerconnect-scroll-to-page") !==
+      String(page)
+    ) {
       return;
     }
 
     const scrollToFirstCard = () => {
       const card = firstJobRef.current;
       if (!card) return;
-      const top = card.getBoundingClientRect().top + window.scrollY - 112;
-      window.scrollTo({ top: Math.max(0, top), behavior: "instant" });
+
+      const top =
+        card.getBoundingClientRect().top + window.scrollY - 112;
+
+      window.scrollTo({
+        top: Math.max(0, top),
+        behavior: "instant",
+      });
     };
 
     scrollToFirstCard();
+
     const frame = requestAnimationFrame(() => {
       scrollToFirstCard();
       sessionStorage.removeItem("careerconnect-scroll-to-page");
     });
+
     return () => cancelAnimationFrame(frame);
   }, [page, jobs]);
 
@@ -98,9 +119,15 @@ export default function PaginatedJobList({
     setSelectedJobId(job.id);
     resetDetailsScroll();
     setMobilePanelOpen(true);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("selectedJob", job.id);
+
+    router.replace(`/jobs?${params.toString()}`, {
+      scroll: false,
+    });
   }
 
-  // Close the mobile details drawer using Escape.
   useEffect(() => {
     if (!mobilePanelOpen) return;
 
@@ -111,18 +138,46 @@ export default function PaginatedJobList({
     }
 
     window.addEventListener("keydown", handleKeyDown);
+
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [mobilePanelOpen]);
+
+  if (jobs.length === 0 && selectedJob) {
+    return (
+      <div className="space-y-4">
+        <Link
+          href="/jobs"
+          className="inline-flex text-sm font-semibold text-[#3151D5] hover:underline"
+        >
+          ← Browse open jobs
+        </Link>
+
+        <div className="overflow-hidden rounded-2xl border border-[#E3E6EB] bg-white">
+          <JobDetails
+            job={selectedJob}
+            onClose={() => router.push("/jobs")}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (jobs.length === 0) {
     return (
       <div className="rounded-3xl border border-[#E3E6EB] bg-white px-6 py-16 text-center shadow-sm">
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EEF2FF]">
-          <SearchX aria-hidden="true" className="h-8 w-8 text-[#1D4ED8]" />
+          <SearchX
+            aria-hidden="true"
+            className="h-8 w-8 text-[#1D4ED8]"
+          />
         </div>
+
         <h2 className="text-xl font-bold text-[#0E1726]">
-          {totalCount > 0 ? "No jobs on this page" : "No matching jobs found"}
+          {totalCount > 0
+            ? "No jobs on this page"
+            : "No matching jobs found"}
         </h2>
+
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#64748B]">
           {totalCount > 0
             ? "The available results may have changed. Return to page 1 or adjust your search."
@@ -130,6 +185,7 @@ export default function PaginatedJobList({
               ? `No jobs match "${query}". Try another keyword or adjust your search.`
               : "No jobs match your current criteria. Check back later or adjust your filters."}
         </p>
+
         {totalCount > 0 && (
           <button
             type="button"
@@ -145,7 +201,6 @@ export default function PaginatedJobList({
 
   return (
     <div className="space-y-6">
-      {/* Results heading */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="mb-2 flex items-center gap-2">
@@ -154,33 +209,45 @@ export default function PaginatedJobList({
               Discover opportunities
             </span>
           </div>
+
           <h2 className="text-2xl font-extrabold tracking-tight text-[#0E1726]">
             Available opportunities
           </h2>
+
           <p className="mt-1 text-sm text-[#64748B]">
             {query
               ? `${totalCount} result${totalCount === 1 ? "" : "s"} for "${query}"`
               : `${totalCount} job${totalCount === 1 ? "" : "s"} available`}
           </p>
         </div>
+
         <span className="rounded-full border border-[#E3E6EB] bg-white px-4 py-2 text-xs font-semibold text-[#64748B]">
-          Showing {startIndex + 1}–{Math.min(startIndex + jobs.length, totalCount)} of {totalCount}
+          Showing {startIndex + 1}–
+          {Math.min(startIndex + jobs.length, totalCount)} of{" "}
+          {totalCount}
         </span>
       </div>
 
-      {/* Main job browser */}
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-5">
-        {/* Left: list of jobs */}
         <div className="min-w-0 space-y-5 lg:col-span-2">
           <ul className="flex flex-col gap-3">
             {jobs.map((job) => {
               const isSelected = selectedJob?.id === job.id;
-              const company = job.firm_name?.trim() || "Company not listed";
-              const title = job.title?.trim() || "Untitled position";
+              const company =
+                job.firm_name?.trim() || "Company not listed";
+              const title =
+                job.title?.trim() || "Untitled position";
               const initial = company.charAt(0).toUpperCase();
 
               return (
-                <li key={job.id} ref={job.id === jobs[0]?.id ? firstJobRef : undefined}>
+                <li
+                  key={job.id}
+                  ref={
+                    job.id === jobs[0]?.id
+                      ? firstJobRef
+                      : undefined
+                  }
+                >
                   <button
                     type="button"
                     onClick={() => handleSelectJob(job)}
@@ -191,15 +258,14 @@ export default function PaginatedJobList({
                         : "border-[#E3E6EB] bg-white shadow-[0_2px_10px_-6px_rgba(15,23,42,0.15)] hover:border-[#A6BAF5] hover:shadow-md"
                     }`}
                   >
-                    {/* Selected card accent */}
                     {isSelected && (
                       <span
                         aria-hidden="true"
                         className="absolute inset-y-0 left-0 w-1 bg-[#3157D5]"
                       />
                     )}
+
                     <div className="flex items-start gap-3.5">
-                      {/* Company identity */}
                       <div
                         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border text-lg font-extrabold ${
                           isSelected
@@ -209,8 +275,8 @@ export default function PaginatedJobList({
                       >
                         {initial}
                       </div>
+
                       <div className="min-w-0 flex-1">
-                        {/* Position title */}
                         <div className="flex items-start justify-between gap-2">
                           <h3
                             className={`text-[15px] font-bold leading-snug tracking-tight transition-colors sm:text-base ${
@@ -221,14 +287,17 @@ export default function PaginatedJobList({
                           >
                             {title}
                           </h3>
+
                           <ArrowRight
                             aria-hidden="true"
                             className={`mt-1 h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 ${
-                              isSelected ? "text-[#1D4ED8]" : "text-[#94A3B8]"
+                              isSelected
+                                ? "text-[#1D4ED8]"
+                                : "text-[#94A3B8]"
                             }`}
                           />
                         </div>
-                        {/* Company name */}
+
                         <div className="mt-2 flex items-center gap-1.5">
                           <Building2
                             aria-hidden="true"
@@ -238,22 +307,30 @@ export default function PaginatedJobList({
                             {company}
                           </p>
                         </div>
-                        {/* Key details */}
+
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                           {job.location && (
                             <span className="inline-flex items-center gap-1 rounded-lg border border-[#E5EAF2] bg-white/80 px-2.5 py-1.5 text-xs font-medium text-[#64748B]">
-                              <MapPin aria-hidden="true" className="h-3.5 w-3.5" />
+                              <MapPin
+                                aria-hidden="true"
+                                className="h-3.5 w-3.5"
+                              />
                               {job.location}
                             </span>
                           )}
+
                           {job.salary !== null && (
                             <span className="inline-flex items-center gap-1 rounded-lg border border-[#DCEFE7] bg-[#F0FAF5] px-2.5 py-1.5 text-xs font-semibold text-[#18794E]">
-                              <Wallet aria-hidden="true" className="h-3.5 w-3.5" />
-                              ${job.salary.toLocaleString("en-CA")}
+                              <Wallet
+                                aria-hidden="true"
+                                className="h-3.5 w-3.5"
+                              />
+                              $
+                              {job.salary.toLocaleString("en-CA")}
                             </span>
                           )}
                         </div>
-                        {/* Short preview */}
+
                         {job.description && (
                           <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-[#64748B]">
                             {job.description}
@@ -266,7 +343,7 @@ export default function PaginatedJobList({
               );
             })}
           </ul>
-          {/* Server-side pagination */}
+
           {totalPages > 1 && (
             <Pagination
               currentPage={page}
@@ -276,7 +353,6 @@ export default function PaginatedJobList({
           )}
         </div>
 
-        {/* Right: sticky desktop details */}
         <div className="hidden min-w-0 lg:sticky lg:top-24 lg:col-span-3 lg:block">
           {selectedJob && (
             <div
@@ -292,7 +368,6 @@ export default function PaginatedJobList({
         </div>
       </div>
 
-      {/* Mobile: slide-in details drawer */}
       {mobilePanelOpen && selectedJob && (
         <div className="fixed inset-0 z-50 flex justify-end lg:hidden">
           <button
@@ -301,6 +376,7 @@ export default function PaginatedJobList({
             onClick={() => setMobilePanelOpen(false)}
             className="absolute inset-0 bg-[#0E1726]/60"
           />
+
           <aside
             role="dialog"
             aria-modal="true"
