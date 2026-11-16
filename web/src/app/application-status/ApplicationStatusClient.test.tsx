@@ -1,3 +1,4 @@
+
 // @vitest-environment jsdom
 
 /** Tests the quick links at the top of the application status page. */
@@ -16,12 +17,17 @@ afterEach(() => {
 });
 
 describe("ApplicationStatusClient", () => {
-  it("gives quick access to the interviews and analytics pages", () => {
+  it("provides access to analytics without a redundant interviews shortcut", () => {
     render(<ApplicationStatusClient applications={[]} />);
 
-    expect(screen.getByRole("link", { name: "Interviews" }).getAttribute("href")).toBe("/interviews");
-    expect(screen.getByRole("link", { name: "View analytics" }).getAttribute("href")).toBe(
-      "/application-status/analytics",
-    );
+    // The redundant Interviews quick link should not appear.
+    expect(
+      screen.queryByRole("link", { name: "Interviews" })
+    ).toBeNull();
+
+    // The View analytics link should remain available.
+    expect(
+      screen.getByRole("link", { name: "View analytics" }).getAttribute("href")
+    ).toBe("/application-status/analytics");
   });
 });

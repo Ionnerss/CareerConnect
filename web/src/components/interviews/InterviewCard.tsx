@@ -15,6 +15,10 @@ import {
   Plus,
   Trash2,
   Check,
+  MapPin,
+  Video,
+  ExternalLink,
+  StickyNote,
 } from "lucide-react";
 import type { Interview, InterviewStatus } from "./interview-types";
 
@@ -90,6 +94,22 @@ function isPreparationTask(value: unknown): value is PreparationTask {
   );
 }
 
+function getSafeMeetingUrl(value?: string | null): string | null {
+  if (!value?.trim()) return null;
+
+  try {
+    const url = new URL(value.trim());
+
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      return null;
+    }
+
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 function InterviewPreparation({ interviewId }: { interviewId: string }) {
   const [expanded, setExpanded] = useState(false);
   const [tasks, setTasks] = useState<PreparationTask[]>(createDefaultTasks);
@@ -138,14 +158,15 @@ function InterviewPreparation({ interviewId }: { interviewId: string }) {
     };
   }, [storageKey]);
 
-useEffect(() => {
-  if (!loaded) return;
+  useEffect(() => {
+    if (!loaded) return;
 
-  try {
-    window.localStorage.setItem(storageKey, JSON.stringify(tasks));
-  } catch {
-  }
-}, [tasks, storageKey, loaded]);
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(tasks));
+    } catch {
+      // The checklist remains usable if browser storage is unavailable.
+    }
+  }, [tasks, storageKey, loaded]);
 
   const completedCount = tasks.filter((task) => task.completed).length;
 
@@ -210,9 +231,15 @@ useEffect(() => {
         </div>
 
         {expanded ? (
-          <ChevronUp aria-hidden="true" className="size-5 text-[#6B7280]" />
+          <ChevronUp
+            aria-hidden="true"
+            className="size-5 text-[#6B7280]"
+          />
         ) : (
-          <ChevronDown aria-hidden="true" className="size-5 text-[#6B7280]" />
+          <ChevronDown
+            aria-hidden="true"
+            className="size-5 text-[#6B7280]"
+          />
         )}
       </button>
 
@@ -301,7 +328,10 @@ useEffect(() => {
                         title="Remove task"
                         className="flex size-8 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition-colors hover:bg-[#FDE8E8] hover:text-[#B91C1C] focus-visible:outline-2 focus-visible:outline-[#3151D5]"
                       >
-                        <Trash2 aria-hidden="true" className="size-4" />
+                        <Trash2
+                          aria-hidden="true"
+                          className="size-4"
+                        />
                       </button>
                     </li>
                   ))}
@@ -382,6 +412,14 @@ export default function InterviewCard({
   const isAccepted = interview.status === "Accepted";
   const isExpired = interview.status === "Expired";
 
+  const location = interview.location?.trim();
+  const meetingUrl = getSafeMeetingUrl(interview.meetingUrl);
+  const notes = interview.notes?.trim();
+
+  const hasMeetingDetails = Boolean(
+    location || meetingUrl || notes
+  );
+
   return (
     <article
       className={`group relative overflow-hidden rounded-2xl border bg-white shadow-[0_3px_12px_-8px_rgba(14,23,38,0.3)] transition-all hover:-translate-y-0.5 hover:shadow-lg ${
@@ -408,20 +446,29 @@ export default function InterviewCard({
               </h3>
 
               <p className="mt-1 flex items-center gap-1.5 text-sm text-[#4B5563]">
-                <Building2 aria-hidden="true" className="size-4" />
+                <Building2
+                  aria-hidden="true"
+                  className="size-4"
+                />
                 {interview.companyName}
               </p>
 
               {isPending && (
                 <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#B45309]">
-                  <AlertCircle aria-hidden="true" className="size-3.5" />
+                  <AlertCircle
+                    aria-hidden="true"
+                    className="size-3.5"
+                  />
                   Response needed
                 </p>
               )}
 
               {isExpired && (
                 <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#B91C1C]">
-                  <AlertCircle aria-hidden="true" className="size-3.5" />
+                  <AlertCircle
+                    aria-hidden="true"
+                    className="size-3.5"
+                  />
                   Response deadline passed
                 </p>
               )}
@@ -452,7 +499,9 @@ export default function InterviewCard({
               <p className="mt-1 text-sm font-bold text-[#0E1726]">
                 {formattedDate}
               </p>
-              <p className="text-xs text-[#4B5563]">{formattedTime}</p>
+              <p className="text-xs text-[#4B5563]">
+                {formattedTime}
+              </p>
             </div>
           </div>
 
@@ -487,6 +536,101 @@ export default function InterviewCard({
           </div>
         </div>
 
+        {hasMeetingDetails && (
+          <section
+            aria-label="Interview meeting details"
+            className="mt-5 border-t border-[#EEF0F3] pt-5"
+          >
+            <h4 className="mb-4 text-sm font-bold text-[#0E1726]">
+              Meeting details
+            </h4>
+
+            <div className="space-y-3">
+              {location && (
+                <div className="flex items-start gap-3 rounded-xl border border-[#E3E6EB] bg-[#FAFBFD] p-4">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#E8EEFD] text-[#3151D5]">
+                    <MapPin
+                      aria-hidden="true"
+                      className="size-4"
+                    />
+                  </span>
+
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-[#6B7280]">
+                      Interview location
+                    </p>
+
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm font-medium text-[#0E1726]">
+                      {location}
+                    </p>
+
+                    <p className="mt-1 text-xs text-[#9CA3AF]">
+                      Location provided by recruiter
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {meetingUrl && (
+                <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#DCE6FF] bg-[#F5F8FF] p-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#E8EEFD] text-[#3151D5]">
+                      <Video
+                        aria-hidden="true"
+                        className="size-4"
+                      />
+                    </span>
+
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-[#0E1726]">
+                        Online meeting
+                      </p>
+
+                      <p className="mt-0.5 text-xs text-[#6B7280]">
+                        Meeting link provided by recruiter
+                      </p>
+                    </div>
+                  </div>
+
+                  <a
+                    href={meetingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#3151D5] px-4 text-sm font-bold text-white transition-colors hover:bg-[#1E40AF] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3151D5]"
+                  >
+                    Join meeting
+                    <ExternalLink
+                      aria-hidden="true"
+                      className="size-4"
+                    />
+                  </a>
+                </div>
+              )}
+
+              {notes && (
+                <div className="flex items-start gap-3 rounded-xl border border-[#E3E6EB] bg-[#FAFBFD] p-4">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#F1EAFE] text-[#7C3AED]">
+                    <StickyNote
+                      aria-hidden="true"
+                      className="size-4"
+                    />
+                  </span>
+
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-[#6B7280]">
+                      Additional instructions
+                    </p>
+
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-[#374151]">
+                      {notes}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {isAccepted && (
           <InterviewPreparation interviewId={interview.id} />
         )}
@@ -500,7 +644,10 @@ export default function InterviewCard({
               className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#3151D5] px-5 text-sm font-bold text-white transition-colors hover:bg-[#1E40AF] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Accept invitation
-              <ArrowUpRight aria-hidden="true" className="size-4" />
+              <ArrowUpRight
+                aria-hidden="true"
+                className="size-4"
+              />
             </button>
 
             <button

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarCheck2,
@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   Inbox,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   Timer,
 } from "lucide-react";
@@ -33,6 +35,8 @@ const filters = [
 
 type InterviewFilter = "All" | InterviewStatus;
 
+const HIGHLIGHT_DURATION = 4000;
+
 function getCountdown(targetDate: string, currentTime: number) {
   const target = new Date(targetDate).getTime();
   const difference = Math.max(0, target - currentTime);
@@ -45,6 +49,12 @@ function getCountdown(targetDate: string, currentTime: number) {
   return { days, hours, minutes };
 }
 
+function getInterviewIdFromHash(hash: string): string | null {
+  if (!hash.startsWith("#interview-")) return null;
+
+  return hash.slice("#interview-".length) || null;
+}
+
 export default function InterviewList({
   interviews,
   actionsEnabled = true,
@@ -54,10 +64,60 @@ export default function InterviewList({
   const [selectedFilter, setSelectedFilter] =
     useState<InterviewFilter>("All");
 
+  const [highlightedInterviewId, setHighlightedInterviewId] =
+    useState<string | null>(null);
+
   const [currentTime, setCurrentTime] = useState<number | null>(null);
   const [respondingId, setRespondingId] = useState<string | null>(null);
   const [responseError, setResponseError] = useState<string | null>(null);
 
+  // Which upcoming accepted interview is displayed in the carousel.
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+
+  // Read the interview selected from Notifications.
+  useEffect(() => {
+    let frame = 0;
+
+    const updateHighlightedInterview = () => {
+      window.cancelAnimationFrame(frame);
+
+      frame = window.requestAnimationFrame(() => {
+        const interviewId = getInterviewIdFromHash(
+          window.location.hash
+        );
+
+        const validInterviewId =
+          interviewId &&
+          interviews.some((interview) => interview.id === interviewId)
+            ? interviewId
+            : null;
+
+        setHighlightedInterviewId(validInterviewId);
+
+        if (validInterviewId) {
+          setSelectedFilter("All");
+        }
+      });
+    };
+
+    updateHighlightedInterview();
+
+    window.addEventListener(
+      "hashchange",
+      updateHighlightedInterview
+    );
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener(
+        "hashchange",
+        updateHighlightedInterview
+      );
+    };
+  }, [interviews]);
+
+  // Update countdowns every 30 seconds.
   useEffect(() => {
     const updateTime = () => setCurrentTime(Date.now());
 
@@ -142,11 +202,15 @@ export default function InterviewList({
     };
 
     return [...interviews].sort((a, b) => {
-      const statusDifference = priority[a.status] - priority[b.status];
+      const statusDifference =
+        priority[a.status] - priority[b.status];
 
       if (statusDifference !== 0) return statusDifference;
 
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
+      return (
+        new Date(a.date).getTime() -
+        new Date(b.date).getTime()
+      );
     });
   }, [interviews]);
 
@@ -158,8 +222,52 @@ export default function InterviewList({
     );
   }, [sortedInterviews, selectedFilter]);
 
-  const nextInterview = useMemo(() => {
-    if (currentTime === null) return undefined;
+  // Scroll to the selected interview and remove its highlight
+  // after four seconds.
+  useEffect(() => {
+    if (!highlightedInterviewId) return;
+
+    const interviewVisible = filteredInterviews.some(
+      (interview) => interview.id === highlightedInterviewId
+    );
+
+    if (!interviewVisible) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .getElementById(
+          interviewAnchorId(highlightedInterviewId)
+        )
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+    });
+
+    const timeout = window.setTimeout(() => {
+      setHighlightedInterviewId(null);
+
+      const expectedHash =
+        `#${interviewAnchorId(highlightedInterviewId)}`;
+
+      if (window.location.hash === expectedHash) {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          window.location.pathname + window.location.search
+        );
+      }
+    }, HIGHLIGHT_DURATION);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [highlightedInterviewId, filteredInterviews]);
+
+  // Include ALL future accepted interviews in the carousel.
+  const upcomingInterviews = useMemo(() => {
+    if (currentTime === null) return [];
 
     return [...interviews]
       .filter(
@@ -169,14 +277,36 @@ export default function InterviewList({
       )
       .sort(
         (a, b) =>
-          new Date(a.date).getTime() - new Date(b.date).getTime()
-      )[0];
+          new Date(a.date).getTime() -
+          new Date(b.date).getTime()
+      );
   }, [interviews, currentTime]);
 
-  const countdown =
-    nextInterview && currentTime !== null
-      ? getCountdown(nextInterview.date, currentTime)
-      : null;
+  const activeCarouselIndex =
+    upcomingInterviews.length > 0
+      ? Math.min(carouselIndex, upcomingInterviews.length - 1)
+      : 0;
+
+  const activeInterview =
+    upcomingInterviews[activeCarouselIndex];
+
+  const goToPreviousInterview = () => {
+    setCarouselIndex(
+      (current) =>
+        (Math.min(current, upcomingInterviews.length - 1) -
+          1 +
+          upcomingInterviews.length) %
+        upcomingInterviews.length
+    );
+  };
+
+  const goToNextInterview = () => {
+    setCarouselIndex(
+      (current) =>
+        (Math.min(current, upcomingInterviews.length - 1) + 1) %
+        upcomingInterviews.length
+    );
+  };
 
   const overview = [
     {
@@ -199,7 +329,10 @@ export default function InterviewList({
     },
     {
       label: "Closed",
-      value: counts.Rejected + counts.Cancelled + counts.Expired,
+      value:
+        counts.Rejected +
+        counts.Cancelled +
+        counts.Expired,
       icon: CheckCircle2,
       color: "bg-[#F1F2F4] text-[#4B5563]",
     },
@@ -221,7 +354,10 @@ export default function InterviewList({
                   <span
                     className={`inline-flex size-10 items-center justify-center rounded-xl ${item.color}`}
                   >
-                    <Icon aria-hidden="true" className="size-5" />
+                    <Icon
+                      aria-hidden="true"
+                      className="size-5"
+                    />
                   </span>
                 </div>
 
@@ -238,105 +374,234 @@ export default function InterviewList({
         </div>
       </section>
 
-      {nextInterview && (
+      {activeInterview && (
         <section aria-labelledby="next-interview-heading">
-          <div className="relative overflow-hidden rounded-2xl bg-[#111827] p-6 text-white sm:p-7">
+          <div
+            className="relative overflow-hidden rounded-2xl bg-[#111827] p-6 text-white sm:p-7"
+            onTouchStart={(event) => {
+              touchStartX.current = event.touches[0].clientX;
+            }}
+            onTouchEnd={(event) => {
+              if (
+                touchStartX.current === null ||
+                upcomingInterviews.length <= 1
+              ) {
+                return;
+              }
+
+              const difference =
+                event.changedTouches[0].clientX -
+                touchStartX.current;
+
+              touchStartX.current = null;
+
+              if (difference < -50) {
+                goToNextInterview();
+              } else if (difference > 50) {
+                goToPreviousInterview();
+              }
+            }}
+          >
             <div
               aria-hidden="true"
               className="pointer-events-none absolute -right-12 -top-16 size-52 rounded-full bg-[#3151D5]/20 blur-3xl"
             />
 
-            <div className="relative flex flex-wrap items-start justify-between gap-5">
-              <div>
+            <div className="relative">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#A9C1FF]">
-                  Coming up next
+                  {activeCarouselIndex === 0
+                    ? "Coming up next"
+                    : "Upcoming interview"}
                 </p>
 
-                <h2
-                  id="next-interview-heading"
-                  className="mt-2 text-xl font-extrabold sm:text-2xl"
-                >
-                  {nextInterview.jobTitle}
-                </h2>
+                {upcomingInterviews.length > 1 && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-[#CBD5E1]">
+                      {activeCarouselIndex + 1} of{" "}
+                      {upcomingInterviews.length}
+                    </span>
 
-                <p className="mt-1 text-sm text-[#CBD5E1]">
-                  {nextInterview.companyName}
-                </p>
-
-                <p className="mt-4 flex items-center gap-2 text-sm text-[#E5E7EB]">
-                  <Clock3 aria-hidden="true" className="size-4" />
-                  {nextInterview.durationMinutes}-minute interview with{" "}
-                  {nextInterview.employerName}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-white/15 bg-white/10 px-5 py-4">
-                <p className="text-xs font-semibold text-[#CBD5E1]">
-                  Interview date
-                </p>
-
-                <p className="mt-1 text-lg font-bold">
-                  {new Date(nextInterview.date).toLocaleDateString(
-                    "en-CA",
-                    {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    }
-                  )}
-                </p>
-
-                <p className="mt-1 text-sm text-[#CBD5E1]">
-                  {new Date(nextInterview.date).toLocaleTimeString(
-                    "en-CA",
-                    {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    }
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {countdown && (
-              <div className="relative mt-6 border-t border-white/15 pt-5">
-                <div className="mb-3 flex items-center gap-2">
-                  <Timer
-                    aria-hidden="true"
-                    className="size-4 text-[#A9C1FF]"
-                  />
-
-                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#A9C1FF]">
-                    Time until your interview
-                  </p>
-                </div>
-
-                <div
-                  role="timer"
-                  aria-label={`${countdown.days} days, ${countdown.hours} hours and ${countdown.minutes} minutes remaining`}
-                  className="grid max-w-sm grid-cols-3 gap-3"
-                >
-                  {[
-                    { label: "Days", value: countdown.days },
-                    { label: "Hours", value: countdown.hours },
-                    { label: "Minutes", value: countdown.minutes },
-                  ].map((unit) => (
-                    <div
-                      key={unit.label}
-                      className="rounded-xl border border-white/10 bg-white/10 px-3 py-4 text-center"
+                    <button
+                      type="button"
+                      onClick={goToPreviousInterview}
+                      aria-label="Previous upcoming interview"
+                      className="flex size-9 items-center justify-center rounded-full border border-white/20 bg-white/10 transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                     >
-                      <p className="text-2xl font-extrabold tabular-nums sm:text-3xl">
-                        {String(unit.value).padStart(2, "0")}
-                      </p>
+                      <ChevronLeft
+                        aria-hidden="true"
+                        className="size-5"
+                      />
+                    </button>
 
-                      <p className="mt-1 text-xs font-medium text-[#CBD5E1]">
-                        {unit.label}
-                      </p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={goToNextInterview}
+                      aria-label="Next upcoming interview"
+                      className="flex size-9 items-center justify-center rounded-full border border-white/20 bg-white/10 transition-colors hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                    >
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="size-5"
+                      />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Keep every slide mounted so the track can animate between them. */}
+              <div className="overflow-hidden" aria-live="polite">
+                <div
+                  className="flex items-start motion-safe:transition-transform motion-safe:duration-[400ms] motion-safe:ease-in-out motion-reduce:transition-none"
+                  style={{
+                    transform: `translateX(-${activeCarouselIndex * 100}%)`,
+                  }}
+                >
+                  {upcomingInterviews.map((interview, index) => {
+                    const slideCountdown =
+                      currentTime !== null
+                        ? getCountdown(interview.date, currentTime)
+                        : null;
+
+                    return (
+                      <div
+                        key={interview.id}
+                        className="w-full shrink-0"
+                        aria-hidden={index !== activeCarouselIndex}
+                        inert={index !== activeCarouselIndex}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-5">
+                          <div>
+                            <h2
+                              id={
+                                index === activeCarouselIndex
+                                  ? "next-interview-heading"
+                                  : undefined
+                              }
+                              className="text-xl font-extrabold sm:text-2xl"
+                            >
+                              {interview.jobTitle}
+                            </h2>
+
+                            <p className="mt-1 text-sm text-[#CBD5E1]">
+                              {interview.companyName}
+                            </p>
+
+                            <p className="mt-4 flex items-center gap-2 text-sm text-[#E5E7EB]">
+                              <Clock3
+                                aria-hidden="true"
+                                className="size-4 shrink-0"
+                              />
+                              {interview.durationMinutes}-minute interview with{" "}
+                              {interview.employerName}
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl border border-white/15 bg-white/10 px-5 py-4">
+                            <p className="text-xs font-semibold text-[#CBD5E1]">
+                              Interview date
+                            </p>
+
+                            <p className="mt-1 text-lg font-bold">
+                              {new Date(interview.date).toLocaleDateString(
+                                "en-CA",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                }
+                              )}
+                            </p>
+
+                            <p className="mt-1 text-sm text-[#CBD5E1]">
+                              {new Date(interview.date).toLocaleTimeString(
+                                "en-CA",
+                                {
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                }
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        {slideCountdown && (
+                          <div className="mt-6 border-t border-white/15 pt-5">
+                            <div className="mb-3 flex items-center gap-2">
+                              <Timer
+                                aria-hidden="true"
+                                className="size-4 text-[#A9C1FF]"
+                              />
+
+                              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#A9C1FF]">
+                                Time until your interview
+                              </p>
+                            </div>
+
+                            <div
+                              role="timer"
+                              aria-label={`${slideCountdown.days} days, ${slideCountdown.hours} hours and ${slideCountdown.minutes} minutes remaining`}
+                              className="grid max-w-sm grid-cols-3 gap-3"
+                            >
+                              {[
+                                {
+                                  label: "Days",
+                                  value: slideCountdown.days,
+                                },
+                                {
+                                  label: "Hours",
+                                  value: slideCountdown.hours,
+                                },
+                                {
+                                  label: "Minutes",
+                                  value: slideCountdown.minutes,
+                                },
+                              ].map((unit) => (
+                                <div
+                                  key={unit.label}
+                                  className="rounded-xl border border-white/10 bg-white/10 px-3 py-4 text-center"
+                                >
+                                  <p className="text-2xl font-extrabold tabular-nums sm:text-3xl">
+                                    {String(unit.value).padStart(2, "0")}
+                                  </p>
+
+                                  <p className="mt-1 text-xs font-medium text-[#CBD5E1]">
+                                    {unit.label}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {upcomingInterviews.length > 1 && (
+                <div className="mt-5 flex items-center justify-center gap-2">
+                  {upcomingInterviews.map((interview, index) => (
+                    <button
+                      key={interview.id}
+                      type="button"
+                      onClick={() => setCarouselIndex(index)}
+                      aria-label={`Show upcoming interview ${index + 1}`}
+                      aria-current={
+                        index === activeCarouselIndex
+                          ? "true"
+                          : undefined
+                      }
+                      className={`h-2 rounded-full transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+                        index === activeCarouselIndex
+                          ? "w-6 bg-[#A9C1FF]"
+                          : "w-2 bg-white/30 hover:bg-white/60"
+                      }`}
+                    />
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </section>
       )}
@@ -358,7 +623,10 @@ export default function InterviewList({
 
           <span className="inline-flex items-center gap-2 rounded-full bg-[#E8EEFD] px-3 py-1.5 text-xs font-bold text-[#3151D5]">
             {counts.All} total
-            <ArrowRight aria-hidden="true" className="size-3.5" />
+            <ArrowRight
+              aria-hidden="true"
+              className="size-3.5"
+            />
           </span>
         </div>
 
@@ -423,16 +691,23 @@ export default function InterviewList({
         ) : (
           <div className="flex flex-col gap-4">
             {filteredInterviews.map((interview) => (
-              // The id lets a notification link straight to this card (/interviews#interview-<id>).
               <div
                 key={interview.id}
                 id={interviewAnchorId(interview.id)}
-                className="scroll-mt-24 rounded-2xl target:ring-2 target:ring-[#3151D5]/40 target:ring-offset-2"
+                className={`scroll-mt-24 rounded-2xl transition-all duration-500 ${
+                  highlightedInterviewId === interview.id
+                    ? "ring-2 ring-[#3151D5]/50 ring-offset-2"
+                    : ""
+                }`}
               >
                 <InterviewCard
                   interview={interview}
-                  onAccept={(id) => handleResponse(id, "accepted")}
-                  onReject={(id) => handleResponse(id, "declined")}
+                  onAccept={(id) =>
+                    handleResponse(id, "accepted")
+                  }
+                  onReject={(id) =>
+                    handleResponse(id, "declined")
+                  }
                   actionsEnabled={
                     actionsEnabled && respondingId === null
                   }
