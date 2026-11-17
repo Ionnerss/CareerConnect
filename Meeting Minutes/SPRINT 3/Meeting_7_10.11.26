@@ -49,12 +49,12 @@ The team discussed ensuring that interview scheduling, applicant responses, noti
 
 | Task | Responsible | Status |
 |---|---|---|
-| Implement and integrate interview scheduling | [Team member] | [Status] |
-| Verify interview invitation responses | [Team member] | [Status] |
-| Improve applicant interview cards | [Team member] | [Status] |
+| Implement and integrate interview scheduling | [Matthew Lazarov] | [Implemented] |
+| Verify interview invitation responses | [Matthew Lazarov] | [In progress] |
+| Improve applicant interview cards | [Daksikan Navanithan] | [In progress] |
 | Implement upcoming interview countdown carousel | Daksikan Navanithan | Implemented |
 | Implement interview preparation checklist | Daksikan Navanithan | Implemented |
-| Test interview navigation and related functionality | [Team member] | [Status] |
+| Test interview navigation and related functionality | [Matthew Lazarov] | [In progress] |
 
 ## Next Steps
 - Verify the interview scheduling and response workflow.
