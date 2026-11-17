@@ -1,10 +1,10 @@
 # Meeting Minutes — Interview Scheduling and Management
 
-## Meeting Info
-**Date:** 10/11/2026
-**Time:** 6:00pm-6:30pm
-**Type:** Online 
-**Sprint:** Sprint 3
+## Meeting Info  
+**Date:** 10/11/2026  
+**Time:** 6:00pm-6:30pm  
+**Type:** Online   
+**Sprint:** Sprint 3  
 
 ## Attendance
 Everyone present
