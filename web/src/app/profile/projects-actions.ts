@@ -1,5 +1,7 @@
 "use server";
 
+import { requireMfaForAction } from "@/lib/auth/require-mfa";
+
 import {
   addCurrentProject,
   deleteCurrentProject,
@@ -9,26 +11,32 @@ import { addProjectLink, deleteProjectLink } from "@/lib/profiles/profile-projec
 import { getProjectImageUrl } from "@/lib/profiles/profile-project-images";
 
 export async function addProject(input: unknown) {
+  await requireMfaForAction();
   return await addCurrentProject(input);
 }
 
 export async function updateProject(projectId: string, input: unknown) {
+  await requireMfaForAction();
   return await updateCurrentProject(projectId, input);
 }
 
 export async function deleteProject(projectId: string) {
+  await requireMfaForAction();
   return await deleteCurrentProject(projectId);
 }
 
 export async function addLink(projectId: string, input: unknown) {
+  await requireMfaForAction();
   return await addProjectLink(projectId, input);
 }
 
 export async function deleteLink(linkId: string) {
+  await requireMfaForAction();
   return await deleteProjectLink(linkId);
 }
 
 // Project images live in a private bucket, so each one needs a short-lived signed URL.
 export async function getImageUrl(imageId: string) {
+  await requireMfaForAction();
   return await getProjectImageUrl(imageId);
 }

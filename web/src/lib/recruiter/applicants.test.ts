@@ -10,8 +10,9 @@ import {
 
 type Result = { data: unknown; error: unknown };
 
-const { mockGetUser, mockFrom, calls, results } = vi.hoisted(() => ({
+const { mockGetUser, mockFrom, mockAssurance, calls, results } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
+  mockAssurance: vi.fn(),
   mockFrom: vi.fn(),
   calls: [] as { table: string; method: string; args: unknown[] }[],
   results: {} as Record<string, Result[]>,
@@ -45,7 +46,7 @@ function fakeQuery(table: string) {
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
+    auth: { getUser: mockGetUser, mfa: { getAuthenticatorAssuranceLevel: mockAssurance } },
     from: mockFrom,
   })),
 }));
@@ -54,6 +55,7 @@ const RECRUITER_ID = "11111111-1111-4111-8111-111111111111";
 const JOB_ID = "22222222-2222-4222-8222-222222222222";
 
 function signedInAs(role: string | null) {
+  mockAssurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null });
   mockGetUser.mockResolvedValueOnce({
     data: { user: { id: RECRUITER_ID } },
     error: null,

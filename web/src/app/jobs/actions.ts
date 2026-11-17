@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { checkMfaForClient } from "@/lib/auth/require-mfa";
 import { submitApplication } from "@/lib/jobs/submit-application";
 
 type ApplicationResume = {
@@ -11,7 +12,7 @@ type ApplicationResume = {
 
 type ActiveResumesResult =
   | { ok: true; resumes: ApplicationResume[] }
-  | { ok: false; reason: "signed_out" | "database_error" };
+  | { ok: false; reason: "signed_out" | "database_error" | "mfa_required" | "auth_unavailable" };
 
 export async function getActiveApplicationResumes(): Promise<ActiveResumesResult> {
   const supabase = await createClient();
@@ -24,6 +25,9 @@ export async function getActiveApplicationResumes(): Promise<ActiveResumesResult
   if (authError || !user) {
     return { ok: false, reason: "signed_out" };
   }
+
+  const mfaError = await checkMfaForClient(supabase);
+  if (mfaError) return { ok: false, reason: mfaError === "MFA_REQUIRED" ? "mfa_required" : "auth_unavailable" };
 
   const { data, error } = await supabase
     .from("resumes")

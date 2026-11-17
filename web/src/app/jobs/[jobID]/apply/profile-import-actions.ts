@@ -2,6 +2,7 @@
 "use server";
 
 import { getCurrentProfile } from "@/lib/profiles/profile";
+import { requireMfaForAction } from "@/lib/auth/require-mfa";
 import { getCurrentEducation } from "@/lib/profiles/profile-education";
 import { getCurrentExperience } from "@/lib/profiles/profile-experience";
 import { getCurrentSkills } from "@/lib/profiles/profile-skills";
@@ -31,6 +32,7 @@ function extractLanguages(
 
 export async function getApplicationProfileImport() {
   try {
+    await requireMfaForAction();
     const [
       profileResult,
       educationResult,

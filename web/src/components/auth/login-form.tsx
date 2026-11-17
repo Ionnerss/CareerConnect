@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { loginSchema, recruiterLoginSchema } from "@/lib/validations/auth";
-import { getHomePathForRole, normalizeRole, type LoginRole } from "@/lib/auth/roles";
+import { getHomePathForRole, type LoginRole } from "@/lib/auth/roles";
 import { CONCORDIA_EMAIL_HINT } from "@/lib/auth/concordia";
 import AuthShell from "@/components/auth/auth-shell";
 import RoleSwitch from "@/components/auth/role-switch";
@@ -36,18 +36,25 @@ export default function LoginForm({ initialRole = "job_seeker" }: { initialRole?
   const [isSubmitting, setIsSubmitting] = useState(false);
   const copy = ROLE_COPY[role];
 
+  
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setFormError(null);
 
     const schema = role === "recruiter" ? recruiterLoginSchema : loginSchema;
     const result = schema.safeParse({ email, password });
+
     if (!result.success) {
       const fieldErrors: FieldErrors = {};
+
       for (const issue of result.error.issues) {
         const key = issue.path[0] as keyof FieldErrors;
-        if (!fieldErrors[key]) fieldErrors[key] = issue.message;
+
+        if (!fieldErrors[key]) {
+          fieldErrors[key] = issue.message;
+        }
       }
+
       setErrors(fieldErrors);
       return;
     }
@@ -57,6 +64,8 @@ export default function LoginForm({ initialRole = "job_seeker" }: { initialRole?
 
     try {
       const supabase = createClient();
+
+      // Step 1: Authenticate with email and password.
       const { data, error } = await supabase.auth.signInWithPassword({
         email: result.data.email,
         password: result.data.password,
@@ -67,25 +76,57 @@ export default function LoginForm({ initialRole = "job_seeker" }: { initialRole?
         return;
       }
 
-      // The database decides who is a recruiter, not the switch above.
-      const { data: profile } = await supabase
+      // MFA must precede profile reads: profile RLS may deny AAL1 sessions.
+      const { data: aalData, error: aalError } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalError || !aalData) {
+        setFormError("Unable to verify your authentication requirements. Please try again.");
+        return;
+      }
+      const { currentLevel, nextLevel } = aalData;
+      if (currentLevel === "aal1" && nextLevel === "aal2") {
+        router.push("/auth/mfa");
+        return;
+      }
+      if (!((currentLevel === "aal1" && nextLevel === "aal1") ||
+            (currentLevel === "aal2" && nextLevel === "aal2"))) {
+        setFormError("Your authentication session could not be verified. Please sign in again.");
+        return;
+      }
+
+      // Retrieve the user's actual account role after assurance is confirmed.
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", data.user.id)
         .maybeSingle();
-      const actualRole = normalizeRole(profile?.role);
 
+      if (
+        profileError ||
+        !profile ||
+        (profile.role !== "job_seeker" && profile.role !== "recruiter")
+      ) {
+        setFormError("Unable to verify your account role. Please try again.");
+        return;
+      }
+
+      const actualRole = profile.role;
+
+      // Preserve existing recruiter validation.
       if (role === "recruiter" && actualRole !== "recruiter") {
         await supabase.auth.signOut();
+
         setFormError(
-          "This account is not a recruiter account. Sign up on the Recruiter tab with your Concordia email and confirm it, or choose Job seeker to log in.",
+          "This account is not a recruiter account. Sign up on the Recruiter tab with your Concordia email and confirm it, or choose Job seeker to log in."
         );
         return;
       }
 
       router.push(getHomePathForRole(actualRole));
     } catch {
-      setFormError("An unexpected error has occurred. Please try again.");
+      setFormError(
+        "An unexpected error has occurred. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }

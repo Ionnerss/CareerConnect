@@ -68,7 +68,7 @@ export async function evaluateCandidate(
   return { ...computeCandidateScore(requirements, results), results };
 }
 
-async function mapWithConcurrency<T, R>(
+export async function mapWithConcurrency<T, R>(
   items: T[],
   limit: number,
   task: (item: T) => Promise<R>,

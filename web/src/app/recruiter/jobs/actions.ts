@@ -1,3 +1,4 @@
+
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -5,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { createJobPosting } from "@/lib/jobs/create-job";
 import { closeJobPosting } from "@/lib/jobs/close-job";
 import { reopenJobPosting } from "@/lib/jobs/reopen-job";
+import { updateJobPosting } from "@/lib/jobs/update-job";
 
 function refreshJobPages(jobId: string) {
   revalidatePath("/recruiter/jobs");
@@ -18,6 +20,17 @@ export async function createJob(input: unknown) {
   if (result.success) {
     revalidatePath("/recruiter/jobs");
     revalidatePath("/jobs");
+  }
+
+  return result;
+}
+
+export async function updateJob(jobId: unknown, input: unknown) {
+  const result = await updateJobPosting(jobId, input);
+
+  if (result.success) {
+    refreshJobPages(result.jobId);
+    revalidatePath(`/recruiter/jobs/${result.jobId}/edit`);
   }
 
   return result;

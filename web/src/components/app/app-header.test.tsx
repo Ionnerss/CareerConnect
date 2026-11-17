@@ -1,4 +1,5 @@
-// @vitest-environment jsdom
+
+ // @vitest-environment jsdom
 
 /**
  * The signed-in header must show on every app section and highlight the
@@ -18,6 +19,17 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/app/auth/actions", () => ({ logout: vi.fn() }));
 
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    auth: {
+      getUser: async () => ({
+        data: { user: null },
+        error: null,
+      }),
+    },
+  }),
+}));
+
 afterEach(cleanup);
 
 function currentLink() {
@@ -27,24 +39,34 @@ function currentLink() {
 }
 
 describe("AppHeader", () => {
-  it("shows the logo, the four sections, log out and the initials", () => {
+  it("shows the logo, the five sections, log out and the initials", () => {
     mocks.pathname = "/jobs";
     render(<AppHeader initials="YY" />);
 
     expect(screen.getByText("CareerConnect")).toBeTruthy();
-    for (const name of ["Home", "Jobs", "Applications", "Resume"]) {
+
+    for (const name of [
+      "Home",
+      "Jobs",
+      "Applications",
+      "Interviews",
+      "Resume",
+    ]) {
       expect(screen.getByRole("link", { name })).toBeTruthy();
     }
+
     expect(screen.getByRole("button", { name: /log out/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Your profile" }).textContent).toBe(
-      "YY",
-    );
+
+    expect(
+      screen.getByRole("link", { name: "Your profile" }).textContent
+    ).toBe("YY");
   });
 
   it.each([
     ["/dashboard", "Home"],
     ["/jobs", "Jobs"],
     ["/application-status", "Applications"],
+    ["/interviews", "Interviews"],
     ["/upload-resume", "Resume"],
   ])("highlights the current section on %s", (path, label) => {
     mocks.pathname = path;
@@ -71,12 +93,54 @@ describe("AppHeader", () => {
     mocks.pathname = "/recruiter/jobs/abc/applicants";
     render(<AppHeader initials="RR" role="recruiter" />);
 
-    expect(screen.getByRole("link", { name: "Job postings" })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Resume" })).toBeNull();
-    expect(currentLink()?.textContent).toBe("Job postings");
     expect(
-      screen.getByText("CareerConnect").closest("a")?.getAttribute("href"),
+      screen.getByRole("link", { name: "Job postings" })
+    ).toBeTruthy();
+
+    expect(
+      screen.queryByRole("link", { name: "Resume" })
+    ).toBeNull();
+
+    // Recruiters get their own Interviews page, not the job seeker one.
+    expect(
+      screen.getByRole("link", { name: "Interviews" }).getAttribute("href")
+    ).toBe("/recruiter/interviews");
+
+    expect(currentLink()?.textContent).toBe("Job postings");
+
+    expect(
+      screen.getByText("CareerConnect").closest("a")?.getAttribute("href")
     ).toBe("/recruiter/jobs");
+  });
+
+  it("provides recruiter notifications through the bell and highlights it on the notifications page", () => {
+    mocks.pathname = "/recruiter/notifications";
+    render(<AppHeader initials="RR" role="recruiter" />);
+
+    const notificationLink = screen.getByRole("link", {
+      name: "Notifications",
+    });
+
+    // The notification bell links to the recruiter notifications page.
+    expect(notificationLink.getAttribute("href")).toBe(
+      "/recruiter/notifications"
+    );
+
+    // The bell is highlighted when the recruiter is on this page.
+    expect(notificationLink.getAttribute("aria-current")).toBe("page");
+
+    // The active link should be the notification bell.
+    expect(currentLink()).toBe(notificationLink);
+  });
+
+  it("lets recruiters open their interviews from the menu", () => {
+    mocks.pathname = "/recruiter/interviews/abc/edit";
+    render(<AppHeader initials="RR" role="recruiter" />);
+
+    const interviewsLink = screen.getByRole("link", { name: "Interviews" });
+
+    expect(interviewsLink.getAttribute("href")).toBe("/recruiter/interviews");
+    expect(currentLink()).toBe(interviewsLink);
   });
 
   it("opens the recruiter account page from a recruiter's avatar", () => {
@@ -84,9 +148,12 @@ describe("AppHeader", () => {
     render(<AppHeader initials="YY" role="recruiter" />);
 
     expect(
-      screen.getByRole("link", { name: "Your account" }).getAttribute("href"),
+      screen.getByRole("link", { name: "Your account" }).getAttribute("href")
     ).toBe("/recruiter/account");
-    expect(screen.queryByRole("link", { name: "Your profile" })).toBeNull();
+
+    expect(
+      screen.queryByRole("link", { name: "Your profile" })
+    ).toBeNull();
   });
 
   it("opens the profile from a job seeker's avatar", () => {
@@ -94,7 +161,7 @@ describe("AppHeader", () => {
     render(<AppHeader initials="YY" />);
 
     expect(
-      screen.getByRole("link", { name: "Your profile" }).getAttribute("href"),
+      screen.getByRole("link", { name: "Your profile" }).getAttribute("href")
     ).toBe("/profile");
   });
 });

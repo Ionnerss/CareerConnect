@@ -1,0 +1,91 @@
+name: Set unmerged PR status to Closed
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  set-pr-status:
+    if: ${{ github.event.pull_request.merged == false }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set existing project item to Closed
+        env:
+          GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+          PROJECT_ID: PVT_kwHODd7zAM4BkmiO
+          PR_ID: ${{ github.event.pull_request.node_id }}
+        run: |
+          set -euo pipefail
+
+          data="$(gh api graphql \
+            -f query='
+              query($project: ID!, $pr: ID!) {
+                project: node(id: $project) {
+                  ... on ProjectV2 {
+                    fields(first: 100) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options { id name }
+                        }
+                      }
+                    }
+                  }
+                }
+                pr: node(id: $pr) {
+                  ... on PullRequest {
+                    projectItems(first: 100) {
+                      nodes {
+                        id
+                        project { id }
+                      }
+                    }
+                  }
+                }
+              }' \
+            -f project="$PROJECT_ID" \
+            -f pr="$PR_ID")"
+
+          field_id="$(jq -r \
+            '.data.project.fields.nodes[]
+             | select(.name == "Status") | .id' <<< "$data")"
+
+          option_id="$(jq -r \
+            '.data.project.fields.nodes[]
+             | select(.name == "Status")
+             | .options[] | select(.name == "Closed") | .id' <<< "$data")"
+
+          item_id="$(jq -r --arg project "$PROJECT_ID" \
+            '.data.pr.projectItems.nodes[]
+             | select(.project.id == $project) | .id' <<< "$data")"
+
+          if [[ -z "$field_id" || -z "$option_id" ]]; then
+            echo "The project's Status field or Closed option was not found."
+            exit 1
+          fi
+
+          if [[ -z "$item_id" ]]; then
+            echo "This PR is not on the configured project board; nothing to update."
+            exit 0
+          fi
+
+          gh api graphql \
+            -f query='
+              mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $project
+                    itemId: $item
+                    fieldId: $field
+                    value: {singleSelectOptionId: $option}
+                  }
+                ) {
+                  projectV2Item { id }
+                }
+              }' \
+            -f project="$PROJECT_ID" \
+            -f item="$item_id" \
+            -f field="$field_id" \
+            -f option="$option_id"

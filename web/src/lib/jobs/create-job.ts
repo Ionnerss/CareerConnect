@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { checkMfaForClient } from "@/lib/auth/require-mfa";
 import { jobPostingSchema } from "@/lib/validations/job-posting";
 
 export type CreatedJob = {
@@ -41,6 +42,9 @@ export async function createJobPosting(input: unknown): Promise<CreateJobRespons
   if (authError || !user) {
     return { success: false, error: AUTH_ERROR };
   }
+  const mfaError = await checkMfaForClient(supabase);
+  if (mfaError) return { success: false, error: mfaError === "MFA_REQUIRED"
+    ? "Complete two-factor authentication to continue." : "Unable to verify authentication security." };
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")

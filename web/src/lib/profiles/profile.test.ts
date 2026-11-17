@@ -1,15 +1,17 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { getCurrentProfile, updateCurrentProfile } from "./profile";
 
-const { mockGetUser, mockFrom } = vi.hoisted(() => ({
+const { mockGetUser, mockFrom, mockAssurance } = vi.hoisted(() => ({
     mockGetUser: vi.fn(),
-    mockFrom: vi.fn()
+    mockFrom: vi.fn(),
+    mockAssurance: vi.fn()
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
     createClient: vi.fn(async () => ({
         auth: {
-            getUser: mockGetUser
+            getUser: mockGetUser,
+            mfa: { getAuthenticatorAssuranceLevel: mockAssurance }
         },
         from: mockFrom
     }))
@@ -19,6 +21,8 @@ describe("Mock Supabase Client", () => {
     beforeEach(() => {
         mockGetUser.mockReset();
         mockFrom.mockReset();
+        mockAssurance.mockReset();
+        mockAssurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null });
     });
 
     const validProfile = {

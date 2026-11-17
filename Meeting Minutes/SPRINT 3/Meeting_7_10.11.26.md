@@ -1,0 +1,64 @@
+# Meeting Minutes — Interview Scheduling and Management
+
+## Meeting Info  
+**Date:** 10/11/2026  
+**Time:** 6:00pm-6:30pm  
+**Type:** Online   
+**Sprint:** Sprint 3  
+
+## Attendance
+Everyone present
+
+## Meeting Agenda
+- Discuss the implementation of interview scheduling and management.
+- Review the interview invitation and response process.
+- Discuss the display of interview details for job seekers.
+- Review the upcoming interview countdown and preparation checklist.
+- Identify integration and testing requirements.
+
+## Discussion Points
+
+### 1. Interview Scheduling
+The team discussed the interview scheduling process from the recruiter's perspective. Recruiters should be able to schedule interviews for applicants by specifying the interview date, time, meeting location or online meeting link, and additional notes. The interview information should then be accessible to the corresponding job seeker.
+
+### 2. Interview Invitation and Response
+The team reviewed how job seekers interact with interview invitations. Applicants should be able to view their scheduled interviews and accept or decline invitations. Interview responses should be reflected in the system so that both applicants and recruiters can track the interview status.
+
+### 3. Interview Details and Navigation
+The team discussed improving the interview interface by displaying relevant meeting information directly on interview cards. This includes the interview location, meeting link, and recruiter notes. Interview-related notifications should also direct applicants to the corresponding interview, making it easier to locate important information.
+
+### 4. Upcoming Interview Countdown
+The team discussed introducing a countdown feature to help applicants keep track of their upcoming accepted interviews. When multiple interviews are scheduled, a carousel would allow users to navigate between them without overcrowding the interface.
+
+### 5. Interview Preparation Checklist
+The team discussed adding a preparation checklist to help applicants organize their interview preparation. The checklist would include default preparation tasks and allow users to add custom tasks, remove tasks, and mark items as completed. A progress indicator would help applicants monitor their preparation.
+
+### 6. Integration and Testing
+The team discussed ensuring that interview scheduling, applicant responses, notifications, and interview management work together correctly. Testing should cover interview status updates, meeting information, notification navigation, and the behavior of the countdown and preparation checklist.
+
+## Decisions
+*Proposed decisions — confirm against the actual meeting discussion.*
+
+- Use the existing interview management functionality as the basis for the scheduling and response workflow.
+- Display meeting information directly within interview cards.
+- Include a countdown carousel for multiple upcoming accepted interviews.
+- Include an interview preparation checklist with progress tracking.
+- Maintain consistency with the existing CareerConnect interface.
+
+## Action Items
+
+| Task | Responsible | Status |
+|---|---|---|
+| Implement and integrate interview scheduling | [Matthew Lazarov] | [Implemented] |
+| Verify interview invitation responses | [Matthew Lazarov] | [In progress] |
+| Improve applicant interview cards | [Daksikan Navanithan] | [In progress] |
+| Implement upcoming interview countdown carousel | Daksikan Navanithan | Implemented |
+| Implement interview preparation checklist | Daksikan Navanithan | Implemented |
+| Test interview navigation and related functionality | [Matthew Lazarov] | [In progress] |
+
+## Next Steps
+- Verify the interview scheduling and response workflow.
+- Test the countdown carousel with multiple upcoming interviews.
+- Verify checklist completion and persistence for individual interviews.
+- Review the integration of interview notifications and meeting details.
+- Resolve any remaining issues before final sprint submission.

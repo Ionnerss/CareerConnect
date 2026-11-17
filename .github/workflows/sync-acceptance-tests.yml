@@ -1,0 +1,133 @@
+name: Sync acceptance test status
+
+on:
+  issues:
+    types: [closed]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview changes without updating the board'
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: careerconnect-sync-acceptance-tests
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.event_name != 'issues' || contains(github.event.issue.labels.*.name, 'user-story')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Match acceptance tests to closed stories marked Done
+        uses: actions/github-script@v8
+        env:
+          PROJECT_ID: PVT_kwHODd7zAM4BkmiO
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        with:
+          github-token: ${{ secrets.PROJECTS_TOKEN }}
+          script: |
+            const project = process.env.PROJECT_ID;
+            const repo = `${context.repo.owner}/${context.repo.repo}`.toLowerCase();
+            const dryRun = process.env.DRY_RUN === 'true';
+            const closedNumber = context.eventName === 'issues' ? context.payload.issue.number : null;
+
+            const config = await github.graphql(`
+              query($project: ID!) {
+                node(id: $project) {
+                  ... on ProjectV2 {
+                    field(name: "Status") {
+                      ... on ProjectV2SingleSelectField { id options { id name } }
+                    }
+                  }
+                }
+              }`, { project });
+            const field = config.node?.field;
+            const done = field?.options?.find(o => o.name === 'Done');
+            const completed = field?.options?.find(o => o.name === 'COMPLETED ATs');
+            if (!done || !completed) {
+              throw new Error('Check project access and the exact Status options: Done and COMPLETED ATs.');
+            }
+
+            // Only the first reference on the first nonblank line identifies the story.
+            function storyNumber(body) {
+              const firstLine = (body ?? '').trimStart().split(/\r?\n/, 1)[0];
+              const prefix = /^\*\*(?:Parent\s+)?User story:\*\*\s*/i;
+              if (!prefix.test(firstLine)) return null;
+              const ref = firstLine.replace(prefix, '');
+              const raw = /^#([1-9]\d*)(?=\s|$|[.,;)])/.exec(ref);
+              if (raw) return Number(raw[1]);
+              const link = /^\[#([1-9]\d*)\]\(https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/issues\/(\d+)\)/i.exec(ref);
+              if (link && link[2].toLowerCase() === repo && link[1] === link[3]) {
+                return Number(link[1]);
+              }
+              return null;
+            }
+
+            const eligible = new Set();
+            const tests = [];
+            let after = null;
+            do {
+              const result = await github.graphql(`
+                query($project: ID!, $after: String) {
+                  node(id: $project) {
+                    ... on ProjectV2 {
+                      items(first: 50, after: $after) {
+                        pageInfo { hasNextPage endCursor }
+                        nodes {
+                          id isArchived
+                          fieldValueByName(name: "Status") {
+                            ... on ProjectV2ItemFieldSingleSelectValue { optionId }
+                          }
+                          content {
+                            ... on Issue {
+                              number state body repository { nameWithOwner }
+                              labels(first: 100) { nodes { name } }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }`, { project, after });
+              const page = result.node.items;
+              for (const item of page.nodes) {
+                const issue = item?.content;
+                if (item?.isArchived || issue?.repository?.nameWithOwner.toLowerCase() !== repo) continue;
+                const labels = issue.labels.nodes.map(l => l.name.toLowerCase());
+                const status = item.fieldValueByName?.optionId;
+                if (labels.includes('user-story') && issue.state === 'CLOSED' && status === done.id) {
+                  eligible.add(issue.number);
+                }
+                if (labels.includes('acceptance test') && status !== completed.id) {
+                  const story = storyNumber(issue.body);
+                  if (story === null) {
+                    if (!closedNumber) core.info(`Skipping AT #${issue.number}: missing or unsupported story header.`);
+                  } else if (!closedNumber || story === closedNumber) {
+                    tests.push({ itemId: item.id, number: issue.number, story });
+                  }
+                }
+              }
+              after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+            } while (after);
+
+            let matches = 0;
+            for (const test of tests) {
+              if (!eligible.has(test.story)) continue;
+              matches++;
+              if (!dryRun) {
+                await github.graphql(`
+                  mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+                    updateProjectV2ItemFieldValue(input: {
+                      projectId: $project, itemId: $item, fieldId: $field,
+                      value: { singleSelectOptionId: $option }
+                    }) { projectV2Item { id } }
+                  }`, { project, item: test.itemId, field: field.id, option: completed.id });
+              }
+              core.info(`${dryRun ? 'Would move' : 'Moved'} AT #${test.number} to COMPLETED ATs (story #${test.story}).`);
+            }
+            core.info(`${dryRun ? 'Preview' : 'Sync'} complete: ${matches} matching AT(s) needed a move.`);

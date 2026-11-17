@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { checkMfaForClient } from "@/lib/auth/require-mfa";
 import { computeSkillMatch, parseRequiredSkills, type SkillMatch } from "./skill-match";
 
 export type RecruiterJob = {
@@ -45,7 +46,7 @@ const jobIdSchema = z.uuid();
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
 /** Signs in the current user and confirms they have the recruiter role. */
-async function getSignedInRecruiter(
+export async function getSignedInRecruiter(
   supabase: SupabaseClient
 ): Promise<{ success: true; userId: string } | Failure> {
   const {
@@ -56,6 +57,11 @@ async function getSignedInRecruiter(
   if (error || !user) {
     return { success: false, error: AUTH_ERROR };
   }
+
+  const mfaError = await checkMfaForClient(supabase);
+  if (mfaError) return { success: false, error: mfaError === "MFA_REQUIRED"
+    ? "Complete two-factor authentication to continue."
+    : "Unable to verify authentication security." };
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")

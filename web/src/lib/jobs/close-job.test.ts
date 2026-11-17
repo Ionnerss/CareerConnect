@@ -13,6 +13,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
+  assurance: vi.fn(),
   from: vi.fn(),
 
   profileSelect: vi.fn(),
@@ -27,7 +28,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
-    auth: { getUser: mocks.getUser },
+    auth: { getUser: mocks.getUser, mfa: { getAuthenticatorAssuranceLevel: mocks.assurance } },
     from: mocks.from,
   })),
 }));
@@ -53,6 +54,7 @@ const jobQuery = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.assurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null });
 
   mocks.getUser.mockResolvedValue({
     data: { user: { id: RECRUITER_ID } },

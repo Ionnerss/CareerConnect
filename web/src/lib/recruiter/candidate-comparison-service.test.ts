@@ -14,9 +14,10 @@ import {
 
 type Result = { data: unknown; error: unknown };
 
-const { mockGetUser, mockFrom, calls, results } = vi.hoisted(() => ({
+const { mockGetUser, mockFrom, mockAssurance, calls, results } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockFrom: vi.fn(),
+  mockAssurance: vi.fn(),
   calls: [] as { table: string; method: string; args: unknown[] }[],
   results: {} as Record<string, Result[]>,
 }));
@@ -40,7 +41,7 @@ function fakeQuery(table: string) {
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
+    auth: { getUser: mockGetUser, mfa: { getAuthenticatorAssuranceLevel: mockAssurance } },
     from: mockFrom,
   })),
 }));
@@ -58,10 +59,20 @@ const requirementRows = [
 const requirementsHash = hashRequirements(requirementRows as never);
 
 function signedInAs(role: string | null, ownsJob = true) {
+  mockAssurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null });
   mockGetUser.mockResolvedValueOnce({ data: { user: { id: RECRUITER_ID } }, error: null });
   results.profiles = [{ data: role ? { role } : null, error: null }];
   results.job = [{ data: ownsJob ? { id: JOB_ID } : null, error: null }];
 }
+
+it("blocks comparison before profile and AI access while MFA is pending", async () => {
+  signedInAs("recruiter");
+  mockAssurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal2" }, error: null });
+  const ask = vi.fn();
+  expect(await compareJobCandidates(JOB_ID, {}, { ask })).toMatchObject({ success: false, code: "MFA_REQUIRED" });
+  expect(mockFrom).not.toHaveBeenCalled();
+  expect(ask).not.toHaveBeenCalled();
+});
 
 function applicationRows() {
   return [

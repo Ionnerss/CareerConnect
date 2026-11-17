@@ -66,7 +66,7 @@ schema_paths = []
 
 [db.seed]
 # If enabled, seeds the database after migrations during a db reset.
-enabled = true
+enabled = false
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
 sql_paths = ["./seed.sql"]
@@ -124,6 +124,17 @@ file_size_limit = "50MiB"
 # file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
+
+# Local buckets used by the resume and cover-letter tests.
+[storage.buckets.resumes]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["application/pdf"]
+
+[storage.buckets.cover_letters]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["application/pdf"]
 
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
@@ -301,8 +312,8 @@ max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
+enroll_enabled = true
+verify_enabled = true
 
 # Configure MFA via Phone Messaging
 [auth.mfa.phone]

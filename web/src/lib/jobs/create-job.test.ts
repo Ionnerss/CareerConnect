@@ -9,6 +9,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
+  assurance: vi.fn(),
   profileResult: { data: null as unknown, error: null as unknown },
   insertResult: { data: null as unknown, error: null as unknown },
   insert: vi.fn(),
@@ -17,7 +18,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
-    auth: { getUser: mocks.getUser },
+    auth: { getUser: mocks.getUser, mfa: { getAuthenticatorAssuranceLevel: mocks.assurance } },
     from: mocks.from,
   })),
 }));
@@ -50,6 +51,7 @@ function signedInAs(role: string | null) {
 }
 
 beforeEach(() => {
+  mocks.assurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null });
   vi.clearAllMocks();
   mocks.insertResult = { data: createdJob, error: null };
 

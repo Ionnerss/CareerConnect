@@ -24,6 +24,10 @@ function getErrorMessage(reason: string): string {
 
     case "signed_out":
       return "Please sign in again.";
+    case "mfa_required":
+      return "Complete two-factor authentication at /auth/mfa, then retry.";
+    case "auth_unavailable":
+      return "Unable to verify your session. Please retry later.";
 
     case "job_unavailable":
       return "This job is no longer accepting applications.";
@@ -65,6 +69,8 @@ export function ApplyToJob({ jobId }: ApplyToJobProps) {
         setError(
           result.reason === "signed_out"
             ? "Please sign in to apply."
+            : result.reason === "mfa_required"
+              ? "Complete two-factor authentication at /auth/mfa, then retry."
             : "Unable to load your resumes."
         );
         return;

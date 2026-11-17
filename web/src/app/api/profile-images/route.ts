@@ -7,6 +7,8 @@ const errorStatuses: Record<ProfileImageErrorCode, number> = {
     PROFILE_CONFLICT: 409,
     BACKEND_ERROR: 500,
     OUTCOME_UNCERTAIN: 503,
+    MFA_REQUIRED: 403,
+    AUTH_UNAVAILABLE: 503,
 };
 
 export async function POST(request: Request) {

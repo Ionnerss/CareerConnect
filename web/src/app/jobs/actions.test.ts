@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   // Supabase
   createClient: vi.fn(),
   getUser: vi.fn(),
+  assurance: vi.fn(),
   from: vi.fn(),
   select: vi.fn(),
   eq: vi.fn(),
@@ -70,11 +71,13 @@ beforeEach(() => {
     },
     error: null,
   });
+  mocks.assurance.mockResolvedValue({ data: { currentLevel: "aal1", nextLevel: "aal1" }, error: null });
 
   // Mock Supabase server client
   mocks.createClient.mockResolvedValue({
     auth: {
       getUser: mocks.getUser,
+      mfa: { getAuthenticatorAssuranceLevel: mocks.assurance },
     },
     from: mocks.from,
   });

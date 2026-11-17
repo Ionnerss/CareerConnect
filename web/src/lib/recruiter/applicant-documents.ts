@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { checkMfaForClient } from "@/lib/auth/require-mfa";
 
 const documentRequestSchema = z.object({
   applicationId: z.uuid(),
@@ -51,6 +52,10 @@ export async function getApplicantDocumentUrl(
       error: "Please sign in to access documents.",
     };
   }
+
+  const mfaError = await checkMfaForClient(supabase);
+  if (mfaError) return { success: false,
+    error: mfaError === "MFA_REQUIRED" ? "Complete two-factor authentication to access documents." : "Unable to verify your session." };
 
   // 2. Verify the recruiter role.
   const { data: profile, error: profileError } = await supabase

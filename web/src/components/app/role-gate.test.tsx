@@ -1,19 +1,17 @@
 // @vitest-environment jsdom
 
-/**
- * Each kind of account stays on its own pages. A recruiter who opens a job
- * seeker page (dashboard, profile, resume...) is sent to their postings, and a
- * job seeker who opens a recruiter page is sent to their dashboard.
- */
-
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  user: { id: "u1", email: "a@live.concordia.ca" } as {
-    id: string;
-    email: string;
-  } | null,
-  role: "recruiter" as string | null,
+  requireMfaForPage: vi.fn(),
+  getProfileRole: vi.fn(),
+  getDashboardProfileSummary: vi.fn(),
 }));
 
 class Redirected extends Error {
@@ -29,118 +27,186 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/font/google", () => ({
-  Plus_Jakarta_Sans: () => ({ className: "jakarta" }),
-}));
-
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({
-    auth: { getUser: async () => ({ data: { user: mocks.user } }) },
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({
-            data: mocks.role ? { role: mocks.role } : null,
-            error: null,
-          }),
-        }),
-      }),
-    }),
+  Plus_Jakarta_Sans: () => ({
+    className: "jakarta",
   }),
 }));
 
-vi.mock("@/lib/dashboard/data", () => ({
-  getDashboardProfileSummary: async () => ({ fullName: "Yousef Yousef" }),
+vi.mock("@/lib/auth/require-mfa", () => ({
+  requireMfaForPage: mocks.requireMfaForPage,
 }));
 
-vi.mock("@/components/app/app-header", () => ({ default: () => null }));
+vi.mock("@/lib/auth/current-role", () => ({
+  getProfileRole: mocks.getProfileRole,
+}));
+
+vi.mock("@/lib/dashboard/data", () => ({
+  getDashboardProfileSummary:
+    mocks.getDashboardProfileSummary,
+}));
+
+vi.mock("@/components/app/app-header", () => ({
+  default: () => null,
+}));
 
 import RoleGate from "./role-gate";
 import AppShell from "./app-shell";
 
-async function redirectedTo(run: () => Promise<unknown>) {
+const testUser = {
+  id: "test-user-id",
+  email: "test@example.com",
+};
+
+async function redirectedTo(
+  run: () => Promise<unknown>
+) {
   try {
     await run();
     return null;
   } catch (error) {
-    if (error instanceof Redirected) return error.path;
+    if (error instanceof Redirected) {
+      return error.path;
+    }
+
     throw error;
   }
 }
 
 beforeEach(() => {
-  mocks.user = { id: "u1", email: "a@live.concordia.ca" };
-  mocks.role = "recruiter";
-});
+  vi.resetAllMocks();
 
-describe("RoleGate (dashboard, profile)", () => {
-  it("sends a recruiter to their postings", async () => {
-    expect(
-      await redirectedTo(() =>
-        RoleGate({ audience: "job_seeker", children: "x" }),
-      ),
-    ).toBe("/recruiter/jobs");
+  mocks.requireMfaForPage.mockResolvedValue({
+    user: testUser,
+    supabase: {},
   });
 
-  it("lets a job seeker through", async () => {
-    mocks.role = "job_seeker";
-    expect(
-      await redirectedTo(() =>
-        RoleGate({ audience: "job_seeker", children: "x" }),
-      ),
-    ).toBeNull();
-  });
+  mocks.getProfileRole.mockResolvedValue("job_seeker");
 
-  it("treats a missing profile as a job seeker", async () => {
-    mocks.role = null;
-    expect(
-      await redirectedTo(() =>
-        RoleGate({ audience: "job_seeker", children: "x" }),
-      ),
-    ).toBeNull();
-  });
-
-  it("leaves signed-out visitors to the login middleware", async () => {
-    mocks.user = null;
-    expect(
-      await redirectedTo(() =>
-        RoleGate({ audience: "job_seeker", children: "x" }),
-      ),
-    ).toBeNull();
+  mocks.getDashboardProfileSummary.mockResolvedValue({
+    fullName: "Test User",
   });
 });
 
-describe("AppShell audience", () => {
-  it("sends a recruiter away from job seeker sections", async () => {
+describe("RoleGate MFA and audience", () => {
+  it("allows a verified job seeker", async () => {
     expect(
       await redirectedTo(() =>
-        AppShell({ audience: "job_seeker", children: "x" }),
-      ),
+        RoleGate({
+          audience: "job_seeker",
+          children: "content",
+        })
+      )
+    ).toBeNull();
+  });
+
+  it("redirects recruiters from job seeker pages", async () => {
+    mocks.getProfileRole.mockResolvedValue("recruiter");
+
+    expect(
+      await redirectedTo(() =>
+        RoleGate({
+          audience: "job_seeker",
+          children: "content",
+        })
+      )
     ).toBe("/recruiter/jobs");
   });
 
-  it("sends a job seeker away from recruiter sections", async () => {
-    mocks.role = "job_seeker";
+  it("does not look up roles before MFA", async () => {
+    mocks.requireMfaForPage.mockRejectedValue(
+      new Redirected("/auth/mfa")
+    );
+
     expect(
       await redirectedTo(() =>
-        AppShell({ audience: "recruiter", children: "x" }),
-      ),
+        RoleGate({
+          audience: "job_seeker",
+          children: "content",
+        })
+      )
+    ).toBe("/auth/mfa");
+
+    expect(
+      mocks.getProfileRole
+    ).not.toHaveBeenCalled();
+  });
+
+  it("redirects unauthenticated users", async () => {
+    mocks.requireMfaForPage.mockRejectedValue(
+      new Redirected("/auth/login")
+    );
+
+    expect(
+      await redirectedTo(() =>
+        RoleGate({
+          audience: "job_seeker",
+          children: "content",
+        })
+      )
+    ).toBe("/auth/login");
+  });
+});
+
+describe("AppShell MFA and audience", () => {
+  it("allows a verified recruiter", async () => {
+    mocks.getProfileRole.mockResolvedValue("recruiter");
+
+    expect(
+      await redirectedTo(() =>
+        AppShell({
+          audience: "recruiter",
+          children: "content",
+        })
+      )
+    ).toBeNull();
+  });
+
+  it("redirects job seekers from recruiter pages", async () => {
+    expect(
+      await redirectedTo(() =>
+        AppShell({
+          audience: "recruiter",
+          children: "content",
+        })
+      )
     ).toBe("/dashboard");
   });
 
-  it("sends signed-out visitors to log in", async () => {
-    mocks.user = null;
+  it("does not fetch dashboard data before MFA", async () => {
+    mocks.requireMfaForPage.mockRejectedValue(
+      new Redirected("/auth/mfa")
+    );
+
     expect(
       await redirectedTo(() =>
-        AppShell({ audience: "recruiter", children: "x" }),
-      ),
-    ).toBe("/auth/login");
+        AppShell({
+          audience: "recruiter",
+          children: "content",
+        })
+      )
+    ).toBe("/auth/mfa");
+
+    expect(
+      mocks.getDashboardProfileSummary
+    ).not.toHaveBeenCalled();
+
+    expect(
+      mocks.getProfileRole
+    ).not.toHaveBeenCalled();
   });
 
-  it("renders for the right kind of account", async () => {
+  it("denies authentication failures", async () => {
+    mocks.requireMfaForPage.mockRejectedValue(
+      new Redirected("/auth/login")
+    );
+
     expect(
       await redirectedTo(() =>
-        AppShell({ audience: "recruiter", children: "x" }),
-      ),
-    ).toBeNull();
+        AppShell({
+          audience: "recruiter",
+          children: "content",
+        })
+      )
+    ).toBe("/auth/login");
   });
 });

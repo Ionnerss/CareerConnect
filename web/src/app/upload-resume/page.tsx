@@ -1,8 +1,11 @@
 import UploadResumeForm from "@/app/upload-resume/upload_resume_form";
 import ResumeList from "@/components/resume/resume_list";
 import { PageBody, PageHero } from "@/components/app/page-hero";
+import { requireMfaForPage } from "@/lib/auth/require-mfa";
 
-export default function ResumePage() {
+export default async function ResumePage() {
+    await requireMfaForPage();
+
     return (
         <main>
             <PageHero

@@ -1,31 +1,63 @@
+
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Briefcase, FileText, Home, ListChecks, type LucideIcon } from "lucide-react";
+
+import {
+  Bell,
+  Briefcase,
+  CalendarDays,
+  FileText,
+  Home,
+  ListChecks,
+  type LucideIcon,
+} from "lucide-react";
+
 import DashboardLogoutButton from "@/components/dashboard/dashboard-logout-button";
+import { createClient } from "@/lib/supabase/client";
 
 type DashboardHeaderProps = {
   initials: string;
-  /** Which nav link to highlight. Defaults to the dashboard; pass null for pages not in the nav. */
   activeHref?: string | null;
-  /** Menu links. Defaults to the job seeker menu; recruiters pass their own. */
   navItems?: readonly NavItem[];
-  /** Where the logo goes. Defaults to the job seeker dashboard. */
   logoHref?: string;
-  /** Where your avatar goes, and its accessible name. Defaults to the job seeker profile. */
   profileHref?: string;
   profileLabel?: string;
+  notificationsHref?: string;
+  notificationsActive?: boolean;
+  unreadCount?: number | null;
 };
 
-export type NavItem = { href: string; label: string; icon: LucideIcon };
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+};
 
-/** Job seeker menu. */
+export const NOTIFICATIONS_CHANGED_EVENT =
+  "careerconnect:notifications-changed";
+
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/jobs", label: "Jobs", icon: Briefcase },
-  { href: "/application-status", label: "Applications", icon: ListChecks },
-  { href: "/upload-resume", label: "Resume", icon: FileText },
+  {
+    href: "/application-status",
+    label: "Applications",
+    icon: ListChecks,
+  },
+  {
+    href: "/interviews",
+    label: "Interviews",
+    icon: CalendarDays,
+  },
+  {
+    href: "/upload-resume",
+    label: "Resume",
+    icon: FileText,
+  },
 ];
 
-/** Top bar: logo left, main links in the middle, your avatar and log out on the right. */
 export default function DashboardHeader({
   initials,
   activeHref = "/dashboard",
@@ -33,7 +65,156 @@ export default function DashboardHeader({
   logoHref = "/dashboard",
   profileHref = "/profile",
   profileLabel = "Your profile",
+  notificationsHref = "/notifications",
+  notificationsActive = false,
+  unreadCount = null,
 }: DashboardHeaderProps) {
+  const [liveUnreadCount, setLiveUnreadCount] =
+    useState<number | null>(null);
+
+  const isJobSeekerNotifications =
+    notificationsHref === "/notifications" ||
+    notificationsHref === "/recruiter/notifications";
+
+  const refreshUnreadCount = useCallback(async () => {
+    if (!isJobSeekerNotifications) return;
+
+    const supabase = createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      setLiveUnreadCount(null);
+      return;
+    }
+
+    const { count, error } = await supabase
+      .from("notifications")
+      .select("id", {
+        count: "exact",
+        head: true,
+      })
+      .eq("recipient_id", user.id)
+      .eq("is_read", false)
+      .is("dismissed_at", null);
+
+    if (error) {
+      console.error("Unable to refresh notification count:", error);
+      setLiveUnreadCount(null);
+      return;
+    }
+
+    setLiveUnreadCount(count ?? 0);
+  }, [isJobSeekerNotifications]);
+
+  useEffect(() => {
+    if (!isJobSeekerNotifications) return;
+
+    const supabase = createClient();
+
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const initialRefresh = window.setTimeout(() => {
+      void refreshUnreadCount();
+    }, 0);
+
+    async function setupRealtimeSubscription() {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (cancelled || error || !user) return;
+
+      channel = supabase
+        .channel(`notification-badge-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `recipient_id=eq.${user.id}`,
+          },
+          () => {
+            void refreshUnreadCount();
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "notifications",
+            filter: `recipient_id=eq.${user.id}`,
+          },
+          () => {
+            void refreshUnreadCount();
+          }
+        )
+        .subscribe();
+    }
+
+    void setupRealtimeSubscription();
+
+    function handleFocus() {
+      void refreshUnreadCount();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void refreshUnreadCount();
+      }
+    }
+
+    window.addEventListener("focus", handleFocus);
+
+    window.addEventListener(
+      NOTIFICATIONS_CHANGED_EVENT,
+      handleFocus
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
+
+    return () => {
+      cancelled = true;
+
+      window.clearTimeout(initialRefresh);
+
+      window.removeEventListener("focus", handleFocus);
+
+      window.removeEventListener(
+        NOTIFICATIONS_CHANGED_EVENT,
+        handleFocus
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [isJobSeekerNotifications, refreshUnreadCount]);
+
+  const displayedUnreadCount = isJobSeekerNotifications
+    ? liveUnreadCount
+    : unreadCount;
+
+  const showUnreadBadge =
+    displayedUnreadCount != null &&
+    Number.isFinite(displayedUnreadCount) &&
+    displayedUnreadCount > 0;
+
   return (
     <header className="sticky top-0 z-20 border-b border-[#E3E6EB] bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 sm:px-6">
@@ -47,36 +228,82 @@ export default function DashboardHeader({
           >
             C
           </span>
-          <span className="text-lg font-extrabold tracking-tight">CareerConnect</span>
+
+          <span className="text-lg font-extrabold tracking-tight">
+            CareerConnect
+          </span>
         </Link>
 
-        <nav aria-label="Main" className="order-3 w-full sm:order-none sm:w-auto sm:flex-1">
+        <nav
+          aria-label="Main"
+          className="order-3 w-full sm:order-none sm:w-auto sm:flex-1"
+        >
           <ul className="flex items-center justify-between gap-1 sm:justify-center">
             {navItems.map(({ href, label, icon: Icon }) => {
               const current = href === activeHref;
 
               return (
-              <li key={href}>
-                <Link
-                  href={href}
-                  aria-current={current ? "page" : undefined}
-                  className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] sm:min-w-20 ${
-                    current
-                      ? "text-[#0E1726] shadow-[inset_0_-2px_0_#0E1726]"
-                      : "text-[#4B5563] hover:text-[#0E1726]"
-                  }`}
-                >
-                  <Icon aria-hidden="true" className="size-5" />
-                  <span>{label}</span>
-                </Link>
-              </li>
+                <li key={href}>
+                  <Link
+                    href={href}
+                    aria-current={current ? "page" : undefined}
+                    className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] sm:min-w-20 ${
+                      current
+                        ? "text-[#0E1726] shadow-[inset_0_-2px_0_#0E1726]"
+                        : "text-[#4B5563] hover:text-[#0E1726]"
+                    }`}
+                  >
+                    <Icon
+                      aria-hidden="true"
+                      className="size-5"
+                    />
+                    <span>{label}</span>
+                  </Link>
+                </li>
               );
             })}
           </ul>
         </nav>
 
         <div className="ml-auto flex items-center gap-2 sm:ml-0">
+          {notificationsHref && (
+            <Link
+              href={notificationsHref}
+              aria-label={
+                showUnreadBadge
+                  ? `Notifications, ${displayedUnreadCount} unread`
+                  : "Notifications"
+              }
+              aria-current={
+                notificationsActive ? "page" : undefined
+              }
+              title="Notifications"
+              className={`relative flex size-11 items-center justify-center rounded-xl border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8] ${
+                notificationsActive
+                  ? "border-[#C7D2FE] bg-[#EEF2FF] text-[#3151D5]"
+                  : "border-[#E3E6EB] bg-white text-[#4B5563] hover:border-[#C7D2FE] hover:bg-[#F3F6FF] hover:text-[#3151D5]"
+              }`}
+            >
+              <Bell
+                aria-hidden="true"
+                className="size-5"
+              />
+
+              {showUnreadBadge && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-[#DC2626] px-1 text-[10px] font-bold leading-none text-white"
+                >
+                  {displayedUnreadCount! > 9
+                    ? "9+"
+                    : displayedUnreadCount}
+                </span>
+              )}
+            </Link>
+          )}
+
           <DashboardLogoutButton />
+
           <Link
             href={profileHref}
             aria-label={profileLabel}

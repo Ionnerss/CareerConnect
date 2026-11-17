@@ -1,13 +1,20 @@
-import { createClient } from "@/lib/supabase/server";
+import {
+  requireMfaForAction,
+  MfaActionError,
+} from "@/lib/auth/require-mfa";
 import { profileImageSchema, removeProfileImageSchema } from "../validations/profile-image";
 
+
 export type ProfileImageErrorCode =
-    | "INVALID_INPUT"
-    | "UNAUTHENTICATED"
-    | "PROFILE_NOT_FOUND"
-    | "PROFILE_CONFLICT"
-    | "BACKEND_ERROR"
-    | "OUTCOME_UNCERTAIN";
+  | "INVALID_INPUT"
+  | "UNAUTHENTICATED"
+  | "MFA_REQUIRED"
+  | "AUTH_UNAVAILABLE"
+  | "PROFILE_NOT_FOUND"
+  | "PROFILE_CONFLICT"
+  | "BACKEND_ERROR"
+  | "OUTCOME_UNCERTAIN";
+
 
 type ImageProfile = {
     id: string;
@@ -26,6 +33,70 @@ export type ProfileImageResult =
           error: string;
       };
 
+
+type ProfileImageAuthorization =
+  | ({
+      authorized: true;
+    } & Awaited<ReturnType<typeof requireMfaForAction>>)
+  | {
+      authorized: false;
+      failure: Extract<
+        ProfileImageResult,
+        { success: false }
+      >;
+    };
+
+async function authorizeProfileImageChange():
+  Promise<ProfileImageAuthorization> {
+  try {
+    const session = await requireMfaForAction();
+
+    return {
+      authorized: true,
+      ...session,
+    };
+  } catch (error) {
+    if (error instanceof MfaActionError) {
+      if (error.code === "UNAUTHENTICATED") {
+        return {
+          authorized: false,
+          failure: {
+            success: false,
+            code: "UNAUTHENTICATED",
+            error:
+              "Unable to authenticate. Please sign in again.",
+          },
+        };
+      }
+
+      if (error.code === "MFA_REQUIRED") {
+        return {
+          authorized: false,
+          failure: {
+            success: false,
+            code: "MFA_REQUIRED",
+            error:
+              "Complete two-factor authentication to continue.",
+          },
+        };
+      }
+    }
+
+    // Unknown errors and unavailable MFA verification
+    // must never allow access.
+    return {
+      authorized: false,
+      failure: {
+        success: false,
+        code: "AUTH_UNAVAILABLE",
+        error:
+          "Unable to verify your authentication security level.",
+      },
+    };
+  }
+}
+
+
 export async function uploadProfileImage(
     input: unknown,
 ): Promise<ProfileImageResult> {
@@ -39,20 +110,13 @@ export async function uploadProfileImage(
         };
     }
 
-    const supabase = await createClient();
+    const authorization = await authorizeProfileImageChange();
 
-    const {
-        data: { user },
-        error,
-    } = await supabase.auth.getUser();
-
-    if (error || !user) {
-        return {
-            success: false,
-            code: "UNAUTHENTICATED",
-            error: "Unable to authenticate. Please sign in again.",
-        };
+    if (!authorization.authorized) {
+    return authorization.failure;
     }
+
+    const { supabase, user } = authorization;
 
     const { file, kind } = parsed.data;
 
@@ -254,20 +318,13 @@ export async function removeProfileImage(
         };
     }
 
-    const supabase = await createClient();
+    const authorization = await authorizeProfileImageChange();
 
-    const {
-        data: { user },
-        error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-        return {
-            success: false,
-            code: "UNAUTHENTICATED",
-            error: "Unable to authenticate. Please sign in again.",
-        };
+    if (!authorization.authorized) {
+    return authorization.failure;
     }
+
+    const { supabase, user } = authorization;
 
     const { kind } = parsed.data;
     const column =

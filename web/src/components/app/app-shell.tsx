@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { Plus_Jakarta_Sans } from "next/font/google";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireMfaForPage } from "@/lib/auth/require-mfa";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { getDashboardProfileSummary } from "@/lib/dashboard/data";
 import { getAudienceRedirect, type Audience } from "@/lib/auth/roles";
 import { getProfileRole } from "@/lib/auth/current-role";
@@ -31,14 +31,7 @@ export default async function AppShell({
   audience: Audience;
   children: ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login");
-  }
+  const { supabase, user } = await requireMfaForPage();
 
   const [summary, role] = await Promise.all([
     getDashboardProfileSummary(user.id),
