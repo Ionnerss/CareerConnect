@@ -351,42 +351,20 @@ describe("viewResume", () => {
 // --------------------------------------------------
 
 describe("renameResume", () => {
-    it("renames a resume successfully", async () => {
+    it.each([
+        ["renames a resume successfully", "New Resume", "New Resume.pdf"],
+        ["trims surrounding whitespace", "  My Resume  ", "My Resume.pdf"],
+        ["does not append another PDF extension", "My Resume.PDF", "My Resume.pdf"],
+    ])("%s", async (_description, input, expectedFileName) => {
         const { supabase, queryBuilders } = createSupabaseMock([
             { data: { id: "resume-1" }, error: null },
         ]);
         setupMfa(supabase);
 
-        await expect(renameResume("resume-1", "New Resume")).resolves.toBeUndefined();
+        await renameResume("resume-1", input);
 
         expect(queryBuilders[0].update).toHaveBeenCalledWith({
-            file_name: "New Resume.pdf",
-        });
-    });
-
-    it("trims surrounding whitespace", async () => {
-        const { supabase, queryBuilders } = createSupabaseMock([
-            { data: { id: "resume-1" }, error: null },
-        ]);
-        setupMfa(supabase);
-
-        await renameResume("resume-1", "  My Resume  ");
-
-        expect(queryBuilders[0].update).toHaveBeenCalledWith({
-            file_name: "My Resume.pdf",
-        });
-    });
-
-    it("does not append another PDF extension", async () => {
-        const { supabase, queryBuilders } = createSupabaseMock([
-            { data: { id: "resume-1" }, error: null },
-        ]);
-        setupMfa(supabase);
-
-        await renameResume("resume-1", "My Resume.PDF");
-
-        expect(queryBuilders[0].update).toHaveBeenCalledWith({
-            file_name: "My Resume.pdf",
+            file_name: expectedFileName,
         });
     });
 
