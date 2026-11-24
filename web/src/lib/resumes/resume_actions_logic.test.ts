@@ -17,8 +17,39 @@ vi.mock("@/lib/auth/require-mfa", () => ({
 
 const mockUser = { id: "user-123" };
 
-const createQueryBuilder = (result: any) => {
-    const builder: any = {};
+type MockError = Error | null;
+
+type DatabaseResult = {
+    data: Record<string, string> | null;
+    error: MockError;
+};
+
+type StorageResults = {
+    signedUrl?: {
+        data: { signedUrl: string } | null;
+        error: MockError;
+    };
+    upload?: { error: MockError };
+    remove?: { error: MockError };
+};
+
+type QueryBuilder = {
+    update: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+    select: ReturnType<typeof vi.fn>;
+    eq: ReturnType<typeof vi.fn>;
+    is: ReturnType<typeof vi.fn>;
+    not: ReturnType<typeof vi.fn>;
+    single: ReturnType<typeof vi.fn>;
+    maybeSingle: ReturnType<typeof vi.fn>;
+    then: (
+        resolve?: ((value: DatabaseResult) => unknown) | null,
+        reject?: ((reason: unknown) => unknown) | null
+    ) => Promise<unknown>;
+};
+
+const createQueryBuilder = (result: DatabaseResult) => {
+    const builder = {} as QueryBuilder;
 
     builder.update = vi.fn(() => builder);
     builder.delete = vi.fn(() => builder);
@@ -30,18 +61,32 @@ const createQueryBuilder = (result: any) => {
     builder.single = vi.fn().mockResolvedValue(result);
     builder.maybeSingle = vi.fn().mockResolvedValue(result);
 
-    // Allows the query builder to be awaited directly.
-    builder.then = (resolve: any, reject: any) =>
-        Promise.resolve(result).then(resolve, reject);
+    builder.then = (resolve, reject) =>
+        Promise.resolve(result).then(resolve ?? undefined, reject ?? undefined);
 
     return builder;
 };
 
 const createSupabaseMock = (
-    databaseResults: any[] = [],
-    storageResults: any = {}
+    databaseResults: DatabaseResult[] = [],
+    storageResults: StorageResults = {}
 ) => {
-    const queryBuilders: any[] = [];
+    const queryBuilders: QueryBuilder[] = [];
+
+    const storageBucket = {
+        createSignedUrl: vi.fn().mockResolvedValue(
+            storageResults.signedUrl ?? {
+                data: { signedUrl: "https://example.com/resume.pdf" },
+                error: null,
+            }
+        ),
+        upload: vi.fn().mockResolvedValue(
+            storageResults.upload ?? { error: null }
+        ),
+        remove: vi.fn().mockResolvedValue(
+            storageResults.remove ?? { error: null }
+        ),
+    };
 
     const supabase = {
         from: vi.fn(() => {
@@ -55,31 +100,17 @@ const createSupabaseMock = (
 
             return builder;
         }),
-
         storage: {
-            from: vi.fn(() => ({
-                createSignedUrl: vi.fn().mockResolvedValue(
-                    storageResults.signedUrl ?? {
-                        data: { signedUrl: "https://example.com/resume.pdf" },
-                        error: null,
-                    }
-                ),
-
-                upload: vi.fn().mockResolvedValue(
-                    storageResults.upload ?? { error: null }
-                ),
-
-                remove: vi.fn().mockResolvedValue(
-                    storageResults.remove ?? { error: null }
-                ),
-            })),
+            from: vi.fn(() => storageBucket),
         },
     };
 
-    return { supabase, queryBuilders };
+    return { supabase, queryBuilders, storageBucket };
 };
 
-const setupMfa = (supabase: any) => {
+const setupMfa = (
+    supabase: ReturnType<typeof createSupabaseMock>["supabase"]
+) => {
     vi.mocked(requireMfaForAction).mockResolvedValue({
         supabase,
         user: mockUser,
@@ -147,9 +178,7 @@ describe("archiveResume", () => {
         ]);
         setupMfa(supabase);
 
-        await expect(archiveResume("resume-1")).rejects.toThrow(
-            databaseError
-        );
+        await expect(archiveResume("resume-1")).rejects.toThrow(databaseError);
     });
 
     it("propagates MFA authorization errors", async () => {
@@ -157,9 +186,7 @@ describe("archiveResume", () => {
             new Error("MFA required")
         );
 
-        await expect(archiveResume("resume-1")).rejects.toThrow(
-            "MFA required"
-        );
+        await expect(archiveResume("resume-1")).rejects.toThrow("MFA required");
     });
 });
 
@@ -181,11 +208,7 @@ describe("unarchiveResume", () => {
         expect(query.update).toHaveBeenCalledWith({ archived_at: null });
         expect(query.eq).toHaveBeenCalledWith("id", "resume-1");
         expect(query.eq).toHaveBeenCalledWith("user_id", mockUser.id);
-        expect(query.not).toHaveBeenCalledWith(
-            "archived_at",
-            "is",
-            null
-        );
+        expect(query.not).toHaveBeenCalledWith("archived_at", "is", null);
     });
 
     it("throws when the resume does not exist or is not archived", async () => {
@@ -206,9 +229,7 @@ describe("unarchiveResume", () => {
         ]);
         setupMfa(supabase);
 
-        await expect(unarchiveResume("resume-1")).rejects.toThrow(
-            databaseError
-        );
+        await expect(unarchiveResume("resume-1")).rejects.toThrow(databaseError);
     });
 });
 
@@ -218,7 +239,7 @@ describe("unarchiveResume", () => {
 
 describe("downloadResume", () => {
     it("returns a signed download URL", async () => {
-        const { supabase } = createSupabaseMock([
+        const { supabase, storageBucket } = createSupabaseMock([
             {
                 data: {
                     file_path: "user-123/resume.pdf",
@@ -233,6 +254,11 @@ describe("downloadResume", () => {
 
         expect(result).toBe("https://example.com/resume.pdf");
         expect(supabase.storage.from).toHaveBeenCalledWith("resumes");
+        expect(storageBucket.createSignedUrl).toHaveBeenCalledWith(
+            "user-123/resume.pdf",
+            60,
+            { download: "My Resume.pdf" }
+        );
     });
 
     it("throws when the resume lookup fails", async () => {
@@ -242,9 +268,7 @@ describe("downloadResume", () => {
         ]);
         setupMfa(supabase);
 
-        await expect(downloadResume("resume-1")).rejects.toThrow(
-            databaseError
-        );
+        await expect(downloadResume("resume-1")).rejects.toThrow(databaseError);
     });
 
     it("throws when signed URL generation fails", async () => {
@@ -265,9 +289,7 @@ describe("downloadResume", () => {
         );
         setupMfa(supabase);
 
-        await expect(downloadResume("resume-1")).rejects.toThrow(
-            storageError
-        );
+        await expect(downloadResume("resume-1")).rejects.toThrow(storageError);
     });
 });
 
@@ -277,7 +299,7 @@ describe("downloadResume", () => {
 
 describe("viewResume", () => {
     it("returns a signed viewing URL", async () => {
-        const { supabase } = createSupabaseMock([
+        const { supabase, storageBucket } = createSupabaseMock([
             {
                 data: { file_path: "user-123/resume.pdf" },
                 error: null,
@@ -289,6 +311,10 @@ describe("viewResume", () => {
 
         expect(result).toBe("https://example.com/resume.pdf");
         expect(supabase.storage.from).toHaveBeenCalledWith("resumes");
+        expect(storageBucket.createSignedUrl).toHaveBeenCalledWith(
+            "user-123/resume.pdf",
+            60
+        );
     });
 
     it("throws when the resume lookup fails", async () => {
@@ -298,9 +324,7 @@ describe("viewResume", () => {
         ]);
         setupMfa(supabase);
 
-        await expect(viewResume("resume-1")).rejects.toThrow(
-            databaseError
-        );
+        await expect(viewResume("resume-1")).rejects.toThrow(databaseError);
     });
 
     it("throws when signed URL generation fails", async () => {
@@ -318,9 +342,7 @@ describe("viewResume", () => {
         );
         setupMfa(supabase);
 
-        await expect(viewResume("resume-1")).rejects.toThrow(
-            storageError
-        );
+        await expect(viewResume("resume-1")).rejects.toThrow(storageError);
     });
 });
 
@@ -335,9 +357,7 @@ describe("renameResume", () => {
         ]);
         setupMfa(supabase);
 
-        await expect(
-            renameResume("resume-1", "New Resume")
-        ).resolves.toBeUndefined();
+        await expect(renameResume("resume-1", "New Resume")).resolves.toBeUndefined();
 
         expect(queryBuilders[0].update).toHaveBeenCalledWith({
             file_name: "New Resume.pdf",
@@ -406,9 +426,7 @@ describe("renameResume", () => {
         const { supabase } = createSupabaseMock();
         setupMfa(supabase);
 
-        await expect(
-            renameResume("resume-1", "a".repeat(101))
-        ).rejects.toThrow(
+        await expect(renameResume("resume-1", "a".repeat(101))).rejects.toThrow(
             "Enter a filename between 1 and 100 characters."
         );
     });
@@ -419,9 +437,9 @@ describe("renameResume", () => {
         ]);
         setupMfa(supabase);
 
-        await expect(
-            renameResume("resume-1", "New Resume")
-        ).rejects.toThrow("Resume not found.");
+        await expect(renameResume("resume-1", "New Resume")).rejects.toThrow(
+            "Resume not found."
+        );
     });
 
     it("throws when the database update fails", async () => {
@@ -431,9 +449,9 @@ describe("renameResume", () => {
         ]);
         setupMfa(supabase);
 
-        await expect(
-            renameResume("resume-1", "New Resume")
-        ).rejects.toThrow(databaseError);
+        await expect(renameResume("resume-1", "New Resume")).rejects.toThrow(
+            databaseError
+        );
     });
 });
 
@@ -448,20 +466,22 @@ describe("replaceResume", () => {
     };
 
     it("replaces a resume successfully", async () => {
-        const { supabase, queryBuilders } = createSupabaseMock([
+        const { supabase, queryBuilders, storageBucket } = createSupabaseMock([
             existingResume,
-            { error: null },
+            { data: null, error: null },
         ]);
         setupMfa(supabase);
 
-        const file = createPdf("updated.pdf");
-        const formData = createFormData(file);
+        const formData = createFormData(createPdf("updated.pdf"));
 
-        await expect(
-            replaceResume("resume-1", formData)
-        ).resolves.toBeUndefined();
+        await expect(replaceResume("resume-1", formData)).resolves.toBeUndefined();
 
         expect(supabase.storage.from).toHaveBeenCalledWith("resumes");
+        expect(storageBucket.upload).toHaveBeenCalledWith(
+            "user-123/resume.pdf",
+            expect.any(File),
+            { upsert: true, contentType: "application/pdf" }
+        );
 
         expect(queryBuilders[1].update).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -475,9 +495,9 @@ describe("replaceResume", () => {
         const { supabase } = createSupabaseMock();
         setupMfa(supabase);
 
-        await expect(
-            replaceResume("resume-1", new FormData())
-        ).rejects.toThrow("Select a PDF file.");
+        await expect(replaceResume("resume-1", new FormData())).rejects.toThrow(
+            "Select a PDF file."
+        );
     });
 
     it("rejects an empty file", async () => {
@@ -486,9 +506,9 @@ describe("replaceResume", () => {
 
         const formData = createFormData(createPdf("empty.pdf", 0));
 
-        await expect(
-            replaceResume("resume-1", formData)
-        ).rejects.toThrow("Select a PDF file.");
+        await expect(replaceResume("resume-1", formData)).rejects.toThrow(
+            "Select a PDF file."
+        );
     });
 
     it("rejects an invalid MIME type", async () => {
@@ -497,9 +517,9 @@ describe("replaceResume", () => {
 
         const file = createPdf("resume.pdf", 100, "text/plain");
 
-        await expect(
-            replaceResume("resume-1", createFormData(file))
-        ).rejects.toThrow("Only PDF files are allowed.");
+        await expect(replaceResume("resume-1", createFormData(file))).rejects.toThrow(
+            "Only PDF files are allowed."
+        );
     });
 
     it("rejects a filename without a PDF extension", async () => {
@@ -508,15 +528,15 @@ describe("replaceResume", () => {
 
         const file = createPdf("resume.txt");
 
-        await expect(
-            replaceResume("resume-1", createFormData(file))
-        ).rejects.toThrow("Only PDF files are allowed.");
+        await expect(replaceResume("resume-1", createFormData(file))).rejects.toThrow(
+            "Only PDF files are allowed."
+        );
     });
 
     it("accepts a PDF file of exactly 5 MB", async () => {
         const { supabase, queryBuilders } = createSupabaseMock([
             existingResume,
-            { error: null },
+            { data: null, error: null },
         ]);
         setupMfa(supabase);
 
@@ -535,9 +555,9 @@ describe("replaceResume", () => {
 
         const file = createPdf("resume.pdf", 5 * 1024 * 1024 + 1);
 
-        await expect(
-            replaceResume("resume-1", createFormData(file))
-        ).rejects.toThrow("The PDF must be 5 MB or smaller.");
+        await expect(replaceResume("resume-1", createFormData(file))).rejects.toThrow(
+            "The PDF must be 5 MB or smaller."
+        );
     });
 
     it("throws when the resume lookup fails", async () => {
@@ -548,10 +568,7 @@ describe("replaceResume", () => {
         setupMfa(supabase);
 
         await expect(
-            replaceResume(
-                "resume-1",
-                createFormData(createPdf())
-            )
+            replaceResume("resume-1", createFormData(createPdf()))
         ).rejects.toThrow(databaseError);
     });
 
@@ -559,17 +576,12 @@ describe("replaceResume", () => {
         const storageError = new Error("Upload failed");
         const { supabase } = createSupabaseMock(
             [existingResume],
-            {
-                upload: { error: storageError },
-            }
+            { upload: { error: storageError } }
         );
         setupMfa(supabase);
 
         await expect(
-            replaceResume(
-                "resume-1",
-                createFormData(createPdf())
-            )
+            replaceResume("resume-1", createFormData(createPdf()))
         ).rejects.toThrow(storageError);
     });
 
@@ -577,15 +589,12 @@ describe("replaceResume", () => {
         const databaseError = new Error("Metadata update failed");
         const { supabase } = createSupabaseMock([
             existingResume,
-            { error: databaseError },
+            { data: null, error: databaseError },
         ]);
         setupMfa(supabase);
 
         await expect(
-            replaceResume(
-                "resume-1",
-                createFormData(createPdf())
-            )
+            replaceResume("resume-1", createFormData(createPdf()))
         ).rejects.toThrow(databaseError);
     });
 });
@@ -601,24 +610,21 @@ describe("deleteResume", () => {
     };
 
     it("deletes the storage file and database record", async () => {
-        const { supabase, queryBuilders } = createSupabaseMock([
+        const { supabase, queryBuilders, storageBucket } = createSupabaseMock([
             existingResume,
-            { error: null },
+            { data: null, error: null },
         ]);
         setupMfa(supabase);
 
         await expect(deleteResume("resume-1")).resolves.toBeUndefined();
 
         expect(supabase.storage.from).toHaveBeenCalledWith("resumes");
+        expect(storageBucket.remove).toHaveBeenCalledWith([
+            "user-123/resume.pdf",
+        ]);
         expect(queryBuilders[1].delete).toHaveBeenCalled();
-        expect(queryBuilders[1].eq).toHaveBeenCalledWith(
-            "id",
-            "resume-1"
-        );
-        expect(queryBuilders[1].eq).toHaveBeenCalledWith(
-            "user_id",
-            mockUser.id
-        );
+        expect(queryBuilders[1].eq).toHaveBeenCalledWith("id", "resume-1");
+        expect(queryBuilders[1].eq).toHaveBeenCalledWith("user_id", mockUser.id);
     });
 
     it("throws when the resume lookup fails", async () => {
@@ -628,36 +634,28 @@ describe("deleteResume", () => {
         ]);
         setupMfa(supabase);
 
-        await expect(deleteResume("resume-1")).rejects.toThrow(
-            databaseError
-        );
+        await expect(deleteResume("resume-1")).rejects.toThrow(databaseError);
     });
 
     it("throws when storage removal fails", async () => {
         const storageError = new Error("Storage removal failed");
         const { supabase } = createSupabaseMock(
             [existingResume],
-            {
-                remove: { error: storageError },
-            }
+            { remove: { error: storageError } }
         );
         setupMfa(supabase);
 
-        await expect(deleteResume("resume-1")).rejects.toThrow(
-            storageError
-        );
+        await expect(deleteResume("resume-1")).rejects.toThrow(storageError);
     });
 
     it("throws when database deletion fails", async () => {
         const databaseError = new Error("Database deletion failed");
         const { supabase } = createSupabaseMock([
             existingResume,
-            { error: databaseError },
+            { data: null, error: databaseError },
         ]);
         setupMfa(supabase);
 
-        await expect(deleteResume("resume-1")).rejects.toThrow(
-            databaseError
-        );
+        await expect(deleteResume("resume-1")).rejects.toThrow(databaseError);
     });
 });
