@@ -205,3 +205,20 @@ describe("extractYearsOfExperience", () => {
     },
   );
 });
+
+describe("extractYearsOfExperience - spacing and plus signs", () => {
+  it("reads a plus sign with or without spaces around it", () => {
+    expect(extractYearsOfExperience("5+ years of experience")).toBe(5);
+    expect(extractYearsOfExperience("5 + years of experience")).toBe(5);
+    expect(extractYearsOfExperience("Experience: 5   +   yrs")).toBe(5);
+    expect(extractYearsOfExperience("Experience: 3 - 5+ years")).toBe(3);
+  });
+
+  it("stays fast on very long runs of whitespace", () => {
+    const hostile = `Experience: 5${" ".repeat(50_000)}x`;
+    const started = Date.now();
+
+    expect(extractYearsOfExperience(hostile)).toBeNull();
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+});

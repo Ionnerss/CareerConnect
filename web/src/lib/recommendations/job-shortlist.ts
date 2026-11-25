@@ -71,13 +71,20 @@ const EMPLOYMENT_LABEL: Record<DesiredPosition, string> = {
   contract: "contract",
 };
 
+/** Removes trailing dots without a backtracking-prone regular expression. */
+function trimTrailingDots(part: string): string {
+  let end = part.length;
+  while (end > 0 && part[end - 1] === ".") end--;
+  return part.slice(0, end);
+}
+
 function tokens(text: string | null | undefined): Set<string> {
   if (!text) return new Set();
   return new Set(
     text
       .toLowerCase()
       .split(/[^a-z0-9+#.]+/)
-      .map((part) => part.replace(/\.+$/, ""))
+      .map(trimTrailingDots)
       .filter((part) => part.length >= 3),
   );
 }
