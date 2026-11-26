@@ -81,11 +81,30 @@ describe("AnalyticsDashboard", () => {
     render(<AnalyticsDashboard applications={sample} now={NOW} />);
 
     await user.click(screen.getByRole("button", { name: "7 days" }));
-    expect(screen.getByRole("button", { name: "7 days" }).getAttribute("aria-pressed")).toBe("true");
+
+    expect(
+      screen.getByRole("button", { name: "7 days" }).getAttribute("aria-pressed"),
+    ).toBe("true");
     expect(screen.getByText("2 applications in the last 7 days")).toBeDefined();
     expect(screen.getAllByTestId("chart-bar")).toHaveLength(7);
 
+    const history = within(screen.getByRole("list", { name: "Application history" }));
+    expect(history.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      expect.stringContaining("Frontend Developer"),
+      expect.stringContaining("Backend Developer"),
+    ]);
+
+    const summary = within(
+      screen.getByRole("region", { name: "Applications by status" }),
+    );
+    const tileValue = (label: string) =>
+      summary.getByText(label).closest("div")?.querySelector("dd")?.textContent;
+
+    expect(tileValue("Total")).toBe("4");
+    expect(tileValue("Rejected")).toBe("1");
+
     await user.click(screen.getByRole("button", { name: "1 year" }));
+
     expect(screen.getByText("4 applications in the last 12 months")).toBeDefined();
     expect(screen.getAllByTestId("chart-bar")).toHaveLength(13);
   });
@@ -128,11 +147,23 @@ describe("AnalyticsDashboard", () => {
   });
 
   it("shows at most 10 applications in the history and links to the rest", () => {
-    const many = Array.from({ length: 12 }, (_, index) => application(`m${index}`, "In Progress", index));
+    const many = Array.from({ length: 12 }, (_, index) =>
+      application(`m${index}`, "In Progress", index),
+    );
     render(<AnalyticsDashboard applications={many} now={NOW} />);
 
-    const history = within(screen.getByRole("list", { name: "Application history" }));
+    const history = within(
+      screen.getByRole("list", { name: "Application history" }),
+    );
+
     expect(history.getAllByRole("listitem")).toHaveLength(10);
-    expect(screen.getByRole("link", { name: "View all 12" }).getAttribute("href")).toBe("/application-status");
+    expect(history.queryByText("Job m11")).toBeNull();
+
+    expect(screen.getByText("12 applications in the last 30 days")).toBeDefined();
+    expect(screen.getByTitle("Oct 29: 1 application")).toBeDefined();
+
+    expect(
+      screen.getByRole("link", { name: "View all 12" }).getAttribute("href"),
+    ).toBe("/application-status");
   });
 });
