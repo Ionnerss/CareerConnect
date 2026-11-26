@@ -44,3 +44,19 @@ describe("getInitials", () => {
     },
   );
 });
+
+describe("getProfileImageUrl - trailing slashes", () => {
+  it("removes every trailing slash from the base URL", () => {
+    expect(getProfileImageUrl("user/avatar.png", `${BASE}///`)).toBe(
+      `${BASE}/storage/v1/object/public/profile-images/user/avatar.png`,
+    );
+  });
+
+  it("stays fast on a very long run of slashes", () => {
+    const started = Date.now();
+
+    getProfileImageUrl("user/avatar.png", `${BASE}${"/".repeat(100_000)}x`);
+
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+});
