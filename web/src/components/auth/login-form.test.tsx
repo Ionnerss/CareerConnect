@@ -103,6 +103,35 @@ describe("login by role", () => {
   });
 });
 
+describe("login failures", () => {
+  it("does not let the user in when their account role cannot be read", async () => {
+    await logIn("job_seeker", null);
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Unable to verify your account role. Please try again.",
+    );
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("does not let in an account with an unknown role", async () => {
+    await logIn("job_seeker", "admin");
+
+    expect((await screen.findByRole("alert")).textContent).toMatch(/unable to verify your account role/i);
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("shows a friendly message when signing in fails unexpectedly", async () => {
+    mocks.signIn.mockRejectedValue(new Error("network down"));
+
+    await logIn("job_seeker", "job_seeker");
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "An unexpected error has occurred. Please try again.",
+    );
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+});
+
 describe("recruiter log in needs a Concordia email", () => {
   it.each(["name@concordia.ca", "name@live.concordia.ca", "name@mail.concordia.ca"])(
     "lets %s try to log in",
