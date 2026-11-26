@@ -9,6 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { defaultWeight } from "@/lib/recruiter/comparison-view";
 import CandidateComparison from "./candidate-comparison";
 
 const JOB_ID = "11111111-1111-4111-8111-111111111111";
@@ -50,7 +51,9 @@ function compareBody() {
   };
 }
 
-function renderPanel(requirements = [REQ], applicantCount = 2) {
+type Requirements = Parameters<typeof CandidateComparison>[0]["initialRequirements"];
+
+function renderPanel(requirements: Requirements = [REQ], applicantCount = 2) {
   return render(
     <CandidateComparison
       jobId={JOB_ID}
@@ -164,6 +167,108 @@ describe("CandidateComparison", () => {
 
     expect((await screen.findByRole("alert")).textContent).toBe("AI scoring is not set up.");
     expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("shows a generic error when the network request fails", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockRejectedValue(new Error("network down"));
+    renderPanel();
+
+    await user.click(screen.getByRole("button", { name: "Compare top candidates" }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe("Something went wrong. Please try again.");
+    expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("shows the API error when saving requirements fails", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(() => jsonResponse({ success: false, error: "Could not save." }, 500));
+    renderPanel();
+
+    await user.type(screen.getByLabelText("Requirement 1"), "!");
+    await user.click(screen.getByRole("button", { name: "Save requirements" }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe("Could not save.");
+    expect(screen.queryByText("Requirements saved.")).toBeNull();
+  });
+
+  it("does not send a request when a weight is missing", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.clear(screen.getByLabelText("Weight of requirement 1"));
+    await user.click(screen.getByRole("button", { name: "Save requirements" }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe("Enter a weight from 1 to 10 for every requirement.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("moves an untouched default weight when the type changes", async () => {
+    const user = userEvent.setup();
+    renderPanel([{ ...REQ, weight: defaultWeight("core") }]);
+
+    await user.selectOptions(screen.getByLabelText("Type of requirement 1"), "nice");
+
+    expect((screen.getByLabelText("Weight of requirement 1") as HTMLInputElement).value).toBe(
+      String(defaultWeight("nice")),
+    );
+  });
+
+  it("keeps a weight the recruiter chose when the type changes", async () => {
+    const user = userEvent.setup();
+    renderPanel([{ ...REQ, weight: 9 }]);
+
+    await user.selectOptions(screen.getByLabelText("Type of requirement 1"), "nice");
+
+    expect((screen.getByLabelText("Weight of requirement 1") as HTMLInputElement).value).toBe("9");
+  });
+
+  it("sends an edited weight", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(() =>
+      jsonResponse({ success: true, job_id: JOB_ID, requirements: [{ ...REQ, weight: 5 }] }),
+    );
+    renderPanel();
+
+    const weight = screen.getByLabelText("Weight of requirement 1");
+    await user.clear(weight);
+    await user.type(weight, "5");
+    await user.click(screen.getByRole("button", { name: "Save requirements" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      requirements: [{ text: "React experience", kind: "core", weight: 5 }],
+    });
+  });
+
+  it("removes a requirement from the list", async () => {
+    const user = userEvent.setup();
+    renderPanel([REQ, { id: "r2", text: "SQL", kind: "nice" as const, weight: 3 }]);
+
+    await user.click(screen.getByRole("button", { name: "Remove requirement 1" }));
+
+    expect(screen.queryByDisplayValue("React experience")).toBeNull();
+    expect((screen.getByLabelText("Requirement 1") as HTMLInputElement).value).toBe("SQL");
+  });
+
+  it("lists candidates that could not be scored, with a name fallback", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockImplementation(() =>
+      jsonResponse({
+        ...compareBody(),
+        failed: [
+          { application_id: "a3", full_name: null, code: "http_error", message: "Jev returned HTTP 500." },
+          { application_id: "a4", full_name: "Grace Hopper", code: "timeout", message: "Timed out." },
+        ],
+      }),
+    );
+    renderPanel();
+
+    await user.click(screen.getByRole("button", { name: "Compare top candidates" }));
+
+    expect(await screen.findByText("Could not score")).toBeTruthy();
+    expect(screen.getByText("Name not available: Jev returned HTTP 500.")).toBeTruthy();
+    expect(screen.getByText("Grace Hopper: Timed out.")).toBeTruthy();
   });
 
   it("blocks comparing when there are no applicants", () => {
