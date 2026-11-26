@@ -525,3 +525,108 @@ describe("requirements", () => {
     expect(calls.some((c) => c.method === "delete")).toBe(false);
   });
 });
+
+describe("database failures", () => {
+  const dbError = { message: "boom" };
+
+  it("fails safely when the recruiter's profile cannot be loaded", async () => {
+    signedInAs("recruiter");
+    results.profiles = [{ data: null, error: dbError }];
+
+    expect(await getJobRequirements(JOB_ID)).toEqual({
+      success: false,
+      code: "BACKEND_ERROR",
+      error: "Unable to load your profile. Please try again.",
+    });
+    expect(mockFrom).not.toHaveBeenCalledWith("job");
+  });
+
+  it("fails safely when the posting cannot be loaded", async () => {
+    signedInAs("recruiter");
+    results.job = [{ data: null, error: dbError }];
+
+    expect(await getJobRequirements(JOB_ID)).toMatchObject({
+      success: false,
+      code: "BACKEND_ERROR",
+    });
+  });
+
+  it("fails safely when the requirements cannot be loaded", async () => {
+    signedInAs("recruiter");
+    results.job_requirements = [{ data: null, error: dbError }];
+
+    expect(await getJobRequirements(JOB_ID)).toEqual({
+      success: false,
+      code: "BACKEND_ERROR",
+      error: "Unable to load the requirements. Please try again.",
+    });
+  });
+
+  it("does not insert anything when the existing requirements cannot be read", async () => {
+    signedInAs("recruiter");
+    results.job_requirements = [{ data: null, error: dbError }];
+
+    expect(
+      await saveJobRequirements(JOB_ID, [{ text: "React", weight: 8 }]),
+    ).toMatchObject({ success: false, code: "BACKEND_ERROR" });
+    expect(calls.some((c) => c.method === "insert")).toBe(false);
+  });
+
+  it("says so when the new requirements were added but the old ones could not be removed", async () => {
+    signedInAs("recruiter");
+    results.job_requirements = [
+      { data: [{ id: "old-1" }], error: null },
+      { data: [{ id: "new-1", text: "React", kind: "core", weight: 8 }], error: null },
+      { data: null, error: dbError },
+    ];
+
+    const response = await saveJobRequirements(JOB_ID, [{ text: "React", weight: 8 }]);
+
+    expect(response).toMatchObject({ success: false, code: "BACKEND_ERROR" });
+    expect(JSON.stringify(response)).toContain("old ones could not be removed");
+    expect(JSON.stringify(response)).not.toContain("boom");
+  });
+
+  it("fails safely when the applicants cannot be loaded", async () => {
+    signedInAs("recruiter");
+    queueComparisonData();
+    results.applications = [{ data: null, error: dbError }];
+    const ask = vi.fn<AskJev>();
+
+    expect(await compareJobCandidates(JOB_ID, {}, { ask, now: NOW })).toEqual({
+      success: false,
+      code: "BACKEND_ERROR",
+      error: "Unable to load applicants. Please try again.",
+    });
+    expect(ask).not.toHaveBeenCalled();
+  });
+
+  it("fails safely when saved results cannot be loaded, without calling the AI", async () => {
+    signedInAs("recruiter");
+    queueComparisonData();
+    results.candidate_evaluations = [{ data: null, error: dbError }];
+    const ask = vi.fn<AskJev>();
+
+    expect(await compareJobCandidates(JOB_ID, {}, { ask, now: NOW })).toMatchObject({
+      success: false,
+      code: "BACKEND_ERROR",
+    });
+    expect(ask).not.toHaveBeenCalled();
+  });
+
+  it.each(["profile_skills", "profile_education", "profile_experience"])(
+    "fails safely when %s cannot be loaded, without calling the AI",
+    async (table) => {
+      signedInAs("recruiter");
+      queueComparisonData();
+      results[table] = [{ data: null, error: dbError }];
+      const ask = vi.fn<AskJev>();
+
+      const response = await compareJobCandidates(JOB_ID, {}, { ask, now: NOW });
+
+      expect(response).toMatchObject({ success: false, code: "BACKEND_ERROR" });
+      expect(JSON.stringify(response)).not.toContain("boom");
+      expect(ask).not.toHaveBeenCalled();
+    },
+  );
+});

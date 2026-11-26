@@ -140,8 +140,8 @@ export function extractYearsOfExperience(text: string | null | undefined): numbe
   if (!text) return null;
 
   const rangePattern =
-    /(\d{1,2}(?:\.\d+)?)\s*(?:-|–|to)\s*(\d{1,2}(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?)\b/gi;
-  const singlePattern = /(\d{1,2}(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?)\b/gi;
+    /(\d{1,2}(?:\.\d+)?)\s*(?:-|–|to)\s*(\d{1,2}(?:\.\d+)?)\s*(?:\+\s*)?(?:years?|yrs?)\b/gi;
+  const singlePattern = /(\d{1,2}(?:\.\d+)?)\s*(?:\+\s*)?(?:years?|yrs?)\b/gi;
 
   let best: number | null = null;
   const consider = (value: number) => {
