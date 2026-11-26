@@ -41,6 +41,50 @@ describe("countApplicationStatuses", () => {
       rejected: 1,
     });
   });
+
+  it("counts repeated occurrences of every known status independently", () => {
+    const applications = [
+      { status: "Rejected" },
+      { status: "Interview" },
+      { status: "In Progress" },
+      { status: "Accepted" },
+      { status: "Rejected" },
+      { status: "Interview" },
+      { status: "Rejected" },
+      { status: "In Progress" },
+      { status: "Accepted" },
+      { status: "Rejected" },
+      { status: "Interview" },
+    ];
+
+    expect(countApplicationStatuses(applications)).toEqual({
+      total: 11,
+      inProgress: 2,
+      interview: 3,
+      offers: 2,
+      rejected: 4,
+    });
+  });
+
+  it("keeps unknown statuses in the total without assigning a known category", () => {
+    const applications = [
+      { status: null },
+      { status: "" },
+      { status: " " },
+      { status: "Unknown" },
+      { status: "accepted" },
+      { status: "Pending" },
+      { status: "Offer" },
+    ];
+
+    expect(countApplicationStatuses(applications)).toEqual({
+      total: 7,
+      inProgress: 0,
+      interview: 0,
+      offers: 0,
+      rejected: 0,
+    });
+  });
 });
 
 describe("getFirstName", () => {
