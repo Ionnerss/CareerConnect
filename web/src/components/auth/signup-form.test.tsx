@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 
 /**
- * Job seeker sign-up: field validation, what is sent to Supabase, and how
- * server and network errors are shown. Recruiter sign-up has its own file.
+ * Job seeker sign-up: the validation messages shown for each field, and
+ * switching tabs. Submitting and server errors are tested in
+ * app/auth/signup/page.test.tsx; recruiter sign-up has its own file.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import SignupForm from "./signup-form";
 
@@ -49,17 +50,6 @@ const valid = {
 };
 
 describe("job seeker sign-up", () => {
-  it("creates the account with only the full name and goes to the login page", async () => {
-    await submit(valid);
-
-    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/auth/login"));
-    expect(mocks.signUp).toHaveBeenCalledWith({
-      email: "test@example.com",
-      password: "Password123",
-      options: { data: { full_name: "Test Person" } },
-    });
-  });
-
   it("explains every missing field and does not contact the server", async () => {
     await submit({});
 
@@ -92,26 +82,6 @@ describe("job seeker sign-up", () => {
 
     expect(screen.getByText("Passwords do not match")).toBeTruthy();
     expect(mocks.signUp).not.toHaveBeenCalled();
-  });
-
-  it("shows the error from Supabase and stays on the page", async () => {
-    mocks.signUp.mockResolvedValue({ error: { message: "User already registered" } });
-
-    await submit(valid);
-
-    expect((await screen.findByRole("alert")).textContent).toBe("User already registered");
-    expect(mocks.push).not.toHaveBeenCalled();
-  });
-
-  it("shows a friendly message when the request fails unexpectedly", async () => {
-    mocks.signUp.mockRejectedValue(new Error("network down"));
-
-    await submit(valid);
-
-    expect((await screen.findByRole("alert")).textContent).toBe(
-      "An unexpected error occurred. Please try again.",
-    );
-    expect(screen.getByRole("button", { name: "Sign up" })).toBeTruthy();
   });
 
   it("clears old errors when switching between job seeker and recruiter", async () => {
