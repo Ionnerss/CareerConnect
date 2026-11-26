@@ -136,7 +136,8 @@ const summariesSchema = z.object({
 /** Pulls the JSON object out of the model's reply, even if it is wrapped in a code fence. */
 function extractJson(text: string): unknown {
   const trimmed = text.trim();
-  const unfenced = trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  let unfenced = trimmed.replace(/^```(?:json)?\s*/i, "");
+  if (unfenced.endsWith("```")) unfenced = unfenced.slice(0, -3).trimEnd();
   const start = unfenced.indexOf("{");
   const end = unfenced.lastIndexOf("}");
   if (start === -1 || end <= start) return null;

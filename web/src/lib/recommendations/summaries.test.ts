@@ -96,6 +96,12 @@ describe("parseSummaries", () => {
     expect(parseSummaries("Here you go: " + body + " Hope that helps!", ["a"])).toEqual({ a: "Nice." });
   });
 
+  it("accepts a code fence with spaces before the closing fence", () => {
+    const body = '{"summaries":[{"job_id":"a","summary":"Nice."}]}';
+
+    expect(parseSummaries("```json\n" + body + "   \n  ```", ["a"])).toEqual({ a: "Nice." });
+  });
+
   it("returns nothing for replies that are not the expected JSON", () => {
     expect(parseSummaries("I cannot help with that.", ["a"])).toEqual({});
     expect(parseSummaries("{not json}", ["a"])).toEqual({});

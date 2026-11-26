@@ -11,7 +11,9 @@ export function getProfileImageUrl(
     return null;
   }
 
-  const base = baseUrl.replace(/\/+$/, "");
+  let baseEnd = baseUrl.length;
+  while (baseEnd > 0 && baseUrl[baseEnd - 1] === "/") baseEnd--;
+  const base = baseUrl.slice(0, baseEnd);
 
   return `${base}/storage/v1/object/public/profile-images/${encodeURI(path)}`;
 }
