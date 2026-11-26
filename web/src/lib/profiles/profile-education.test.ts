@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getCurrentEducation } from "./profile-education";
+import { addCurrentEducation, getCurrentEducation } from "./profile-education";
 
 const mocks = vi.hoisted(() => ({
     getUser: vi.fn(),
@@ -131,5 +131,91 @@ describe("getCurrentEducation", () => {
             error: "Unable to load your education entries. Please try again.",
         });
         expect(mocks.from).toHaveBeenCalledWith("profile_education");
+    });
+});
+
+describe("addCurrentEducation", () => {
+    const valid = {
+        school: "  Concordia University ",
+        degree: "Bachelor's",
+        start_date: "2023-09-01",
+        field_of_study: "",
+        end_date: "",
+        description: "  Software engineering  ",
+    };
+
+    const insert = vi.fn();
+    const insertSelect = vi.fn();
+    const single = vi.fn();
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.from.mockReturnValue({ insert });
+        insert.mockReturnValue({ select: insertSelect });
+        insertSelect.mockReturnValue({ single });
+        mocks.getUser.mockResolvedValue({
+            data: { user: { id: "test-user-id" } },
+            error: null,
+        });
+    });
+
+    it("rejects invalid details without signing in or saving", async () => {
+        const result = await addCurrentEducation({ ...valid, school: "   " });
+
+        expect(result).toEqual({ success: false, error: "Please check your profile details." });
+        expect(mocks.getUser).not.toHaveBeenCalled();
+        expect(insert).not.toHaveBeenCalled();
+    });
+
+    it("rejects an end date before the start date", async () => {
+        const result = await addCurrentEducation({ ...valid, end_date: "2022-01-01" });
+
+        expect(result.success).toBe(false);
+        expect(insert).not.toHaveBeenCalled();
+    });
+
+    it("rejects a signed-out user without saving", async () => {
+        mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
+
+        expect(await addCurrentEducation(valid)).toEqual({
+            success: false,
+            error: "Unable to authenticate. Please sign in again.",
+        });
+        expect(insert).not.toHaveBeenCalled();
+    });
+
+    it("saves the cleaned entry for the signed-in user", async () => {
+        const saved = { id: "edu-1", profile_id: "test-user-id", school: "Concordia University" };
+        single.mockResolvedValue({ data: saved, error: null });
+
+        expect(await addCurrentEducation(valid)).toEqual({ success: true, education: saved });
+        expect(mocks.from).toHaveBeenCalledWith("profile_education");
+        expect(insert).toHaveBeenCalledWith({
+            profile_id: "test-user-id",
+            school: "Concordia University",
+            degree: "Bachelor's",
+            start_date: "2023-09-01",
+            field_of_study: null,
+            end_date: null,
+            description: "Software engineering",
+        });
+    });
+
+    it("returns a failure when the database refuses the entry", async () => {
+        single.mockResolvedValue({ data: null, error: { message: "boom" } });
+
+        expect(await addCurrentEducation(valid)).toEqual({
+            success: false,
+            error: "Unable to save entry Please try again.",
+        });
+    });
+
+    it("returns a failure when no entry comes back", async () => {
+        single.mockResolvedValue({ data: null, error: null });
+
+        expect(await addCurrentEducation(valid)).toEqual({
+            success: false,
+            error: "Entry was not returned. Please try again.",
+        });
     });
 });
