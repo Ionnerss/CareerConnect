@@ -314,3 +314,97 @@ describe("getSavedRecommendations", () => {
     ).toEqual(["applicant_id", USER_ID]);
   });
 });
+describe("getSavedRecommendations - failures and edge cases", () => {
+  const dbError = { message: "boom" };
+
+  it("reports an authentication check failure as unavailable", async () => {
+    mockMfa.mockResolvedValue("AUTH_UNAVAILABLE");
+
+    expect(await getSavedRecommendations()).toMatchObject({
+      success: false,
+      code: "AUTH_UNAVAILABLE",
+    });
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it("fails safely when the profile cannot be loaded", async () => {
+    queue({ profiles: [{ data: null, error: dbError }] });
+
+    expect(await getSavedRecommendations()).toMatchObject({
+      success: false,
+      code: "LOAD_FAILED",
+    });
+    expect(mockFrom).not.toHaveBeenCalledWith("recommendation_runs");
+  });
+
+  it("refuses accounts that are not job seekers", async () => {
+    queue({ profiles: [{ data: { role: "recruiter" }, error: null }] });
+
+    expect(await getSavedRecommendations()).toMatchObject({
+      success: false,
+      code: "NOT_JOB_SEEKER",
+    });
+    expect(mockFrom).not.toHaveBeenCalledWith("recommendation_runs");
+  });
+
+  it("refuses a missing profile row", async () => {
+    queue({ profiles: [{ data: null, error: null }] });
+
+    expect(await getSavedRecommendations()).toMatchObject({
+      success: false,
+      code: "NOT_JOB_SEEKER",
+    });
+  });
+
+  it.each([
+    ["the saved run", "recommendation_runs"],
+    ["the saved results", "recommendation_results"],
+    ["the jobs", "job"],
+    ["the applications", "applications"],
+  ])("fails safely when %s cannot be loaded", async (_label, table) => {
+    queue({ [table]: [{ data: null, error: dbError }] });
+
+    const response = await getSavedRecommendations();
+
+    expect(response).toMatchObject({
+      success: false,
+      code: "LOAD_FAILED",
+    });
+    // Internal database messages never reach the client.
+    expect(JSON.stringify(response)).not.toContain("boom");
+  });
+
+  it("converts the stored salary to a number and tolerates bad values", async () => {
+    const jobs = [
+      { ...openJob, id: "job-null", salary: null },
+      { ...openJob, id: "job-text", salary: "not a number" },
+      { ...openJob, id: "job-ok", salary: "65000" },
+    ];
+
+    queue({
+      recommendation_results: [
+        {
+          data: jobs.map((job, index) => ({
+            ...savedResult,
+            job_id: job.id,
+            rank: index + 1,
+          })),
+          error: null,
+        },
+      ],
+      job: [{ data: jobs, error: null }],
+    });
+
+    const response = await getSavedRecommendations();
+
+    expect(response.success).toBe(true);
+    if (!response.success) return;
+    expect(
+      response.recommendations.map(({ job }) => [job.id, job.salary]),
+    ).toEqual([
+      ["job-null", null],
+      ["job-text", null],
+      ["job-ok", 65000],
+    ]);
+  });
+});
