@@ -1,208 +1,239 @@
 "use client";
 
-// "Recommended for you" on the dashboard (#101, dashboard part of #203).
-// Each load asks the AI to rate about 10 postings, so nothing is requested until the seeker
-// presses the button: opening the dashboard never costs an AI call. It shows the top 5 and
-// links to the full recommendations page. The AI only suggests; each job links to the normal
-// apply page, nothing is applied to automatically.
-
-import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, RefreshCw, Sparkles, TriangleAlert } from "lucide-react";
 import {
-  matchLabel,
-  requestRecommendations,
-  type ClientErrorCode,
-  type RecommendationsSuccess,
-} from "@/lib/recommendations/client";
+  ArrowRight,
+  RefreshCw,
+  Sparkles,
+  TriangleAlert,
+} from "lucide-react";
+import { matchLabel } from "@/lib/recommendations/client";
+import type {
+  RecommendationRequestError,
+  RefreshStatusResult,
+  SavedRecommendationResults,
+} from "@/lib/recommendations/refresh-client";
+import { useRecommendationResults } from "@/lib/recommendations/use-recommendation-results";
 
-/** How many recommendations the dashboard shows (#101: a maximum of 5). */
 export const DASHBOARD_RECOMMENDATION_LIMIT = 5;
 
 const FULL_PAGE_HREF = "/jobs/recommendations";
 
-type State =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "ready"; data: RecommendationsSuccess }
-  | { kind: "error"; code: ClientErrorCode; error: string };
-
 const PRIMARY_BUTTON =
-  "inline-flex h-11 items-center gap-2 rounded-lg bg-[#1D4ED8] px-5 text-sm font-bold text-white hover:bg-[#1E40AF] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]";
+  "inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#1D4ED8] px-5 py-2 text-sm font-bold text-white hover:bg-[#1E40AF] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]";
 
 const TEXT_LINK =
   "inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-bold text-[#1D4ED8] hover:text-[#1E40AF] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]";
 
-/** What to show (and where to send the seeker) for each error. */
-function errorAction(code: ClientErrorCode): { href: string; label: string } | null {
-  if (code === "MFA_REQUIRED") return { href: "/auth/mfa", label: "Verify your account" };
-  if (code === "UNAUTHENTICATED") return { href: "/auth/login", label: "Log in again" };
-  return null;
-}
+type RequestProblemProps = {
+  error: RecommendationRequestError;
+  onRetry?: () => void;
+};
 
-export default function DashboardRecommendations() {
-  const [state, setState] = useState<State>({ kind: "idle" });
-  const controller = useRef<AbortController | null>(null);
-
-  // Stop a request that is still running if the seeker leaves the dashboard.
-  useEffect(() => () => controller.current?.abort(), []);
-
-  async function load() {
-    if (state.kind === "loading") return;
-
-    controller.current?.abort();
-    const current = new AbortController();
-    controller.current = current;
-    setState({ kind: "loading" });
-
-    try {
-      const result = await requestRecommendations(current.signal);
-      if (current.signal.aborted) return;
-      setState(
-        result.ok
-          ? { kind: "ready", data: result.data }
-          : { kind: "error", code: result.code, error: result.error },
-      );
-    } catch {
-      // Only an aborted request throws; the dashboard is gone, so there is nothing to update.
-    }
-  }
-
-  const loading = state.kind === "loading";
-
+function isAccessError(error: RecommendationRequestError | null): boolean {
   return (
-    <section
-      aria-labelledby="dashboard-recommendations-heading"
-      aria-busy={loading}
-      className="overflow-hidden rounded-2xl border border-[#E3E6EB] bg-white"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E3E6EB] px-5 py-4">
-        <div className="flex items-center gap-2">
-          <Sparkles aria-hidden="true" className="size-5 text-[#1D4ED8]" />
-          <h2 id="dashboard-recommendations-heading" className="text-lg font-bold text-[#0E1726]">
-            Recommended for you
-          </h2>
-        </div>
-        <Link href={FULL_PAGE_HREF} className={TEXT_LINK}>
-          See all recommendations
-          <ArrowRight aria-hidden="true" className="size-4" />
-        </Link>
-      </div>
-
-      <div aria-live="polite">
-        {state.kind === "idle" && (
-          <div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
-            <p className="font-semibold text-[#0E1726]">Jobs picked for your profile</p>
-            <p className="max-w-md text-sm text-[#4B5563]">
-              We compare your skills, experience and preferences with the open postings and show your
-              top {DASHBOARD_RECOMMENDATION_LIMIT} matches. Suggestions only: you decide where to apply.
-            </p>
-            <button type="button" onClick={() => void load()} className={`${PRIMARY_BUTTON} mt-1`}>
-              <Sparkles aria-hidden="true" className="size-4" />
-              Show my top matches
-            </button>
-          </div>
-        )}
-
-        {loading && (
-          <p role="status" className="flex items-center justify-center gap-2 px-5 py-10 text-sm text-[#4B5563]">
-            <RefreshCw aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
-            Finding your best matches. This can take a few seconds.
-          </p>
-        )}
-
-        {state.kind === "error" && <ErrorState code={state.code} error={state.error} onRetry={() => void load()} />}
-
-        {state.kind === "ready" && <ReadyState data={state.data} onRefresh={() => void load()} />}
-      </div>
-    </section>
+    error?.code === "UNAUTHENTICATED" ||
+    error?.code === "MFA_REQUIRED" ||
+    error?.code === "NOT_JOB_SEEKER"
   );
 }
 
-function ErrorState({
-  code,
-  error,
-  onRetry,
-}: {
-  code: ClientErrorCode;
-  error: string;
-  onRetry: () => void;
-}) {
-  const action = errorAction(code);
+function RequestProblem({ error, onRetry }: RequestProblemProps) {
+  let action: React.ReactNode = null;
+
+  if (error.code === "MFA_REQUIRED") {
+    action = (
+      <Link href="/auth/mfa" className={PRIMARY_BUTTON}>
+        Verify your account
+      </Link>
+    );
+  } else if (error.code === "UNAUTHENTICATED") {
+    action = (
+      <Link href="/auth/login" className={PRIMARY_BUTTON}>
+        Log in again
+      </Link>
+    );
+  } else if (error.code !== "NOT_JOB_SEEKER" && onRetry) {
+    action = (
+      <button
+        type="button"
+        onClick={onRetry}
+        className={PRIMARY_BUTTON}
+      >
+        Try again
+      </button>
+    );
+  }
 
   return (
-    <div className="flex flex-col items-center gap-3 px-5 py-8 text-center">
-      <p role="alert" className="flex items-start gap-2 text-sm text-[#9B1C1C]">
-        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-        <span>{error}</span>
+    <div className="space-y-3">
+      <p
+        role="alert"
+        className="flex items-start gap-2 text-sm text-[#9B1C1C]"
+      >
+        <TriangleAlert
+          aria-hidden="true"
+          className="mt-0.5 size-4 shrink-0"
+        />
+        <span>{error.message}</span>
       </p>
-      {action ? (
-        <Link href={action.href} className={PRIMARY_BUTTON}>
-          {action.label}
-        </Link>
-      ) : (
-        <button type="button" onClick={onRetry} className={PRIMARY_BUTTON}>
-          <RefreshCw aria-hidden="true" className="size-4" />
-          Try again
-        </button>
-      )}
+
+      {action}
     </div>
   );
 }
 
-function ReadyState({ data, onRefresh }: { data: RecommendationsSuccess; onRefresh: () => void }) {
-  if (data.empty_profile) {
+function SavedTime({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null;
+}) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+
+  return (
+    <p>
+      <span>{label}</span>{" "}
+      <time dateTime={value}>{date.toLocaleString()}</time>
+    </p>
+  );
+}
+
+function refreshMessage(status: RefreshStatusResult): string | null {
+  const pending =
+    status.status === "queued" ||
+    status.status === "running" ||
+    status.status === "retry_wait";
+
+  if (pending && !status.processing_enabled) {
+    return "Refresh queued. Recommendation processing is currently paused.";
+  }
+
+  switch (status.status) {
+    case "queued":
+      return "Refresh queued. Your saved matches remain available.";
+
+    case "running":
+      return "Refreshing your matches. Your saved matches remain available.";
+
+    case "retry_wait":
+      return "The last attempt did not finish. Another attempt is scheduled.";
+
+    case "failed":
+      return "The last refresh failed. You can request another refresh.";
+
+    default:
+      return null;
+  }
+}
+
+function RefreshDetails({ status }: { status: RefreshStatusResult }) {
+  const message = refreshMessage(status);
+
+  return (
+    <div className="space-y-2 text-sm text-[#4B5563]">
+      {message && <p role="status">{message}</p>}
+
+      {status.stale && (
+        <p>Your saved matches may be out of date.</p>
+      )}
+
+      <div className="space-y-1 text-xs text-[#6B7280]">
+        <SavedTime label="Generated:" value={status.generated_at} />
+        <SavedTime label="Last checked:" value={status.checked_at} />
+      </div>
+    </div>
+  );
+}
+
+function SavedMatches({ data }: { data: SavedRecommendationResults }) {
+  if (!data.run) {
     return (
-      <div className="flex flex-col items-center gap-3 px-5 py-8 text-center">
-        <p className="font-semibold text-[#0E1726]">Add a few details to get recommendations.</p>
-        <p className="max-w-sm text-sm text-[#4B5563]">
-          Add your skills, experience and the role you want to your profile, then try again.
+      <div className="space-y-3">
+        <p className="font-semibold text-[#0E1726]">
+          No saved recommendations yet.
         </p>
-        <Link href="/profile" className={PRIMARY_BUTTON}>
-          Complete your profile
+
+        <p className="max-w-md text-sm text-[#4B5563]">
+          Request your first matches. Your skills, experience and preferences
+          help determine which postings fit your profile.
+        </p>
+
+        <Link href="/profile" className={TEXT_LINK}>
+          Review your profile
+          <ArrowRight aria-hidden="true" className="size-4" />
         </Link>
       </div>
     );
   }
 
-  const top = data.recommendations.slice(0, DASHBOARD_RECOMMENDATION_LIMIT);
+  const top = data.recommendations.slice(
+    0,
+    DASHBOARD_RECOMMENDATION_LIMIT,
+  );
 
   if (top.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 px-5 py-8 text-center">
-        <p className="font-semibold text-[#0E1726]">No matching open jobs right now.</p>
-        <p className="max-w-sm text-sm text-[#4B5563]">
-          New postings show up here when they match your profile. You can still browse every job.
+      <div className="space-y-3">
+        <p className="font-semibold text-[#0E1726]">
+          No saved matches are currently available.
         </p>
-        <Link href="/jobs" className={PRIMARY_BUTTON}>
-          Browse jobs
-        </Link>
+
+        <p className="max-w-md text-sm text-[#4B5563]">
+          You can browse available jobs, review your profile or request
+          another refresh.
+        </p>
+
+        <div className="flex flex-wrap gap-2">
+          <Link href="/jobs" className={TEXT_LINK}>
+            Browse jobs
+          </Link>
+
+          <Link href="/profile" className={TEXT_LINK}>
+            Review your profile
+          </Link>
+        </div>
       </div>
     );
   }
 
+  const usesFallback =
+    data.run.ranking_mode === "code_only" ||
+    data.run.ranking_mode === "mixed";
+
   return (
-    <>
-      {!data.ai_ranked && (
+    <div className="space-y-3">
+      {usesFallback && (
         <p
           role="status"
-          className="flex items-start gap-2 border-b border-[#F3E2B8] bg-[#FFF9EB] px-5 py-3 text-sm text-[#7A5A12]"
+          className="flex items-start gap-2 rounded-xl border border-[#F3E2B8] bg-[#FFF9EB] px-4 py-3 text-sm text-[#7A5A12]"
         >
-          <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-          <span>AI ranking is unavailable right now, so these are ordered by profile match only.</span>
+          <TriangleAlert
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0"
+          />
+          <span>
+            These saved results include profile-based scoring where AI
+            ranking was unavailable.
+          </span>
         </p>
       )}
 
       <ol aria-label="Your top job matches">
         {top.map((item, index) => {
           const title = item.job.title?.trim() || "Untitled position";
-          const company = item.job.firm_name?.trim() || "Company not listed";
+          const company =
+            item.job.firm_name?.trim() || "Company not listed";
           const location = item.job.location?.trim();
 
           return (
             <li
               key={item.job.id}
-              className="flex items-center gap-4 border-t border-[#EEF0F3] px-5 py-4 first:border-t-0"
+              className="flex items-center gap-4 border-t border-[#EEF0F3] py-4 first:border-t-0"
             >
               <span
                 aria-hidden="true"
@@ -210,13 +241,18 @@ function ReadyState({ data, onRefresh }: { data: RecommendationsSuccess; onRefre
               >
                 {index + 1}
               </span>
+
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <p className="line-clamp-2 font-bold text-[#0E1726] sm:truncate">{title}</p>
+                <p className="line-clamp-2 font-bold text-[#0E1726] sm:truncate">
+                  {title}
+                </p>
+
                 <p className="truncate text-sm text-[#4B5563]">
                   {company}
                   {location ? ` · ${location}` : ""}
                 </p>
               </div>
+
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <span className="rounded-full bg-[#F2F5FF] px-2.5 py-1 text-xs font-bold text-[#1D4ED8]">
                   {item.score}% · {matchLabel(item.score)}
@@ -245,20 +281,124 @@ function ReadyState({ data, onRefresh }: { data: RecommendationsSuccess; onRefre
         })}
       </ol>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E3E6EB] px-5 py-3">
-        <p className="text-xs text-[#6B7280]">
-          Picked from {data.considered_jobs} open {data.considered_jobs === 1 ? "job" : "jobs"}. A
-          match score is not a guarantee of an interview or offer.
-        </p>
-        <button
-          type="button"
-          onClick={onRefresh}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-[#4B5563] hover:text-[#0E1726] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D4ED8]"
-        >
-          <RefreshCw aria-hidden="true" className="size-4" />
-          Refresh
-        </button>
+      <p className="text-xs text-[#6B7280]">
+        Suggestions only: you decide where to apply. A match score is
+        not a guarantee of an interview or offer.
+      </p>
+    </div>
+  );
+}
+
+export default function DashboardRecommendations() {
+  const {
+    saved,
+    refreshStatus,
+    loading,
+    requesting,
+    loadError,
+    refreshError,
+    refreshPending,
+    reload,
+    requestRefresh,
+  } = useRecommendationResults();
+
+  const accessBlocked =
+    isAccessError(loadError) || isAccessError(refreshError);
+
+  const refreshDisabled =
+    loading || requesting || refreshPending;
+
+  let refreshLabel = saved?.run
+    ? "Refresh matches"
+    : "Find my matches";
+
+  if (requesting) {
+    refreshLabel = "Requesting refresh…";
+  } else if (refreshPending) {
+    refreshLabel = "Refresh pending";
+  }
+
+  return (
+    <section
+      aria-labelledby="dashboard-recommendations-heading"
+      aria-busy={loading || requesting}
+      className="overflow-hidden rounded-2xl border border-[#E3E6EB] bg-white"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E3E6EB] px-5 py-4">
+        <div className="flex items-center gap-2">
+          <Sparkles
+            aria-hidden="true"
+            className="size-5 text-[#1D4ED8]"
+          />
+
+          <h2
+            id="dashboard-recommendations-heading"
+            className="text-lg font-bold text-[#0E1726]"
+          >
+            Recommended for you
+          </h2>
+        </div>
+
+        <Link href={FULL_PAGE_HREF} className={TEXT_LINK}>
+          See all recommendations
+          <ArrowRight aria-hidden="true" className="size-4" />
+        </Link>
       </div>
-    </>
+
+      <div className="space-y-4 px-5 py-5">
+        {loading && !saved && (
+          <p
+            role="status"
+            className="flex items-center gap-2 text-sm text-[#4B5563]"
+          >
+            <RefreshCw
+              aria-hidden="true"
+              className="size-4 animate-spin motion-reduce:animate-none"
+            />
+            Loading your saved recommendations…
+          </p>
+        )}
+
+        {loadError && (
+          <RequestProblem
+            error={loadError}
+            onRetry={() => void reload()}
+          />
+        )}
+
+        {refreshError && (
+          <RequestProblem error={refreshError} />
+        )}
+
+        {saved && <SavedMatches data={saved} />}
+
+        {refreshStatus && (
+          <RefreshDetails status={refreshStatus} />
+        )}
+
+        {saved && !accessBlocked && (
+          <div className="flex flex-wrap items-center gap-3 border-t border-[#E3E6EB] pt-4">
+            <button
+              type="button"
+              disabled={refreshDisabled}
+              onClick={() => void requestRefresh()}
+              className={PRIMARY_BUTTON}
+            >
+              <RefreshCw aria-hidden="true" className="size-4" />
+              {refreshLabel}
+            </button>
+
+            <button
+              type="button"
+              disabled={loading || requesting}
+              onClick={() => void reload()}
+              className={`${TEXT_LINK} disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              Check status
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

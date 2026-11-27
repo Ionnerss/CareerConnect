@@ -1,25 +1,52 @@
 // @vitest-environment jsdom
 
-/** Tests the "Recommended for you" card on the dashboard (#101 / #203). */
-
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type {
+  RefreshStatusResult,
+  SavedRecommendationResults,
+} from "@/lib/recommendations/refresh-client";
 import DashboardRecommendations from "./dashboard-recommendations";
 
-const fetchMock = vi.fn();
+const fetchMock = vi.fn<typeof fetch>();
 
-function jsonResponse(body: unknown, status = 200) {
+const GENERATED_AT = "2026-11-27T12:00:00.000Z";
+const CHECKED_AT = "2026-11-27T12:10:00.000Z";
+
+function jsonResponse(
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
   });
 }
 
 function recommendation(index: number, score: number) {
+  const suffix = String(index).padStart(12, "0");
+
   return {
     job: {
-      id: `job-${index}`,
+      id: `33333333-3333-4333-8333-${suffix}`,
       title: `Job ${index}`,
       firm_name: `Company ${index}`,
       location: "Montreal",
@@ -30,38 +57,128 @@ function recommendation(index: number, score: number) {
       experience: null,
       description: null,
       status: "open",
-      created_at: "2026-11-10T12:00:00Z",
+      created_at: "2026-11-26T12:00:00.000Z",
     },
     score,
     match_score: score,
     fit: null,
+    fit_error: null,
+    fit_generated_at: null,
     skill_match: null,
     reasons: [],
     summary: null,
   };
 }
 
-function success(overrides: Record<string, unknown> = {}) {
+function savedResults(
+  overrides: Partial<SavedRecommendationResults> = {},
+): SavedRecommendationResults {
   return {
     success: true,
-    empty_profile: false,
-    considered_jobs: 17,
-    recommendations: [92, 85, 74, 66, 58, 51, 40].map((score, index) => recommendation(index + 1, score)),
-    ai_ranked: true,
-    summary_status: "ok",
+    run: {
+      id: "22222222-2222-4222-8222-222222222222",
+      created_at: GENERATED_AT,
+      completed_at: CHECKED_AT,
+      result_count: 7,
+      summary_count: 0,
+      ranking_mode: "ai",
+    },
+    recommendations: [92, 85, 74, 66, 58, 51, 40].map(
+      (score, index) => recommendation(index + 1, score),
+    ),
     ...overrides,
   };
 }
 
-async function openMatches() {
+function refreshStatus(
+  overrides: Partial<RefreshStatusResult> = {},
+): RefreshStatusResult {
+  return {
+    success: true,
+    processing_enabled: true,
+    status: "idle",
+    stale: false,
+    background_enabled: true,
+    manual_pending: false,
+    attempt_count: 1,
+    max_attempts: 3,
+    next_attempt_at: null,
+    last_failure_code: null,
+    generated_at: GENERATED_AT,
+    checked_at: CHECKED_AT,
+    ...overrides,
+  };
+}
+
+let savedBody: SavedRecommendationResults;
+let statusBody: RefreshStatusResult;
+let respondToRefresh: () => Promise<Response>;
+
+function pathOf(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.pathname;
+  return input.url;
+}
+
+function refreshRequests() {
+  return fetchMock.mock.calls.filter(
+    ([input]) =>
+      pathOf(input) === "/api/recommendations/refresh",
+  );
+}
+
+async function renderReady() {
   const user = userEvent.setup();
+
   render(<DashboardRecommendations />);
-  await user.click(screen.getByRole("button", { name: "Show my top matches" }));
+
+  await screen.findByRole("button", {
+    name: /^(Refresh matches|Find my matches|Refresh pending)$/,
+  });
+
   return user;
 }
 
 beforeEach(() => {
   fetchMock.mockReset();
+
+  savedBody = savedResults();
+  statusBody = refreshStatus();
+
+  respondToRefresh = async () => {
+    statusBody = refreshStatus({
+      status: "queued",
+      stale: true,
+      manual_pending: true,
+    });
+
+    return jsonResponse(
+      {
+        success: true,
+        status: "queued",
+      },
+      202,
+    );
+  };
+
+  fetchMock.mockImplementation(async (input) => {
+    const path = pathOf(input);
+
+    if (path === "/api/recommendations/status") {
+      return jsonResponse(statusBody);
+    }
+
+    if (path === "/api/recommendations") {
+      return jsonResponse(savedBody);
+    }
+
+    if (path === "/api/recommendations/refresh") {
+      return respondToRefresh();
+    }
+
+    throw new Error(`Unexpected request: ${path}`);
+  });
+
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -71,163 +188,558 @@ afterEach(() => {
 });
 
 describe("DashboardRecommendations", () => {
-  it("does not call the AI until the seeker asks", () => {
+  it("loads saved matches on mount using reads only", async () => {
+    await renderReady();
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Recommended for you",
+      }),
+    ).toBeDefined();
+
+    expect(
+      screen
+        .getByRole("link", {
+          name: "See all recommendations",
+        })
+        .getAttribute("href"),
+    ).toBe("/jobs/recommendations");
+
+    expect(
+      screen.getByRole("list", {
+        name: "Your top job matches",
+      }),
+    ).toBeDefined();
+
+    expect(refreshRequests()).toHaveLength(0);
+
+    for (const [, options] of fetchMock.mock.calls) {
+      expect(options?.method ?? "GET").toBe("GET");
+    }
+
+    expect(
+      fetchMock.mock.calls.map(([input]) => pathOf(input)),
+    ).toEqual([
+      "/api/recommendations/status",
+      "/api/recommendations",
+    ]);
+  });
+
+  it("describes initial loading as reading saved recommendations", () => {
+    fetchMock.mockImplementation(
+      () => new Promise<Response>(() => {}),
+    );
+
     render(<DashboardRecommendations />);
 
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(screen.getByRole("heading", { name: "Recommended for you" })).toBeDefined();
-    expect(screen.getByRole("link", { name: "See all recommendations" }).getAttribute("href")).toBe(
-      "/jobs/recommendations",
+    expect(screen.getByRole("status").textContent).toContain(
+      "Loading your saved recommendations",
     );
+
+    expect(
+      screen.queryByText(/Finding your best matches/),
+    ).toBeNull();
+
+    expect(refreshRequests()).toHaveLength(0);
   });
 
-  it("shows a loading message while the request runs", async () => {
-    fetchMock.mockReturnValue(new Promise(() => {}));
+  it("shows at most five jobs in saved order with posting and apply links", async () => {
+    await renderReady();
 
-    await openMatches();
-
-    expect(screen.getByRole("status").textContent).toContain("Finding your best matches");
-    expect(screen.queryByRole("button", { name: "Show my top matches" })).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith("/api/recommendations", expect.objectContaining({ method: "POST" }));
-  });
-
-  it("shows at most 5 jobs, best first, with posting and apply links for each job", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(success()));
-
-    await openMatches();
-
-    const list = await screen.findByRole("list", {
+    const list = screen.getByRole("list", {
       name: "Your top job matches",
     });
-    const items = within(list).getAllByRole("listitem");
+    const rows = within(list).getAllByRole("listitem");
 
-    expect(items).toHaveLength(5);
-    expect(items[0].textContent).toContain("Job 1");
-    expect(items[0].textContent).toContain("Company 1 · Montreal");
-    expect(items[0].textContent).toContain("92% · Strong match");
-    expect(items[2].textContent).toContain("74% · Good match");
-    expect(items[4].textContent).toContain("58% · Possible match");
+    expect(rows).toHaveLength(5);
+    expect(rows[0].textContent).toContain("Job 1");
+    expect(rows[0].textContent).toContain("Company 1 · Montreal");
+    expect(rows[0].textContent).toContain("92% · Strong match");
+    expect(rows[2].textContent).toContain("74% · Good match");
+    expect(rows[4].textContent).toContain("58% · Possible match");
+
     expect(screen.queryByText("Job 6")).toBeNull();
+    expect(screen.queryByText("Job 7")).toBeNull();
 
-    expect(
-      within(items[0])
-        .getByRole("link", { name: "View posting for Job 1" })
-        .getAttribute("href")
-    ).toBe("/jobs?selectedJob=job-1");
+    for (let index = 0; index < rows.length; index += 1) {
+      const number = index + 1;
+      const item = recommendation(number, 70);
 
-    expect(
-      within(items[0])
-        .getByRole("link", { name: "Apply for Job 1" })
-        .getAttribute("href")
-    ).toBe("/jobs/job-1/apply");
+      expect(
+        within(rows[index])
+          .getByRole("link", {
+            name: `View posting for Job ${number}`,
+          })
+          .getAttribute("href"),
+      ).toBe(
+        `/jobs?selectedJob=${encodeURIComponent(item.job.id)}`,
+      );
 
-    expect(
-      within(items[1])
-        .getByRole("link", { name: "View posting for Job 2" })
-        .getAttribute("href")
-    ).toBe("/jobs?selectedJob=job-2");
-
-    expect(
-      within(items[1])
-        .getByRole("link", { name: "Apply for Job 2" })
-        .getAttribute("href")
-    ).toBe("/jobs/job-2/apply");
-
-    expect(
-      screen.getByText(/Picked from 17 open jobs/)
-    ).toBeDefined();
-  });
-
-  it("asks again when the seeker presses Refresh", async () => {
-    fetchMock.mockImplementation(async () => jsonResponse(success()));
-
-    const user = await openMatches();
-    await screen.findByRole("list", { name: "Your top job matches" });
-    await user.click(screen.getByRole("button", { name: "Refresh" }));
-
-    await screen.findByRole("list", { name: "Your top job matches" });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("says when the order comes from the profile match only", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(success({ ai_ranked: false })));
-
-    await openMatches();
-
-    expect(await screen.findByText(/AI ranking is unavailable right now/)).toBeDefined();
-  });
-
-  it("sends a seeker with an empty profile to their profile", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(success({ empty_profile: true, recommendations: [] })));
-
-    await openMatches();
-
-    expect((await screen.findByRole("link", { name: "Complete your profile" })).getAttribute("href")).toBe("/profile");
-  });
-
-  it("suggests browsing jobs when nothing matches", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(success({ recommendations: [] })));
-
-    await openMatches();
-
-    expect(await screen.findByText("No matching open jobs right now.")).toBeDefined();
-    expect(screen.getByRole("link", { name: "Browse jobs" }).getAttribute("href")).toBe("/jobs");
-  });
-
-  it("shows the error and lets the seeker try again", async () => {
-    fetchMock
-      .mockResolvedValueOnce(
-        jsonResponse({ success: false, code: "AI_NOT_CONFIGURED", error: "AI recommendations are not set up on the server yet." }, 503),
-      )
-      .mockResolvedValueOnce(jsonResponse(success()));
-
-    const user = await openMatches();
-
-    expect((await screen.findByRole("alert")).textContent).toContain("AI recommendations are not set up on the server yet.");
-    await user.click(screen.getByRole("button", { name: "Try again" }));
-
-    expect(await screen.findByRole("list", { name: "Your top job matches" })).toBeDefined();
-  });
-
-  it("sends the seeker to MFA when the endpoint asks for it", async () => {
-    fetchMock.mockResolvedValue(
-      jsonResponse({ success: false, code: "MFA_REQUIRED", error: "Please finish two-step verification." }, 403),
-    );
-
-    await openMatches();
-
-    expect((await screen.findByRole("link", { name: "Verify your account" })).getAttribute("href")).toBe("/auth/mfa");
-    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
-  });
-
-  it("sends a signed-out seeker to log in", async () => {
-    fetchMock.mockResolvedValue(jsonResponse({ success: false, code: "UNAUTHENTICATED", error: "Please log in." }, 401));
-
-    await openMatches();
-
-    expect((await screen.findByRole("link", { name: "Log in again" })).getAttribute("href")).toBe("/auth/login");
-  });
-
-  it("shows a connection error when the server can't be reached", async () => {
-    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
-
-    await openMatches();
-
-    expect((await screen.findByRole("alert")).textContent).toContain("We could not reach the server");
+      expect(
+        within(rows[index])
+          .getByRole("link", {
+            name: `Apply for Job ${number}`,
+          })
+          .getAttribute("href"),
+      ).toBe(
+        `/jobs/${encodeURIComponent(item.job.id)}/apply`,
+      );
+    }
   });
 
   it("fills in missing job details", async () => {
     const base = recommendation(1, 70);
-    const item = { ...base, job: { ...base.job, title: "  ", firm_name: null, location: null } };
-    fetchMock.mockResolvedValue(jsonResponse(success({ recommendations: [item], considered_jobs: 1 })));
 
-    await openMatches();
+    savedBody = savedResults({
+      recommendations: [
+        {
+          ...base,
+          job: {
+            ...base.job,
+            title: "  ",
+            firm_name: null,
+            location: null,
+          },
+        },
+      ],
+    });
 
-    const row = within(await screen.findByRole("list", { name: "Your top job matches" })).getByRole("listitem");
+    await renderReady();
+
+    const row = within(
+      screen.getByRole("list", {
+        name: "Your top job matches",
+      }),
+    ).getByRole("listitem");
+
     expect(row.textContent).toContain("Untitled position");
     expect(row.textContent).toContain("Company not listed");
-    expect(row.textContent).not.toContain("·  ");
-    expect(screen.getByText(/Picked from 1 open job\./)).toBeDefined();
+  });
+
+  it("offers the first refresh when there is no saved run", async () => {
+    savedBody = savedResults({
+      run: null,
+      recommendations: [],
+    });
+
+    statusBody = refreshStatus({
+      status: "never_requested",
+      stale: null,
+      attempt_count: 0,
+      generated_at: null,
+      checked_at: null,
+    });
+
+    const user = await renderReady();
+
+    expect(
+      screen.getByText("No saved recommendations yet."),
+    ).toBeDefined();
+
+    expect(
+      screen
+        .getByRole("link", {
+          name: "Review your profile",
+        })
+        .getAttribute("href"),
+    ).toBe("/profile");
+
+    expect(refreshRequests()).toHaveLength(0);
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Find my matches",
+      }),
+    );
+
+    await screen.findByText(
+      "Refresh queued. Your saved matches remain available.",
+    );
+
+    expect(refreshRequests()).toHaveLength(1);
+  });
+
+  it("handles an empty saved result without diagnosing an empty profile", async () => {
+    savedBody = savedResults({
+      recommendations: [],
+      run: {
+        id: "22222222-2222-4222-8222-222222222222",
+        created_at: GENERATED_AT,
+        completed_at: CHECKED_AT,
+        result_count: 0,
+        summary_count: 0,
+        ranking_mode: null,
+      },
+    });
+
+    await renderReady();
+
+    expect(
+      screen.getByText(
+        "No saved matches are currently available.",
+      ),
+    ).toBeDefined();
+
+    expect(
+      screen
+        .getByRole("link", {
+          name: "Browse jobs",
+        })
+        .getAttribute("href"),
+    ).toBe("/jobs");
+
+    expect(
+      screen.queryByText(/Complete your profile to get/),
+    ).toBeNull();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Refresh matches",
+      }),
+    ).toBeDefined();
+  });
+
+  it.each(["code_only", "mixed"] as const)(
+    "explains saved fallback scoring for %s runs",
+    async (rankingMode) => {
+      const data = savedResults();
+
+      if (!data.run) {
+        throw new Error("The test requires a saved run.");
+      }
+
+      savedBody = savedResults({
+        run: {
+          ...data.run,
+          ranking_mode: rankingMode,
+        },
+      });
+
+      await renderReady();
+
+      expect(
+        screen.getByText(
+          /These saved results include profile-based scoring/,
+        ),
+      ).toBeDefined();
+    },
+  );
+
+  it("shows original generation time separately from the last check", async () => {
+    await renderReady();
+
+    const generated = screen
+      .getByText("Generated:")
+      .closest("p")
+      ?.querySelector("time");
+
+    const checked = screen
+      .getByText("Last checked:")
+      .closest("p")
+      ?.querySelector("time");
+
+    expect(generated?.getAttribute("datetime")).toBe(
+      GENERATED_AT,
+    );
+    expect(checked?.getAttribute("datetime")).toBe(
+      CHECKED_AT,
+    );
+  });
+
+  it("queues a refresh while keeping saved matches visible", async () => {
+    const user = await renderReady();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Refresh matches",
+      }),
+    );
+
+    await screen.findByText(
+      "Refresh queued. Your saved matches remain available.",
+    );
+
+    expect(refreshRequests()).toHaveLength(1);
+    expect(refreshRequests()[0][1]?.method).toBe("POST");
+
+    expect(
+      screen.getByRole("list", {
+        name: "Your top job matches",
+      }),
+    ).toBeDefined();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Refresh pending",
+      }).hasAttribute("disabled"),
+    ).toBe(true);
+
+    const posts = fetchMock.mock.calls.filter(
+      ([, options]) => options?.method === "POST",
+    );
+
+    expect(
+      posts.map(([input]) => pathOf(input)),
+    ).toEqual(["/api/recommendations/refresh"]);
+  });
+
+  it("explains that queued processing is paused", async () => {
+    statusBody = refreshStatus({
+      status: "queued",
+      stale: true,
+      manual_pending: true,
+      processing_enabled: false,
+    });
+
+    await renderReady();
+
+    expect(
+      screen.getByText(
+        "Refresh queued. Recommendation processing is currently paused.",
+      ),
+    ).toBeDefined();
+
+    expect(
+      screen.getByRole("list", {
+        name: "Your top job matches",
+      }),
+    ).toBeDefined();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Check status",
+      }).hasAttribute("disabled"),
+    ).toBe(false);
+  });
+
+  it("keeps saved matches when a refresh request is rate limited", async () => {
+    respondToRefresh = async () =>
+      jsonResponse(
+        {
+          success: false,
+          code: "RATE_LIMITED",
+          error: "Please wait before requesting another refresh.",
+        },
+        429,
+        {
+          "Retry-After": "60",
+        },
+      );
+
+    const user = await renderReady();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Refresh matches",
+      }),
+    );
+
+    expect(await screen.findByRole("alert")).toBeDefined();
+
+    expect(
+      screen.getByRole("list", {
+        name: "Your top job matches",
+      }),
+    ).toBeDefined();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: "Refresh matches",
+        }).hasAttribute("disabled"),
+      ).toBe(false);
+    });
+
+    expect(refreshRequests()).toHaveLength(1);
+  });
+
+  it("disables duplicate refresh submissions while the request is running", async () => {
+    respondToRefresh = () =>
+      new Promise<Response>(() => {});
+
+    const user = await renderReady();
+    const button = screen.getByRole("button", {
+      name: "Refresh matches",
+    });
+
+    await user.click(button);
+
+    const requesting = screen.getByRole("button", {
+      name: "Requesting refresh…",
+    });
+
+    expect(requesting.hasAttribute("disabled")).toBe(true);
+
+    await user.click(requesting);
+
+    expect(refreshRequests()).toHaveLength(1);
+
+    expect(
+      screen.getByRole("list", {
+        name: "Your top job matches",
+      }),
+    ).toBeDefined();
+  });
+
+  it("checks status without queuing another refresh", async () => {
+    const user = await renderReady();
+
+    fetchMock.mockClear();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Check status",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    expect(
+      fetchMock.mock.calls.map(([input]) => pathOf(input)),
+    ).toEqual([
+      "/api/recommendations/status",
+      "/api/recommendations",
+    ]);
+
+    expect(refreshRequests()).toHaveLength(0);
+
+    for (const [, options] of fetchMock.mock.calls) {
+      expect(options?.method ?? "GET").toBe("GET");
+    }
+  });
+
+  it("retries an initial read failure without requesting generation", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        {
+          success: false,
+          code: "LOAD_FAILED",
+          error: "Unable to load recommendations.",
+        },
+        500,
+      ),
+    );
+
+    const user = userEvent.setup();
+    render(<DashboardRecommendations />);
+
+    await screen.findByRole("alert");
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Try again",
+      }),
+    );
+
+    expect(
+      await screen.findByRole("list", {
+        name: "Your top job matches",
+      }),
+    ).toBeDefined();
+
+    expect(refreshRequests()).toHaveLength(0);
+  });
+
+  it.each([
+    {
+      code: "MFA_REQUIRED",
+      status: 403,
+      label: "Verify your account",
+      href: "/auth/mfa",
+    },
+    {
+      code: "UNAUTHENTICATED",
+      status: 401,
+      label: "Log in again",
+      href: "/auth/login",
+    },
+  ])(
+    "provides the correct action for $code",
+    async ({ code, status, label, href }) => {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(
+          {
+            success: false,
+            code,
+            error: "Account verification is required.",
+          },
+          status,
+        ),
+      );
+
+      render(<DashboardRecommendations />);
+
+      expect(
+        (
+          await screen.findByRole("link", {
+            name: label,
+          })
+        ).getAttribute("href"),
+      ).toBe(href);
+
+      expect(
+        screen.queryByRole("button", {
+          name: "Try again",
+        }),
+      ).toBeNull();
+
+      expect(refreshRequests()).toHaveLength(0);
+    },
+  );
+
+  it("does not offer a refresh to a non-seeker", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        {
+          success: false,
+          code: "NOT_JOB_SEEKER",
+          error: "Recommendations are available to job seekers.",
+        },
+        403,
+      ),
+    );
+
+    render(<DashboardRecommendations />);
+
+    await screen.findByRole("alert");
+
+    expect(
+      screen.queryByRole("button", {
+        name: /Refresh matches|Find my matches|Try again/,
+      }),
+    ).toBeNull();
+
+    expect(refreshRequests()).toHaveLength(0);
+  });
+
+  it("explains a failed refresh while retaining saved matches", async () => {
+    statusBody = refreshStatus({
+      status: "failed",
+      stale: true,
+      attempt_count: 3,
+      last_failure_code: "generation_failed",
+    });
+
+    await renderReady();
+
+    expect(
+      screen.getByText(
+        "The last refresh failed. You can request another refresh.",
+      ),
+    ).toBeDefined();
+
+    expect(
+      screen.getByRole("list", {
+        name: "Your top job matches",
+      }),
+    ).toBeDefined();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Refresh matches",
+      }).hasAttribute("disabled"),
+    ).toBe(false);
   });
 });

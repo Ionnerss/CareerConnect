@@ -157,6 +157,44 @@ describe("reserveRecommendationRun", () => {
       "not configured",
     );
   });
+
+  it("stores the worker claim token and seeker revision", async () => {
+    mockFrom.mockReturnValue(
+      fakeQuery({ data: { id: RUN_ID }, error: null }),
+    );
+
+    const claim = {
+      user_id: USER_ID,
+      claim_token: "f0200000-0000-4000-8000-000000000001",
+      seeker_revision: "3",
+      posting_revision: "7",
+    };
+
+    await reserveRecommendationRun(validInputs, claim);
+
+    expect(
+      calls.find((call) => call.method === "insert")?.args[0],
+    ).toMatchObject({
+      user_id: USER_ID,
+      refresh_claim_token: claim.claim_token,
+      refresh_revision: "3",
+    });
+  });
+
+  it("rejects claim metadata belonging to a different user", async () => {
+    await expect(
+      reserveRecommendationRun(validInputs, {
+        user_id: "f0500000-0000-4000-8000-000000000001",
+        claim_token: "f0200000-0000-4000-8000-000000000001",
+        seeker_revision: "3",
+        posting_revision: "7",
+      }),
+    ).rejects.toThrow(
+      "Recommendation claim owner does not match inputs",
+    );
+
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
 });
 
 describe("publishRecommendationRun", () => {

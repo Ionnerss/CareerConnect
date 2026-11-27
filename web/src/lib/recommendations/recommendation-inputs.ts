@@ -75,14 +75,31 @@ export async function getRecommendationInputs(
   } = await supabase.auth.getUser();
   if (authError || !user) return failure("UNAUTHENTICATED", AUTH_ERROR);
 
-  const mfaError = await checkMfaForClient(supabase);
+    const mfaError = await checkMfaForClient(supabase);
   if (mfaError === "MFA_REQUIRED") return failure("MFA_REQUIRED", MFA_REQUIRED_ERROR);
   if (mfaError) return failure("AUTH_UNAVAILABLE", AUTH_UNAVAILABLE_ERROR);
 
+  return loadRecommendationInputsForUser(supabase, user.id, options);
+  }
+
+  export type RecommendationDataClient = Pick<
+    Awaited<ReturnType<typeof createClient>>,
+    "from"
+  >;
+
+  /**
+   * Shared data loader for authenticated requests and trusted workers.
+   * The caller must establish which user it is authorized to process.
+   */
+  export async function loadRecommendationInputsForUser(
+    supabase: RecommendationDataClient,
+    userId: string,
+    options: RecommendationInputsOptions = {},
+  ): Promise<RecommendationInputsResponse> {
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role, location")
-    .eq("id", user.id)
+    .eq("id", userId)
     .maybeSingle();
   if (profileError) return failure("LOAD_FAILED", LOAD_FAILED_ERROR);
   if (!profile || profile.role !== "job_seeker") {
@@ -90,19 +107,19 @@ export async function getRecommendationInputs(
   }
 
   const [skills, education, experience, preferences] = await Promise.all([
-    supabase.from("profile_skills").select("name, proficiency").eq("profile_id", user.id),
+    supabase.from("profile_skills").select("name, proficiency").eq("profile_id", userId),
     supabase
       .from("profile_education")
       .select("school, degree, field_of_study, start_date, end_date, description")
-      .eq("profile_id", user.id),
+      .eq("profile_id", userId),
     supabase
       .from("profile_experience")
       .select("company_name, job_role, start_date, end_date, description")
-      .eq("profile_id", user.id),
+      .eq("profile_id", userId),
     supabase
       .from("profile_preferences")
       .select("desired_role, desired_position, desired_salary, work_mode")
-      .eq("profile_id", user.id)
+      .eq("profile_id", userId)
       .maybeSingle(),
   ]);
 
@@ -133,7 +150,7 @@ export async function getRecommendationInputs(
   if (isProfileEmpty(snapshot)) {
     return {
       success: true,
-      user_id: user.id,
+      user_id: userId,
       empty_profile: true,
       seeker_state: seekerState,
       shortlist: [],
@@ -161,7 +178,7 @@ export async function getRecommendationInputs(
       ? await supabase
           .from("applications")
           .select("job_id")
-          .eq("applicant_id", user.id)
+          .eq("applicant_id", userId)
           .in(
             "job_id",
             openJobs.map((job) => job.id),
@@ -180,7 +197,7 @@ export async function getRecommendationInputs(
 
   return {
     success: true,
-    user_id: user.id,
+    user_id: userId,
     empty_profile: false,
     seeker_state: seekerState,
     shortlist,

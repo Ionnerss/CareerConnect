@@ -7,12 +7,19 @@ import {
 import type { RecommendationInputsResponse } from "./recommendation-inputs";
 import type { Recommendation } from "./recommend";
 import type { SeekerState } from "./seeker-state";
+import type { WorkerClaimSnapshot } from "./worker-inputs";
 
 type ValidInputs = Extract<RecommendationInputsResponse, { success: true }>;
 
 export async function reserveRecommendationRun(
   inputs: ValidInputs,
+  claim?: WorkerClaimSnapshot,
+  inputFingerprint?: string,
 ): Promise<string> {
+  if (claim && claim.user_id !== inputs.user_id) {
+    throw new Error("Recommendation claim owner does not match inputs");
+  }
+
   const service = createServiceClient();
   const versions = getRecommendationVersions();
 
@@ -25,6 +32,15 @@ export async function reserveRecommendationRun(
       considered_jobs: inputs.considered_jobs,
       seeker_input_hash: hashSeekerInput(inputs.seeker_state),
       ...versions,
+      ...(claim
+        ? {
+            refresh_claim_token: claim.claim_token,
+            refresh_revision: claim.seeker_revision,
+          }
+        : {}),
+      ...(inputFingerprint
+        ? { input_fingerprint: inputFingerprint }
+        : {}),
     })
     .select("id")
     .single();

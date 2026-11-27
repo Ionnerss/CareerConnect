@@ -1,0 +1,41 @@
+name: Recommendation refresh
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recommendation-refresh-dispatch
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Invoke one recommendation batch
+    if: >-
+      github.repository == 'Ionnerss/CareerConnect' &&
+      github.ref == 'refs/heads/main' &&
+      vars.RECOMMENDATION_DISPATCH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Check worker invocation logic
+        run: node --test web/scripts/check-recommendation-worker-invocation.mjs
+
+      - name: Invoke deployed worker
+        env:
+          RECOMMENDATION_APP_URL: ${{ vars.RECOMMENDATION_APP_URL }}
+          RECOMMENDATION_WORKER_SECRET: ${{ secrets.RECOMMENDATION_WORKER_SECRET }}
+        run: node web/scripts/invoke-recommendation-worker.mjs

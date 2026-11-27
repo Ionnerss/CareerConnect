@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { PageBody, PageHero } from "@/components/app/page-hero";
+import BackgroundRefreshControl from "@/components/recommendations/background-refresh-control";
 import RecommendationsPanel from "@/components/recommendations/recommendations-panel";
 
 export const metadata: Metadata = {
   title: "Recommended jobs",
 };
 
-// Job seekers only. The /jobs layout already requires sign-in, two-factor authentication
-// when it is on, and the job_seeker role, and sends recruiters to their own pages.
+// The /jobs layout enforces authentication, MFA when required,
+// and the job_seeker role.
 export default function RecommendedJobsPage() {
   return (
     <main className="min-h-screen bg-[#F5F6F8] text-[#1F2937]">
@@ -18,9 +19,13 @@ export default function RecommendedJobsPage() {
       />
 
       <PageBody>
-        <section aria-label="Job recommendations">
-          <RecommendationsPanel />
-        </section>
+        <div className="space-y-5">
+          <BackgroundRefreshControl />
+
+          <section aria-label="Job recommendations">
+            <RecommendationsPanel />
+          </section>
+        </div>
       </PageBody>
     </main>
   );
