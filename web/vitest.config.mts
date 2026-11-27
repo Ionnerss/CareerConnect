@@ -10,11 +10,19 @@ export default defineConfig({
     },
   },
   test: {
-  environment: "node",
-  coverage: {
-    provider: 'v8',
-    reporter: ['text', 'html', 'lcov'],
-    reportsDirectory: './coverage',
+    environment: "node",
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/**/*.spec.{ts,tsx}",
+        "src/**/*.d.ts",
+        "src/**/__tests__/**",
+      ],
+      reporter: ["text", "html", "lcov", "json-summary"],
+      reportsDirectory: "./coverage",
+      reportOnFailure: true,
+    },
   },
-},
 });
