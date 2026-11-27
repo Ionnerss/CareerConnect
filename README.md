@@ -43,7 +43,7 @@ CareerConnect will use **Next.js**, **TypeScript**, and **PostgreSQL through Sup
 ## Git Workflow (Branches, User-Stories and Tasks)
 
 - `main` — stable/production-ready code
-- `dev` — integration branch for completed features
+- `dev` — integration branch for completed features and the deployment branch for the hosted Supabase database
 - Each team member works on their own personal/feature branch.
 - Changes are committed and pushed to the personal/feature branch.
 - A Pull Request (PR) is created from the personal/feature branch into `dev`.
@@ -53,6 +53,18 @@ CareerConnect will use **Next.js**, **TypeScript**, and **PostgreSQL through Sup
 - For each User-story, there will be a description and checkbox tasks associated with it.
 - Each member will be assigned to tasks based on respective roles.
 - When each task is done, the issue must be closed and the respective task must be checked in the user story.
+
+## Database development
+
+Database changes must be committed as Supabase migrations and tested locally
+before opening a PR into `dev`.
+
+**Merging into `dev` triggers the Supabase GitHub integration to deploy pending
+migrations to the hosted database.** Required CI checks and teammate review
+must pass before merging.
+
+Follow the [database workflow](docs/database-workflow.md) for migration creation,
+local testing, deployment verification, and recovery guidance.
 
 ## Setup instructions
 
